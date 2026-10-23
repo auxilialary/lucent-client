@@ -6,6 +6,8 @@ from time import time
 from urllib import request
 from urllib.request import Request, urlopen
 from uuid import UUID, uuid4
+import copy
+import hashlib
 import io
 import json
 import os
@@ -689,6 +691,67 @@ def client_can_connect_7(test_env):
 	client.exit()
 	server.wait_for_exit()
 	client.wait_for_exit()
+
+
+def check_map_download(test_env, sixup):
+	# Keep the uniquely named map visible only to the server. Both environments
+	# have fresh save directories, so the client must download it over the wire.
+	server_data = os.path.join(test_env.tmp_dir, "server-data")
+	map_name = "wp2-transfer"
+	for directory in ("maps", "maps7"):
+		os.makedirs(os.path.join(server_data, directory))
+		shutil.copyfile(
+			os.path.join(test_env.runner.data_dir, directory, "Tutorial.map"),
+			os.path.join(server_data, directory, f"{map_name}.map"),
+		)
+	server_dir = os.path.join(test_env.tmp_dir, "server")
+	os.makedirs(server_dir)
+	runner = copy.copy(test_env.runner)
+	runner.data_dir = server_data
+	server_env = TestEnvironment(runner, test_env.name + "_server", server_dir, timeout=30)
+	try:
+		server = server_env.server([f"sv_map {map_name}", "sv_map_window 8"])
+		# An unavailable loopback HTTPS endpoint exercises UDP
+		# fallback without contacting an external map service.
+		client = test_env.client([
+			"cl_map_download_url https://127.0.0.1:1",
+			"cl_map_download_connect_timeout_ms 50",
+			"stdout_output_level 1",
+		])
+		wait_for_startup([client, server])
+		scheme = "tw-0.7+udp://" if sixup else ""
+		client.command(f"connect {scheme}127.0.0.1:{server.port}")
+		client.wait_for_log_exact("client/network: download complete, loading map", timeout=15)
+		join = server.wait_for_log_prefix("server: player has entered the game", timeout=15).line
+		if f"sixup={int(sixup)}" not in join:
+			raise AssertionError(f"wrong protocol in {join!r}")
+		directory = "maps7" if sixup else "maps"
+		with open(os.path.join(server_data, directory, f"{map_name}.map"), "rb") as f:
+			expected = f.read()
+		download_dir = os.path.join(test_env.tmp_dir, "downloadedmaps")
+		downloads = [name for name in os.listdir(download_dir) if name.startswith(map_name + "_") and name.endswith(".map")]
+		if len(downloads) != 1:
+			raise AssertionError(f"expected one complete map, found {downloads!r}")
+		with open(os.path.join(download_dir, downloads[0]), "rb") as f:
+			actual = f.read()
+		if actual != expected or hashlib.sha256(actual).digest() != hashlib.sha256(expected).digest():
+			raise AssertionError("downloaded map bytes/SHA256 differ from server map")
+		client.exit()
+		client.wait_for_exit()
+		server.exit()
+		server.wait_for_exit()
+	finally:
+		server_env.kill_all()
+
+
+@test(timeout=30)
+def map_download_06(test_env):
+	check_map_download(test_env, False)
+
+
+@test(timeout=30)
+def map_download_07(test_env):
+	check_map_download(test_env, True)
 
 
 @test(requires_websockets=True)
