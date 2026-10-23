@@ -25,6 +25,10 @@
 
 using namespace std::chrono_literals;
 
+// Budget for 16K servers at 4 KiB each, including clients and JSON overhead.
+// Applied to decoded data too, via IHttpRequest::OnData, even without Content-Length.
+static constexpr int64_t MAX_SERVERLIST_RESPONSE_SIZE = 64 * 1024 * 1024;
+
 static int SanitizeAge(std::optional<int64_t> Age)
 {
 	// A year is of course pi*10**7 seconds.
@@ -246,6 +250,7 @@ void CChooseMaster::CJob::Run()
 
 		auto StartTime = time_get_nanoseconds();
 		std::shared_ptr<IHttpRequest> pGet = HttpGet(pUrl);
+		pGet->MaxResponseSize(MAX_SERVERLIST_RESPONSE_SIZE);
 		pGet->Timeout(Timeout);
 		pGet->LogProgress(HTTPLOG::FAILURE);
 		{
@@ -391,6 +396,7 @@ void CServerBrowserHttp::Update()
 			return;
 		}
 		m_pGetServers = HttpGet(pBestUrl);
+		m_pGetServers->MaxResponseSize(MAX_SERVERLIST_RESPONSE_SIZE);
 		// 10 seconds connection timeout, lower than 8KB/s for 10 seconds to fail.
 		m_pGetServers->Timeout(CTimeout{10000, 0, 8000, 10});
 		m_pHttp->Run(m_pGetServers);
