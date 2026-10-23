@@ -165,3 +165,49 @@ TEST_F(Jobs, Many)
 	}
 	SetUp();
 }
+
+class CDelayedHostLookup : public CHostLookup
+{
+	SEMAPHORE &m_Started;
+	SEMAPHORE &m_Continue;
+	void Run() override
+	{
+		sphore_signal(&m_Started);
+		sphore_wait(&m_Continue);
+		CHostLookup::Run();
+	}
+public:
+	CDelayedHostLookup(SEMAPHORE &Started, SEMAPHORE &Continue) :
+		CHostLookup("127.0.0.1:8303", NETTYPE_IPV4), m_Started(Started), m_Continue(Continue) {}
+};
+
+TEST_F(Jobs, CancelDelayedLookupAndReplace)
+{
+	SEMAPHORE Started, Continue;
+	sphore_init(&Started);
+	sphore_init(&Continue);
+	auto pOld = std::make_shared<CDelayedHostLookup>(Started, Continue);
+	std::weak_ptr<CHostLookup> OldLifetime = pOld;
+	Add(pOld);
+	sphore_wait(&Started);
+	EXPECT_TRUE(pOld->Abort());
+	EXPECT_EQ(pOld->State(), IJob::STATE_ABORTED);
+	pOld.reset();
+	// The pool keeps the old resolver alive, but the replacement can finish
+	// independently. No result from an aborted resolver may be read.
+	EXPECT_FALSE(OldLifetime.expired());
+	auto pCurrent = std::make_shared<CHostLookup>("127.0.0.2:8304", NETTYPE_IPV4);
+	Add(pCurrent);
+	while(!pCurrent->Done())
+		thread_yield();
+	EXPECT_EQ(pCurrent->State(), IJob::STATE_DONE);
+	EXPECT_EQ(pCurrent->Result(), 0);
+	EXPECT_EQ(pCurrent->Addr().ip[3], 2);
+	EXPECT_EQ(pCurrent->Addr().port, 8304);
+	sphore_signal(&Continue);
+	TearDown();
+	EXPECT_TRUE(OldLifetime.expired());
+	sphore_destroy(&Started);
+	sphore_destroy(&Continue);
+	SetUp();
+}

@@ -21,6 +21,7 @@
 #include <engine/shared/config.h>
 #include <engine/shared/demo.h>
 #include <engine/shared/fifo.h>
+#include <engine/shared/host_lookup.h>
 #include <engine/shared/network.h>
 #include <engine/textrender.h>
 #include <engine/warning.h>
@@ -29,6 +30,8 @@
 #include <deque>
 #include <memory>
 #include <mutex>
+#include <string>
+#include <vector>
 
 class CDemoEdit;
 class IDemoRecorder;
@@ -121,6 +124,16 @@ class CClient : public IClient, public CDemoPlayer::IListener
 	int m_GotRconCommands = 0;
 	char m_aPassword[sizeof(g_Config.m_Password)] = "";
 	bool m_SendPassword = false;
+	struct CConnectLookup
+	{
+		std::shared_ptr<CHostLookup> m_pJob;
+		bool m_Sixup;
+	};
+	std::vector<CConnectLookup> m_vConnectLookups;
+	NETADDR m_ConnectLastAddr{};
+	std::optional<std::string> m_ConnectPassword;
+	void UpdateConnectLookup();
+	void CancelConnectLookup();
 
 	int m_ExpectedMaplistEntries = -1;
 	std::vector<std::string> m_vMaplistEntries;

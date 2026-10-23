@@ -15,6 +15,7 @@ private:
 	int m_Nettype;
 	NETADDR m_Addr;
 
+protected:
 	void Run() override;
 
 public:
