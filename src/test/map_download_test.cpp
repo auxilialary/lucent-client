@@ -46,6 +46,27 @@ public:
 	} m_TranslationContext;
 	IConsole *m_pConsole = nullptr; // Debug logging disabled by the fixture.
 	bool m_Finished = false;
+	bool m_Disconnected = false;
+	enum class EIoFailure { NONE, WRITE, ERROR, CLOSE };
+	EIoFailure m_IoFailure = EIoFailure::NONE;
+	unsigned Write(IOHANDLE File, const void *pData, unsigned Size)
+	{
+		return m_IoFailure == EIoFailure::WRITE ? 0 : io_write(File, pData, Size);
+	}
+	int Error(IOHANDLE File) { return m_IoFailure == EIoFailure::ERROR ? 1 : io_error(File); }
+	int Close(IOHANDLE File)
+	{
+		const int Result = io_close(File);
+		return m_IoFailure == EIoFailure::CLOSE ? -1 : Result;
+	}
+	void DisconnectWithReason(const char *)
+	{
+		m_Disconnected = true;
+		if(m_MapdownloadFileTemp)
+			io_close(m_MapdownloadFileTemp);
+		m_MapdownloadFileTemp = nullptr;
+		fs_remove(m_aMapdownloadFilenameTemp);
+	}
 	std::vector<std::vector<unsigned char>> m_Messages;
 
 	bool IsSixup() const { return m_Sixup; }
@@ -59,7 +80,13 @@ public:
 	}
 };
 
+#define io_write Write
+#define io_error Error
+#define io_close Close
 #include <generated/map_download_test.inc>
+#undef io_write
+#undef io_error
+#undef io_close
 
 void CMapDownloadHarness::SendMsg(int Conn, CMsgPacker *pMsg, int Flags)
 {
@@ -152,3 +179,41 @@ static void TestMapDownload(int Window)
 TEST(MapDownload, Window1) { TestMapDownload(1); }
 TEST(MapDownload, Window2) { TestMapDownload(2); }
 TEST(MapDownload, Window8) { TestMapDownload(8); }
+
+TEST(MapDownload, OpenFailure)
+{
+	CMapDownloadHarness Client;
+	Client.m_aMapdownloadFilenameTemp = "";
+	Client.SendMapRequest();
+	EXPECT_TRUE(Client.m_Disconnected);
+	EXPECT_TRUE(Client.m_Messages.empty());
+}
+
+TEST(MapDownload, IoFailures)
+{
+	for(auto Failure : {CMapDownloadHarness::EIoFailure::WRITE, CMapDownloadHarness::EIoFailure::ERROR, CMapDownloadHarness::EIoFailure::CLOSE})
+	{
+		CTestInfo Info;
+		CMapDownloadHarness Client;
+		Client.m_Sixup = false;
+		Client.m_aMapdownloadFilenameTemp = Info.m_aFilename;
+		Client.m_IoFailure = Failure;
+		Client.SendMapRequest();
+		ASSERT_NE(Client.m_MapdownloadFileTemp, nullptr);
+		CPacker Packet;
+		Packet.Reset();
+		Packet.AddInt(1);
+		Packet.AddInt(Client.m_MapdownloadCrc);
+		Packet.AddInt(0);
+		Packet.AddInt(1);
+		Packet.AddRaw("a", 1);
+		CUnpacker Unpacker;
+		Unpacker.Reset(Packet.Data(), Packet.Size());
+		Client.Receive(Unpacker);
+		EXPECT_TRUE(Client.m_Disconnected);
+		EXPECT_FALSE(Client.m_Finished);
+		EXPECT_EQ(Client.m_MapdownloadFileTemp, nullptr);
+		EXPECT_EQ(Client.m_Messages.size(), 1);
+		EXPECT_EQ(fs_is_file(Info.m_aFilename), 0);
+	}
+}

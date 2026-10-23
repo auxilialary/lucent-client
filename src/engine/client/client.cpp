@@ -277,6 +277,11 @@ void CClient::SendMapRequest()
 {
 	dbg_assert(!m_MapdownloadFileTemp, "Map download already in progress");
 	m_MapdownloadFileTemp = Storage()->OpenFile(m_aMapdownloadFilenameTemp, IOFLAG_WRITE, IStorage::TYPE_SAVE);
+	if(!m_MapdownloadFileTemp)
+	{
+		DisconnectWithReason("Could not open map download file");
+		return;
+	}
 	if(IsSixup())
 	{
 		CMsgPacker MsgP(protocol7::NETMSG_REQUEST_MAP_DATA, true, true);
@@ -1839,7 +1844,11 @@ void CClient::ProcessServerPacket(CNetChunk *pPacket, int Conn, bool Dummy)
 				return;
 			}
 
-			io_write(m_MapdownloadFileTemp, pData, Size);
+			if(io_write(m_MapdownloadFileTemp, pData, Size) != (unsigned)Size || io_error(m_MapdownloadFileTemp))
+			{
+				DisconnectWithReason("Could not write map download file");
+				return;
+			}
 
 			m_MapdownloadAmount += Size;
 
@@ -1850,8 +1859,13 @@ void CClient::ProcessServerPacket(CNetChunk *pPacket, int Conn, bool Dummy)
 			{
 				if(m_MapdownloadFileTemp)
 				{
-					io_close(m_MapdownloadFileTemp);
+					const int CloseResult = io_close(m_MapdownloadFileTemp);
 					m_MapdownloadFileTemp = nullptr;
+					if(CloseResult != 0)
+					{
+						DisconnectWithReason("Could not close map download file");
+						return;
+					}
 				}
 				FinishMapDownload();
 			}
