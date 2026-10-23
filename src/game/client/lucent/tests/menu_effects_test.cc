@@ -44,7 +44,17 @@ int main()
 			const vec2 P = Contour.m_aPoints[i];
 			CHECK(P.x >= -0.001f && P.x <= Size.x + 0.001f && P.y >= -0.001f && P.y <= Size.y + 0.001f);
 			if(i)
-				CHECK(distance(P, Contour.m_aPoints[i - 1]) < 2);
+			{
+				const vec2 Previous = Contour.m_aPoints[i - 1];
+				if(i % 33 == 0)
+				{
+					// Tangent endpoints span an entire straight edge.
+					CHECK(std::abs(P.x - Previous.x) < 0.001f || std::abs(P.y - Previous.y) < 0.001f);
+					CHECK(distance(Contour.m_aNormals[i], Contour.m_aNormals[i - 1]) < 0.001f);
+				}
+				else
+					CHECK(distance(P, Previous) < 2);
+			}
 		}
 	}
 	for(int Arc = 0; Arc < 3; ++Arc)

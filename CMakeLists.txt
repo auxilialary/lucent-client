@@ -2762,6 +2762,8 @@ if(CLIENT)
     lucent/lucent_menu_effects.h
     lucent/lucent_menu_interaction.cpp
     lucent/lucent_menu_interaction.h
+    lucent/lucent_startup.cpp
+    lucent/lucent_startup.h
     multiview.cpp
     pickup_data.cpp
     pickup_data.h

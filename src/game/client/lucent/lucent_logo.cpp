@@ -33,7 +33,7 @@ void CLucentLogo::Reset(ITextRender *pTextRender)
 	m_Scale = 0.0f;
 }
 
-void CLucentLogo::Render(IGraphics *pGraphics, ITextRender *pTextRender, float CenterX, float Top, float AvailableWidth, double Time, float Energy, vec2 OrbitOffset, const float *pHighlight)
+void CLucentLogo::Render(IGraphics *pGraphics, ITextRender *pTextRender, float CenterX, float Top, float AvailableWidth, double Time, float Energy, vec2 OrbitOffset, const float *pHighlight, float Alpha, float OrbitAlpha)
 {
 	const float Scale = std::min(1.0f, AvailableWidth / 400.0f);
 	if(m_Scale != Scale)
@@ -62,10 +62,10 @@ void CLucentLogo::Render(IGraphics *pGraphics, ITextRender *pTextRender, float C
 	{
 		const float Spread = i * 4.0f * Scale;
 		CUIRect Glow = {CenterX - m_Width / 2 - Spread, Top + 8 * Scale - Spread, m_Width * 0.7f + 2 * Spread, 32 * Scale + 2 * Spread};
-		Glow.Draw(ColorRGBA(1, 0.70f, 0.85f, 0.003f + Energy * 0.001f), IGraphics::CORNER_ALL, 24 * Scale);
+		Glow.Draw(ColorRGBA(1, 0.70f, 0.85f, (0.003f + Energy * 0.001f) * Alpha), IGraphics::CORNER_ALL, 24 * Scale);
 	}
 	const vec2 OrbitCenter = vec2(CenterX, Top + 29.0f * Scale) + OrbitOffset;
-	CLucentMenuEffects::Orbit(pGraphics, OrbitCenter, Scale, Time, pHighlight, false, Energy);
+	CLucentMenuEffects::Orbit(pGraphics, OrbitCenter, Scale, Time, pHighlight, false, Energy, Alpha * OrbitAlpha);
 
 	const CScreenRect Screen = pGraphics->GetScreen();
 	const vec2 Pixels = pGraphics->ScreenSize() / Screen.Size();
@@ -82,12 +82,12 @@ void CLucentLogo::Render(IGraphics *pGraphics, ITextRender *pTextRender, float C
 		if(End <= X)
 			continue;
 		pGraphics->ClipEnable(X, 0, End - X, pGraphics->ScreenHeight());
-		const ColorRGBA Color = Gradient((i + 0.5f) / Bands, Time);
+		const ColorRGBA Color = Gradient((i + 0.5f) / Bands, Time).WithAlpha(Alpha);
 		for(const auto &Text : m_aText)
 			if(Text.Valid())
 				pTextRender->RenderTextContainer(Text, Color, ColorRGBA(0, 0, 0, 0), Left, Top);
 	}
 	pGraphics->ClipDisable();
-	CLucentMenuEffects::Orbit(pGraphics, OrbitCenter, Scale, Time, pHighlight, true, Energy);
+	CLucentMenuEffects::Orbit(pGraphics, OrbitCenter, Scale, Time, pHighlight, true, Energy, Alpha * OrbitAlpha);
 	pGraphics->SetColor(1, 1, 1, 1);
 }

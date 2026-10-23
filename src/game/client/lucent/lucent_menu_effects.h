@@ -10,7 +10,7 @@ class IGraphics;
 // Fixed geometry caches, bounded tessellation and no per-frame resource creation.
 namespace CLucentMenuEffects
 {
-	void Orbit(IGraphics *pGraphics, vec2 Center, float Scale, double Time, const float *pHighlight, bool Foreground, float Energy = 0);
+	void Orbit(IGraphics *pGraphics, vec2 Center, float Scale, double Time, const float *pHighlight, bool Foreground, float Energy = 0, float Alpha = 1);
 	void Chip(IGraphics *pGraphics, const CUIRect &Rect, int Icon, float Alpha, float Highlight, double Time);
 	void Connection(IGraphics *pGraphics, vec2 Center, float Scale, const CUIRect &Target, int Index, float Progress, float Highlight, float PulseAge);
 }

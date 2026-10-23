@@ -23,6 +23,7 @@
 #include <game/client/components/menus_start.h>
 #include <game/client/components/skins7.h>
 #include <game/client/lineinput.h>
+#include <game/client/lucent/lucent_startup.h>
 #include <game/client/ui.h>
 #include <game/voting.h>
 
@@ -32,6 +33,7 @@
 
 class CMenus : public CComponent
 {
+	CLucentStartup m_LucentStartup;
 	static ColorRGBA ms_GuiColor;
 	static ColorRGBA ms_ColorTabbarInactiveOutgame;
 	static ColorRGBA ms_ColorTabbarActiveOutgame;

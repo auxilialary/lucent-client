@@ -1,6 +1,7 @@
 /* (c) Magnus Auvinen. See licence.txt in the root of the distribution for more information. */
 /* If you are missing that file, acquire a complete release at teeworlds.com.                */
 
+#include <game/client/lucent/lucent_startup.h>
 #include "client.h"
 
 #include "demoedit.h"
@@ -3301,8 +3302,8 @@ void CClient::Run()
 		}
 	}
 
-	// make sure the first frame just clears everything to prevent undesired colors when waiting for io
-	Graphics()->Clear(0, 0, 0);
+	// First safe frame: Lucent background, before fonts and resources exist.
+	CLucentStartup::Clear(Graphics());
 	Graphics()->Swap();
 
 	// init localization first, making sure all errors during init can be localized

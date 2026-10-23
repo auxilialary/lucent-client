@@ -703,6 +703,13 @@ void CMenus::RenderLoadingDirect(const char *pCaption, const char *pContent, std
 	ms_GuiColor = color_cast<ColorRGBA>(ColorHSLA(g_Config.m_UiColor, true));
 
 	Ui()->MapScreen();
+	if(m_LucentStartup.Loading())
+	{
+		m_LoadingState.m_LastRender = Now;
+		m_LucentStartup.Render(Graphics(), TextRender(), *Ui()->Screen(), Progress);
+		Client()->UpdateAndSwap();
+		return;
+	}
 
 	if(GameClient()->m_MenuBackground.IsLoading())
 	{
@@ -751,14 +758,14 @@ void CMenus::RenderLoading(const char *pCaption, const char *pContent, int Incre
 {
 	// does not support multithreading
 
-	const int CurLoadRenderCount = m_LoadingState.m_Current;
 	m_LoadingState.m_Current += IncreaseCounter;
 	dbg_assert(m_LoadingState.m_Current <= m_LoadingState.m_Total, "Invalid progress for RenderLoading");
-	RenderLoadingDirect(pCaption, pContent, m_LoadingState.m_Total > 0 ? std::make_optional(CurLoadRenderCount / (float)m_LoadingState.m_Total) : std::nullopt);
+	RenderLoadingDirect(pCaption, pContent, m_LoadingState.m_Total > 0 ? std::make_optional(m_LoadingState.m_Current / (float)m_LoadingState.m_Total) : std::nullopt);
 }
 
 void CMenus::FinishLoading()
 {
+	m_LucentStartup.Finish();
 	m_LoadingState.m_Current = 0;
 	m_LoadingState.m_Total = 0;
 }
@@ -2304,6 +2311,7 @@ void CMenus::SetActive(bool Active)
 void CMenus::OnShutdown()
 {
 	m_MenusStart.ResetLogo(TextRender());
+	m_LucentStartup.ResetLogo(TextRender());
 	m_CommunityIcons.Shutdown();
 }
 
@@ -2375,6 +2383,7 @@ void CMenus::OnStateChange(int NewState, int OldState)
 void CMenus::OnWindowResize()
 {
 	m_MenusStart.ResetLogo(TextRender());
+	m_LucentStartup.ResetLogo(TextRender());
 	TextRender()->DeleteTextContainer(m_MotdTextContainerIndex);
 }
 
@@ -2428,6 +2437,8 @@ void CMenus::OnRender()
 
 	Ui()->FinishCheck();
 	Ui()->ClearHotkeys();
+	Ui()->MapScreen();
+	m_LucentStartup.RenderTransition(Graphics(), TextRender(), *Ui()->Screen());
 }
 
 void CMenus::UpdateColors()

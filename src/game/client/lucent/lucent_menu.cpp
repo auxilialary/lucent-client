@@ -204,7 +204,14 @@ void CLucentMenu::RenderStartMenu(CUIRect MainView)
 	}
 	// Cached wordmark with local orbit reactions for each navigation direction.
 	const float Activation = 1 - std::pow(1 - m_Progress, 3.0f);
-	m_Logo.Render(Graphics(), TextRender(), CenterX, CenterY - 29 * Scale, LogoWidth, m_EffectTime, m_LogoEnergy, m_OrbitOffset, m_aHighlight);
+	float aOrbitReaction[6];
+	for(int i = 0; i < 6; ++i)
+	{
+		const double Age = Now - m_aPulseStart[i];
+		const float Arrival = Animate && m_aPulseStart[i] > 0 ? std::max(0.0f, 1 - static_cast<float>(std::abs(Age - 0.65) / 0.3)) : 0;
+		aOrbitReaction[i] = m_aHighlight[i] * (0.25f + Arrival * 0.75f);
+	}
+	m_Logo.Render(Graphics(), TextRender(), CenterX, CenterY - 29 * Scale, LogoWidth, m_EffectTime, m_LogoEnergy, m_OrbitOffset, aOrbitReaction);
 	bool aClick[6] = {};
 	const char *apLabels[] = {Localize("Play", "Start menu"), Localize("Demos"), Localize("Editor"), Localize("Run server"), Localize("Settings"), Localize("Quit")};
 	for(int i = 0; i < 6; ++i)

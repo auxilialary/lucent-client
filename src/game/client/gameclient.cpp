@@ -369,8 +369,8 @@ void CGameClient::OnInit()
 	}
 	TextRender()->SetFontLanguageVariant(g_Config.m_ClLanguagefile);
 
-	// update and swap after font loading, they are quite huge
-	Client()->UpdateAndSwap();
+	// Present from the first safe frame with fonts, before component loading.
+	m_Menus.RenderLoadingDirect("", "", std::nullopt);
 
 	const char *pLoadingDDNetCaption = Localize("Loading DDNet Client");
 	const char *pLoadingMessageComponents = Localize("Initializing components");

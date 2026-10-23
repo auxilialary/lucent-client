@@ -10,6 +10,6 @@ class CLucentLogo
 
 public:
 	void Reset(ITextRender *pTextRender);
-	void Render(IGraphics *pGraphics, ITextRender *pTextRender, float CenterX, float Top, float AvailableWidth, double Time, float Energy, vec2 OrbitOffset, const float *pHighlight = nullptr);
+	void Render(IGraphics *pGraphics, ITextRender *pTextRender, float CenterX, float Top, float AvailableWidth, double Time, float Energy, vec2 OrbitOffset, const float *pHighlight = nullptr, float Alpha = 1, float OrbitAlpha = 1);
 };
 #endif

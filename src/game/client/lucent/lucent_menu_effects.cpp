@@ -229,7 +229,7 @@ namespace
 			const auto Point = [Pixel](int Index) {
 				const float A = TAU * (Index % Segments) / Segments;
 				const float C = std::cos(A), S = std::sin(A);
-				return vec2(3.8f * C * C * C, 4.8f * S * S * S) * Pixel;
+				return vec2(5.6f * C * C * C, 7.5f * S * S * S) * Pixel;
 			};
 			const vec2 A = Point(i), B = Point(i + 1);
 			const ColorRGBA White(1, 1, 1, Brightness);
@@ -248,7 +248,7 @@ namespace
 
 }
 
-void CLucentMenuEffects::Orbit(IGraphics *pGraphics, vec2 Center, float Scale, double Time, const float *pHighlight, bool Foreground, float Energy)
+void CLucentMenuEffects::Orbit(IGraphics *pGraphics, vec2 Center, float Scale, double Time, const float *pHighlight, bool Foreground, float Energy, float Alpha)
 {
 	// Independent periodic flows on a shared ellipse. Depth follows position,
 	// so the rear hemisphere is occluded by the wordmark.
@@ -284,8 +284,8 @@ void CLucentMenuEffects::Orbit(IGraphics *pGraphics, vec2 Center, float Scale, d
 			const float Taper = std::min(1.0f, std::min(T, 1 - T) * 9);
 			const vec2 A = OrbitPoint(Center, Scale, mix(Starts[Arc], Ends[Arc], i / 56.0f) + Phase);
 			const vec2 B = OrbitPoint(Center, Scale, mix(Starts[Arc], Ends[Arc], (i + 1) / 56.0f) + Phase);
-			Stroke(pGraphics, A, B, Pixel * 3.0f, ColorRGBA(1, 0.65f, 0.81f, Taper * (0.025f + Reaction * 0.08f)));
-			Stroke(pGraphics, A, B, Pixel * (0.85f + 0.12f * Breath + Energy * 0.15f), ColorRGBA(1, 0.81f, 0.91f, Taper * (0.22f * Breath + Reaction * 0.52f + Pulse * (0.45f + Energy * 0.2f) + Energy * 0.08f)));
+			Stroke(pGraphics, A, B, Pixel * 3.0f, ColorRGBA(1, 0.65f, 0.81f, Alpha * Taper * (0.025f + Reaction * 0.08f)));
+			Stroke(pGraphics, A, B, Pixel * (0.85f + 0.12f * Breath + Energy * 0.15f), ColorRGBA(1, 0.81f, 0.91f, Alpha * Taper * (0.22f * Breath + Reaction * 0.52f + Pulse * (0.45f + Energy * 0.2f) + Energy * 0.08f)));
 		}
 	}
 	// Keep the light anchors on their original orbit and period.
@@ -294,7 +294,7 @@ void CLucentMenuEffects::Orbit(IGraphics *pGraphics, vec2 Center, float Scale, d
 		{
 			const float Phase = static_cast<float>(std::fmod(Time, 9.7) / 9.7) * TAU;
 			const vec2 P = OrbitPoint(Center, Scale, Angle + Phase);
-			Star(pGraphics, P, Pixel, 0.64f + 0.16f * std::sin(Phase * 2 + Angle));
+			Star(pGraphics, P, Pixel, Alpha * (0.78f + 0.12f * std::sin(Phase * 2 + Angle)));
 		}
 	pGraphics->QuadsEnd();
 }
@@ -318,16 +318,24 @@ void CLucentMenuEffects::Connection(IGraphics *pGraphics, vec2 Center, float Sca
 	constexpr int Segments = 48;
 	for(int i = 0; i < Segments; ++i)
 	{
-		const float T = (i + 0.5f) / Segments;
-		const auto Wave = [T](float H) {
-			const float Tail = H - T;
-			return Tail >= 0 && Tail < 0.24f ? std::pow(1 - Tail / 0.24f, 2.0f) * std::min(1.0f, Tail / 0.025f) : 0.0f;
+		// T=0 is the orbit. Keep the cubic fixed even as the arcs rotate.
+		const auto ColorAt = [&](float T) {
+			const float U = std::clamp(T / 0.27f, 0.0f, 1.0f);
+			const float Dissolve = U * U * (3 - 2 * U);
+			const float Head = 1 - PulseAge * 1.25f;
+			const float Tail = T - Head;
+			const float Pulse = PulseAge >= 0 && Tail >= 0 && Tail < 0.24f ? std::pow(std::sin(TAU * 0.5f * Tail / 0.24f), 2.0f) : 0;
+			return ColorRGBA(1, 0.88f - T * 0.13f, 0.94f - T * 0.06f,
+				Progress * Dissolve * ((0.13f + Highlight * 0.25f) + Pulse * Highlight * 0.38f));
 		};
-
-		const float Arrival = PulseAge >= 0 && PulseAge < 1.1f ? Wave(PulseAge * 1.25f) * 0.38f : 0;
-		const float Alpha = Progress * ((0.13f + Highlight * 0.25f) * (1 - T * 0.55f) + Arrival * Highlight);
-		const ColorRGBA Color(1, 0.88f - T * 0.13f, 0.94f - T * 0.06f, Alpha);
-		Stroke(pGraphics, Bezier(A, B, C, D, i * Reveal / Segments), Bezier(A, B, C, D, (i + 1) * Reveal / Segments), Pixel * 1.3f, Color);
+		const float T0 = 1 - i * Reveal / Segments, T1 = 1 - (i + 1) * Reveal / Segments;
+		const vec2 P0 = Bezier(A, B, C, D, T0), P1 = Bezier(A, B, C, D, T1);
+		const auto Normal = [&](float T) {
+			const vec2 V = (B - A) * (3 * (1 - T) * (1 - T)) + (C - B) * (6 * (1 - T) * T) + (D - C) * (3 * T * T);
+			return normalize(vec2(-V.y, V.x));
+		};
+		const ColorRGBA C0 = ColorAt(T0), C1 = ColorAt(T1);
+		Ribbon(pGraphics, P0, P1, Normal(T0), Normal(T1), Pixel * 1.3f, C0, &C1);
 	}
 	pGraphics->QuadsEnd();
 }
