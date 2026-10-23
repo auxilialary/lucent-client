@@ -23,7 +23,7 @@ namespace
 		return ColorRGBA(mix(A.r, B.r, Blend), mix(A.g, B.g, Blend), mix(A.b, B.b, Blend), 1.0f);
 	}
 
-	void Orbit(IGraphics *pGraphics, vec2 Center, float Scale, double Time)
+	void Orbit(IGraphics *pGraphics, vec2 Center, float Scale, double Time, float Activity)
 	{
 		constexpr int Segments = 192;
 		const auto Point = [=](float Angle) {
@@ -46,7 +46,7 @@ namespace
 			{
 				const float Radius = (Layer == 0 ? 2.5f : 0.65f) * Scale;
 				const float Alpha = (Layer == 0 ? 0.045f : 0.22f) + Accent * (Layer == 0 ? 0.08f : 0.38f);
-				const ColorRGBA Color(1.0f, 0.79f, 0.89f, Alpha);
+				const ColorRGBA Color(1.0f, 0.79f, 0.89f, Alpha * (1.0f + 0.25f * Activity));
 				const ColorRGBA Clear(1.0f, 0.79f, 0.89f, 0.0f);
 				for(int Side : {-1, 1})
 				{
@@ -68,7 +68,7 @@ void CLucentLogo::Reset(ITextRender *pTextRender)
 	m_Scale = 0.0f;
 }
 
-void CLucentLogo::Render(IGraphics *pGraphics, ITextRender *pTextRender, float CenterX, float Top, float AvailableWidth)
+void CLucentLogo::Render(IGraphics *pGraphics, ITextRender *pTextRender, float CenterX, float Top, float AvailableWidth, float Activity)
 {
 	const float Scale = std::min(1.0f, AvailableWidth / 400.0f);
 	if(m_Scale != Scale)
@@ -95,7 +95,7 @@ void CLucentLogo::Render(IGraphics *pGraphics, ITextRender *pTextRender, float C
 	// time_get is monotonic. No accumulated frame deltas or work outside this view.
 	const bool Animate = g_Config.m_ClLucentLogoAnimation && (g_Config.m_GfxRefreshRate == 0 || g_Config.m_GfxRefreshRate >= 30);
 	const double Time = Animate ? static_cast<double>(time_get()) / time_freq() : 0.0;
-	Orbit(pGraphics, vec2(CenterX, Top + 29.0f * Scale), Scale, Time);
+	Orbit(pGraphics, vec2(CenterX, Top + 29.0f * Scale), Scale, Time, Activity);
 
 	const CScreenRect Screen = pGraphics->GetScreen();
 	const vec2 Pixels = pGraphics->ScreenSize() / Screen.Size();
