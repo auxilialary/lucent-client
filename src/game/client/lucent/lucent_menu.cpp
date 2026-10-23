@@ -1,6 +1,7 @@
 /* (c) Magnus Auvinen. See licence.txt in the root of the distribution for more information. */
 /* If you are missing that file, acquire a complete release at teeworlds.com.                */
 #include "lucent_menu.h"
+#include "lucent_menu_effects.h"
 
 #include <base/time.h>
 
@@ -34,22 +35,25 @@ bool CLucentMenu::Button(int Index, const char *pLabel, const CUIRect &Rect, flo
 	const bool Focus = m_Focus == Index;
 	CUIRect Visual = Rect;
 	Visual.x += Offset;
+	const bool Accent = Hover || Focus;
+	CLucentMenuEffects::Chip(Graphics(), Visual, Index, Alpha, Accent);
+	CUIRect Label = Visual;
+	const float Inset = std::min(34.0f, Rect.w * 0.27f);
+	Label.x += Inset;
+	Label.w -= Inset + 10;
 	SLabelProperties Props;
-	Props.m_MaxWidth = Rect.w - 8;
-	Props.SetColor(Hover || Focus ? ColorRGBA(1, 0.72f, 0.84f, Alpha) : ColorRGBA(0.92f, 0.92f, 0.96f, Alpha));
-	const float FontSize = std::min(16.0f, 16.0f * (Rect.w - 8) / std::max(1.0f, TextRender()->TextWidth(16.0f, pLabel)));
-	Ui()->DoLabel(&Visual, pLabel, FontSize, TEXTALIGN_MC, Props);
-	if(Hover || Focus)
-	{
-		CUIRect Line = {Rect.x + 16, Rect.y + Rect.h - 2, Rect.w - 32, 1};
-		Line.Draw(ColorRGBA(1, 0.72f, 0.84f, Alpha * 0.6f), 0, 0);
-	}
+	Props.m_MaxWidth = Label.w;
+	Props.SetColor(Accent ? ColorRGBA(1, 0.82f, 0.9f, Alpha) : ColorRGBA(0.88f, 0.87f, 0.92f, Alpha));
+	const float FontSize = std::min(14.0f, 14.0f * Label.w / std::max(1.0f, TextRender()->TextWidth(14.0f, pLabel)));
+	Ui()->DoLabel(&Label, pLabel, FontSize, TEXTALIGN_ML, Props);
 	return Enabled && (Ui()->DoButtonLogic(&m_aButtons[Index], 0, &Rect, BUTTONFLAG_LEFT) || (Focus && Activate));
 }
 
 void CLucentMenu::RenderStartMenu(CUIRect MainView)
 {
 	GameClient()->m_MenuBackground.ChangePosition(CMenuBackground::POS_START);
+	// A quiet glass backdrop keeps the constellation legible over any menu map.
+	MainView.Draw(ColorRGBA(0.018f, 0.015f, 0.027f, 0.96f), 0, 0);
 	const double Now = static_cast<double>(time_get()) / time_freq();
 	const bool Animate = g_Config.m_ClLucentLogoAnimation && (g_Config.m_GfxRefreshRate == 0 || g_Config.m_GfxRefreshRate >= 30);
 	if(m_LastFrame < 0 || Now - m_LastFrame > 1.0)
@@ -63,20 +67,28 @@ void CLucentMenu::RenderStartMenu(CUIRect MainView)
 	m_LastFrame = Now;
 	const float CenterX = MainView.x + MainView.w / 2;
 	const float CenterY = MainView.y + MainView.h * 0.43f;
-	const float LogoWidth = std::min(400.0f, MainView.w * 0.43f);
+	const float LogoWidth = std::min(400.0f, MainView.w * 0.38f);
 	const float Scale = LogoWidth / 400;
 	CUIRect Logo = {CenterX - 180 * Scale, CenterY - 44 * Scale, 360 * Scale, 88 * Scale};
-	const float Width = std::min(180.0f, MainView.w * 0.23f);
-	const float Gap = MainView.w * 0.035f;
-	CUIRect Left = {Logo.x - Gap - Width, CenterY - 63, Width, 126};
-	CUIRect Right = {Logo.x + Logo.w + Gap, Left.y, Width, Left.h};
+	const float Width = std::min(164.0f, MainView.w * 0.205f);
+	const float Gap = std::min(58.0f, MainView.w * 0.06f);
+	const float Pitch = 55.0f;
+	const float Height = 32.0f;
 	CUIRect aRects[6];
+	const float aShiftX[] = {8, -4, 3, -3, 6, -9};
+	const float aShiftY[] = {-5, 0, 4, -1, 3, 0};
 	for(int i = 0; i < 6; ++i)
-		aRects[i] = {i < 3 ? Left.x : Right.x, Left.y + (i % 3) * 42, Width, 42};
-	CUIRect More = {CenterX - 90, Logo.y + Logo.h, 180, 30};
+	{
+		const float X = i < 3 ? Logo.x - Gap - Width : Logo.x + Logo.w + Gap;
+		aRects[i] = {std::clamp(X + aShiftX[i], MainView.x + 12, MainView.x + MainView.w - Width - 12), CenterY + (i % 3 - 1) * Pitch - Height / 2 + aShiftY[i], Width, Height};
+	}
+	// Enclose all asymmetric targets in the existing Safe Triangle corridors.
+	CUIRect Left = {aRects[1].x, aRects[0].y - 6, Width + 16, aRects[2].y + Height - aRects[0].y + 12};
+	CUIRect Right = {aRects[5].x, aRects[3].y - 6, Width + 16, aRects[5].y + Height - aRects[3].y + 12};
+	CUIRect More = {CenterX - 48, Logo.y + Logo.h + 20, 96, 28};
 	CUIRect aExtra[5];
 	for(int i = 0; i < 5; ++i)
-		aExtra[i] = {CenterX - 90, More.y + More.h + i * 26, 180, 26};
+		aExtra[i] = {CenterX - 90, More.y + More.h + 8 + i * 28, 180, 26};
 	const vec2 Mouse(Ui()->MouseX(), Ui()->MouseY());
 	if(distance(Mouse, m_LastMouse) > 1.0f)
 	{
@@ -84,15 +96,35 @@ void CLucentMenu::RenderStartMenu(CUIRect MainView)
 		m_LastMouse = Mouse;
 	}
 	bool Keyboard = false;
-	const int Count = m_Extras ? 12 : 7;
+	const bool Running = GameClient()->m_LocalServer.IsServerRunning();
+	int aOrder[13] = {0, 1, 2, 3, 4, 5, 6};
+	int Count = 7;
+	if(Running)
+	{
+		aOrder[4] = 12;
+		aOrder[5] = 4;
+		aOrder[6] = 5;
+		aOrder[7] = 6;
+		Count = 8;
+	}
+	if(m_Extras)
+		for(int i = 7; i < 12; ++i)
+			aOrder[Count++] = i;
+	const auto AdvanceFocus = [&](int Direction) {
+		int Position = -1;
+		for(int i = 0; i < Count; ++i)
+			if(aOrder[i] == m_Focus)
+				Position = i;
+		m_Focus = aOrder[Position < 0 ? (Direction < 0 ? Count - 1 : 0) : (Position + Count + Direction) % Count];
+	};
 	if(Ui()->ConsumeHotkey(CUi::HOTKEY_TAB) || Ui()->ConsumeHotkey(CUi::HOTKEY_DOWN))
 	{
-		m_Focus = Input()->ShiftIsPressed() ? (m_Focus < 0 ? Count - 1 : (m_Focus + Count - 1) % Count) : (m_Focus + 1) % Count;
+		AdvanceFocus(Input()->ShiftIsPressed() ? -1 : 1);
 		Keyboard = true;
 	}
 	if(Ui()->ConsumeHotkey(CUi::HOTKEY_UP))
 	{
-		m_Focus = m_Focus < 0 ? Count - 1 : (m_Focus + Count - 1) % Count;
+		AdvanceFocus(-1);
 		Keyboard = true;
 	}
 	if(Ui()->ConsumeHotkey(CUi::HOTKEY_LEFT))
@@ -134,17 +166,26 @@ void CLucentMenu::RenderStartMenu(CUIRect MainView)
 	m_Progress = Animate ? std::clamp(m_Progress + (Open ? Dt : -Dt) / 0.35f, 0.0f, 1.0f) : Target;
 	if(!Open && m_Progress <= 0)
 		m_Extras = false;
+	// Lines form first; both lines and chips retract smoothly towards the orbit.
+	for(int i = 0; i < 6; ++i)
+	{
+		const bool Hot = Open && (Ui()->MouseInside(&aRects[i]) || m_Focus == i);
+		if(Hot && !m_aWasHot[i])
+			m_aPulseStart[i] = Now;
+		m_aWasHot[i] = Hot;
+		m_aHighlight[i] = Animate ? mix(m_aHighlight[i], Hot ? 1.0f : 0.0f, std::min(1.0f, Dt * 12)) : (Hot ? 1.0f : 0.0f);
+		CLucentMenuEffects::Connection(Graphics(), vec2(CenterX, CenterY), Scale, aRects[i], i, m_Progress, m_aHighlight[i], Animate ? Now : 0, Animate && m_aPulseStart[i] > 0 ? static_cast<float>(Now - m_aPulseStart[i]) : -1);
+	}
 	// Reuse cached logo text and brighten the existing orbit on hover.
 	const float Activation = 1 - std::pow(1 - m_Progress, 3.0f);
 	m_Logo.Render(Graphics(), TextRender(), CenterX, CenterY - 29 * Scale, LogoWidth, Activation);
 	bool aClick[6] = {};
 	const char *apLabels[] = {Localize("Play", "Start menu"), Localize("Demos"), Localize("Editor"), Localize("Run server"), Localize("Settings"), Localize("Quit")};
-	const bool Running = GameClient()->m_LocalServer.IsServerRunning();
 	for(int i = 0; i < 6; ++i)
 	{
-		const float T = Animate ? std::clamp((m_Progress * 0.35f - (i % 3) * 0.035f) / 0.28f, 0.0f, 1.0f) : m_Progress;
+		const float T = Animate ? std::clamp((m_Progress * 0.35f - 0.065f - (i % 3) * 0.02f) / 0.245f, 0.0f, 1.0f) : m_Progress;
 		const float Ease = 1 - std::pow(1 - T, 3.0f);
-		const float Offset = (i < 3 ? 1 : -1) * 20 * (1 - Ease);
+		const float Offset = (i < 3 ? 1 : -1) * 32 * (1 - Ease);
 		// Stable targets: only the label moves, never the clickable rectangle.
 		if(i == 3 && Running)
 		{
@@ -154,7 +195,7 @@ void CLucentMenu::RenderStartMenu(CUIRect MainView)
 			Stop.w = Join.w;
 			if(Button(3, Localize("Join"), Join, Ease, Open, Enter))
 				GameClient()->m_LocalServer.Connect();
-			if(Button(12, Localize("Stop server"), Stop, Ease, Open, false))
+			if(Button(12, Localize("Stop server"), Stop, Ease, Open, Enter))
 				GameClient()->m_LocalServer.KillServer();
 		}
 		else

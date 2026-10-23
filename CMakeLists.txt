@@ -2758,6 +2758,8 @@ if(CLIENT)
     lucent/lucent_logo.h
     lucent/lucent_menu.cpp
     lucent/lucent_menu.h
+    lucent/lucent_menu_effects.cpp
+    lucent/lucent_menu_effects.h
     lucent/lucent_menu_interaction.cpp
     lucent/lucent_menu_interaction.h
     multiview.cpp
