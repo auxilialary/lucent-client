@@ -632,7 +632,8 @@ void CClient::Connect(const char *pAddress, const char *pPassword)
 	Disconnect();
 	dbg_assert(m_State == IClient::STATE_OFFLINE, "Disconnect must ensure that client is offline");
 
-	const NETADDR LastAddr = ServerAddress();
+	m_ConnectLastAddr = ServerAddress();
+	m_ConnectPassword = pPassword ? std::make_optional(std::string(pPassword)) : std::nullopt;
 
 	if(pAddress != m_aConnectAddressStr)
 		str_copy(m_aConnectAddressStr, pAddress);
@@ -641,55 +642,80 @@ void CClient::Connect(const char *pAddress, const char *pPassword)
 	str_format(aMsg, sizeof(aMsg), "connecting to '%s'", m_aConnectAddressStr);
 	m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD, "client", aMsg, CLIENT_NETWORK_PRINT_COLOR);
 
-	int NumConnectAddrs = 0;
-	NETADDR aConnectAddrs[MAX_SERVER_ADDRESSES];
-	mem_zero(aConnectAddrs, sizeof(aConnectAddrs));
-	const char *pNextAddr = pAddress;
+	const char *pNextAddr = m_aConnectAddressStr;
 	char aBuffer[128];
-	bool OnlySixup = true;
 	while((pNextAddr = str_next_token(pNextAddr, ",", aBuffer, sizeof(aBuffer))))
 	{
 		NETADDR NextAddr;
 		char aHost[128];
 		const int UrlParseResult = net_addr_from_url(&NextAddr, aBuffer, aHost, sizeof(aHost));
-		bool Sixup = NextAddr.type & NETTYPE_TW7;
+		const bool Sixup = (NextAddr.type & NETTYPE_TW7) != 0;
 		if(UrlParseResult > 0)
 			str_copy(aHost, aBuffer);
+		auto pJob = std::make_shared<CHostLookup>(aHost, m_aNetClient[CONN_MAIN].NetType());
+		m_vConnectLookups.push_back({pJob, Sixup});
+		Engine()->AddJob(pJob);
+	}
+	SetState(IClient::STATE_CONNECTING);
+	UpdateConnectLookup();
+}
 
-		if(net_host_lookup(aHost, &NextAddr, m_aNetClient[CONN_MAIN].NetType()) != 0)
+void CClient::CancelConnectLookup()
+{
+	// Pool workers retain ownership until Run has returned. Never read aborted jobs.
+	for(const auto &Lookup : m_vConnectLookups)
+		Lookup.m_pJob->Abort();
+	m_vConnectLookups.clear();
+	m_ConnectPassword.reset();
+}
+
+void CClient::UpdateConnectLookup()
+{
+	if(State() != IClient::STATE_CONNECTING)
+		return;
+	for(const auto &Lookup : m_vConnectLookups)
+	{
+		if(!Lookup.m_pJob->Done())
+			return;
+	}
+
+	// Only this attempt's jobs can be consumed. Cancel/new Connect removes them;
+	// workers do not hold a client pointer or invoke completion callbacks.
+	auto vLookups = std::move(m_vConnectLookups);
+	m_vConnectLookups.clear();
+	int NumConnectAddrs = 0;
+	NETADDR aConnectAddrs[MAX_SERVER_ADDRESSES]{};
+	bool OnlySixup = true;
+	for(const auto &Lookup : vLookups)
+	{
+		if(Lookup.m_pJob->State() != IJob::STATE_DONE || Lookup.m_pJob->Result() != 0)
 		{
-			log_error("client", "could not find address of %s", aHost);
+			log_error("client", "could not find connect address");
 			continue;
 		}
+		NETADDR NextAddr = Lookup.m_pJob->Addr();
 		if(NumConnectAddrs == (int)std::size(aConnectAddrs))
 		{
-			log_warn("client", "too many connect addresses, ignoring %s", aHost);
+			log_warn("client", "too many connect addresses, ignoring %s", Lookup.m_pJob->Hostname());
 			continue;
 		}
 		if(NextAddr.port == 0)
-		{
 			NextAddr.port = 8303;
-		}
-		if(Sixup)
+		if(Lookup.m_Sixup)
 			NextAddr.type |= NETTYPE_TW7;
 		else
 			OnlySixup = false;
-
 		char aNextAddr[NETADDR_MAXSTRSIZE];
 		net_addr_str(&NextAddr, aNextAddr, sizeof(aNextAddr), true);
-		log_debug("client", "resolved connect address '%s' to %s", aBuffer, aNextAddr);
-
-		if(NextAddr == LastAddr)
-		{
+		log_debug("client", "resolved connect address '%s' to %s", Lookup.m_pJob->Hostname(), aNextAddr);
+		if(NextAddr == m_ConnectLastAddr)
 			m_SendPassword = true;
-		}
-
-		aConnectAddrs[NumConnectAddrs] = NextAddr;
-		NumConnectAddrs += 1;
+		aConnectAddrs[NumConnectAddrs++] = NextAddr;
 	}
-
 	if(NumConnectAddrs == 0)
 	{
+		SetState(IClient::STATE_OFFLINE);
+		m_ConnectPassword.reset();
 		log_error("client", "could not find any connect address");
 		char aWarning[256];
 		str_format(aWarning, sizeof(aWarning), Localize("Could not resolve connect address '%s'. See local console for details."), m_aConnectAddressStr);
@@ -707,15 +733,16 @@ void CClient::Connect(const char *pAddress, const char *pPassword)
 		str_copy(m_aPassword, g_Config.m_Password);
 		m_SendPassword = false;
 	}
-	else if(!pPassword)
+	else if(!m_ConnectPassword.has_value())
 	{
 		m_aPassword[0] = 0;
 	}
 	else
 	{
-		str_copy(m_aPassword, pPassword);
+		str_copy(m_aPassword, m_ConnectPassword->c_str());
 	}
 
+	m_ConnectPassword.reset();
 	m_CanReceiveServerCapabilities = true;
 
 	m_Sixup = OnlySixup;
@@ -739,6 +766,7 @@ void CClient::Connect(const char *pAddress, const char *pPassword)
 
 void CClient::DisconnectWithReason(const char *pReason)
 {
+	CancelConnectLookup();
 	if(pReason != nullptr && pReason[0] == '\0')
 		pReason = nullptr;
 
@@ -797,6 +825,7 @@ void CClient::DisconnectWithReason(const char *pReason)
 
 void CClient::Disconnect()
 {
+	CancelConnectLookup();
 	if(m_State != IClient::STATE_OFFLINE)
 	{
 		DisconnectWithReason(nullptr);
@@ -2708,7 +2737,7 @@ void CClient::PumpNetwork()
 		// check for errors of main and dummy
 		if(State() != IClient::STATE_OFFLINE && State() < IClient::STATE_QUITTING)
 		{
-			if(m_aNetClient[CONN_MAIN].State() == NETSTATE_OFFLINE)
+			if(m_vConnectLookups.empty() && m_aNetClient[CONN_MAIN].State() == NETSTATE_OFFLINE)
 			{
 				// This will also disconnect the dummy, so the branch below is an `else if`
 				Disconnect();
@@ -2848,6 +2877,8 @@ void CClient::UpdateDemoIntraTimers()
 
 void CClient::Update()
 {
+	if(!m_vConnectLookups.empty())
+		UpdateConnectLookup();
 	PumpNetwork();
 
 	// update editor/gameclient, before input snapping
