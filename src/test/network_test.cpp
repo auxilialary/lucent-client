@@ -113,3 +113,72 @@ TEST(Network, UnpackChunks)
 	CNetChunk Chunk;
 	EXPECT_FALSE(Unpacker.UnpackNextChunk(&Chunk));
 }
+#include <engine/shared/config.h>
+#include <base/net.h>
+#include <base/secure.h>
+#include <base/time.h>
+#include <engine/shared/protocol7.h>
+#include <chrono>
+#include <thread>
+
+TEST(Network, RetryToken7)
+{
+	using namespace std::chrono_literals;
+	struct CTimeoutScope
+	{
+		int m_Previous = g_Config.m_ConnTimeout;
+		CTimeoutScope() { g_Config.m_ConnTimeout = 100; }
+		~CTimeoutScope() { g_Config.m_ConnTimeout = m_Previous; }
+	} TimeoutScope;
+	NETADDR Peer{};
+	ASSERT_EQ(net_addr_from_str(&Peer, "127.0.0.1"), 0);
+	NETSOCKET Server = nullptr;
+	for(int i = 0; i < 100 && !Server; ++i)
+	{
+		Peer.port = 20000 + secure_rand_below(40000);
+		Server = net_udp_create(Peer);
+	}
+	ASSERT_NE(Server, nullptr);
+	NETADDR Bind{};
+	Bind.type = NETTYPE_IPV4;
+	NETSOCKET Socket = net_udp_create(Bind);
+	ASSERT_NE(Socket, nullptr);
+	CNetConnection Connection;
+	Connection.Init(Socket, false);
+	ASSERT_EQ(Connection.Connect7(&Peer, 1), 0);
+	NETADDR From;
+	unsigned char *pData;
+	ASSERT_EQ(net_socket_read_wait(Server, 1s), 1);
+	int Size = net_udp_recv(Server, &From, &pData);
+	ASSERT_GT(Size, 0);
+	const std::vector<unsigned char> Request(pData, pData + Size);
+	// Drop the initial request, then drop the reply to the first retry.
+	for(int Loss = 0; Loss < 2; ++Loss)
+	{
+		set_new_tick();
+		Connection.Update();
+		EXPECT_LE(net_udp_recv(Server, &From, &pData), 0);
+		std::this_thread::sleep_for(550ms);
+		set_new_tick();
+		Connection.Update();
+		ASSERT_EQ(net_socket_read_wait(Server, 1s), 1);
+		ASSERT_EQ(net_udp_recv(Server, &From, &pData), Size);
+		EXPECT_EQ(std::vector<unsigned char>(pData, pData + Size), Request);
+	}
+	CNetPacketConstruct Reply{};
+	Reply.m_Flags = NET_PACKETFLAG_CONTROL;
+	Reply.m_DataSize = 1;
+	Reply.m_aChunkData[0] = protocol7::NET_CTRLMSG_TOKEN;
+	NETADDR WrongPeer = Peer;
+	++WrongPeer.port;
+	Connection.Feed(&Reply, &WrongPeer, Connection.m_Token, 123);
+	EXPECT_EQ(Connection.State(), CNetConnection::EState::WANT_TOKEN);
+	Connection.Feed(&Reply, &Peer, Connection.m_Token ^ 1, 123);
+	EXPECT_EQ(Connection.State(), CNetConnection::EState::WANT_TOKEN);
+	Connection.Feed(&Reply, &Peer, Connection.m_Token, 123);
+	EXPECT_EQ(Connection.State(), CNetConnection::EState::CONNECT);
+	Connection.Disconnect(nullptr);
+	EXPECT_EQ(Connection.State(), CNetConnection::EState::OFFLINE);
+	net_udp_close(Socket);
+	net_udp_close(Server);
+}

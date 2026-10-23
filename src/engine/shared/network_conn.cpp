@@ -562,6 +562,12 @@ int CNetConnection::Update()
 		if(time_get() - m_LastSendTime > time_freq())
 			SendControl(NET_CTRLMSG_KEEPALIVE, nullptr, 0);
 	}
+	else if(State() == EState::WANT_TOKEN)
+	{
+		// Token controls are not vital chunks. Retry without extending the timeout.
+		if(Now - m_LastSendTime > time_freq() / 2)
+			SendControlWithToken7(protocol7::NET_CTRLMSG_TOKEN, NET_TOKEN_NONE);
+	}
 	else if(State() == EState::CONNECT)
 	{
 		if(time_get() - m_LastSendTime > time_freq() / 2) // send a new connect every 500ms
