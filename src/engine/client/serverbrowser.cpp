@@ -682,6 +682,7 @@ void CServerBrowser::Sort()
 		std::stable_sort(m_vSortedServerlist.begin(), m_vSortedServerlist.end(), CSortWrap(this, &CServerBrowser::SortCompareFavoritesNumPlayersAndPing));
 
 	m_Sorthash = SortHash();
+	m_NeedResort = false;
 }
 
 void CServerBrowser::RemoveRequest(CServerEntry *pEntry)
@@ -1375,7 +1376,6 @@ void CServerBrowser::Update()
 			pInfo->m_FavoriteAllowPing = m_pFavorites->IsPingAllowed(pInfo->m_aAddresses, pInfo->m_NumAddresses);
 		}
 		Sort();
-		m_NeedResort = false;
 	}
 }
 
