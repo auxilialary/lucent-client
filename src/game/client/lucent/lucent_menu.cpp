@@ -1,6 +1,7 @@
 /* (c) Magnus Auvinen. See licence.txt in the root of the distribution for more information. */
 /* If you are missing that file, acquire a complete release at teeworlds.com.                */
 #include "lucent_menu.h"
+
 #include "lucent_menu_effects.h"
 
 #include <base/time.h>
@@ -36,7 +37,7 @@ bool CLucentMenu::Button(int Index, const char *pLabel, const CUIRect &Rect, flo
 	CUIRect Visual = Rect;
 	Visual.x += Offset;
 	const bool Accent = Hover || Focus;
-	CLucentMenuEffects::Chip(Graphics(), Visual, Index, Alpha, Accent);
+	CLucentMenuEffects::Chip(Graphics(), Visual, Index, Alpha, Index < 6 ? m_aHighlight[Index] : (Accent ? 1.0f : 0.0f));
 	CUIRect Label = Visual;
 	const float Inset = std::min(34.0f, Rect.w * 0.27f);
 	Label.x += Inset;
@@ -52,8 +53,8 @@ bool CLucentMenu::Button(int Index, const char *pLabel, const CUIRect &Rect, flo
 void CLucentMenu::RenderStartMenu(CUIRect MainView)
 {
 	GameClient()->m_MenuBackground.ChangePosition(CMenuBackground::POS_START);
-	// A quiet glass backdrop keeps the constellation legible over any menu map.
-	MainView.Draw(ColorRGBA(0.018f, 0.015f, 0.027f, 0.96f), 0, 0);
+	// Cover the full viewport, including the vanilla menu margin.
+	Ui()->Screen()->Draw(ColorRGBA(0.018f, 0.015f, 0.027f, 0.985f), 0, 0);
 	const double Now = static_cast<double>(time_get()) / time_freq();
 	const bool Animate = g_Config.m_ClLucentLogoAnimation && (g_Config.m_GfxRefreshRate == 0 || g_Config.m_GfxRefreshRate >= 30);
 	if(m_LastFrame < 0 || Now - m_LastFrame > 1.0)
@@ -62,6 +63,9 @@ void CLucentMenu::RenderStartMenu(CUIRect MainView)
 		m_Progress = 0;
 		m_Focus = -1;
 		m_Extras = false;
+		std::fill(std::begin(m_aHighlight), std::end(m_aHighlight), 0.0f);
+		std::fill(std::begin(m_aWasHot), std::end(m_aWasHot), false);
+		std::fill(std::begin(m_aPulseStart), std::end(m_aPulseStart), 0.0);
 	}
 	const float Dt = m_LastFrame < 0 ? 0 : static_cast<float>(std::min(Now - m_LastFrame, 0.05));
 	m_LastFrame = Now;
@@ -73,7 +77,7 @@ void CLucentMenu::RenderStartMenu(CUIRect MainView)
 	const float Width = std::min(164.0f, MainView.w * 0.205f);
 	const float Gap = std::min(58.0f, MainView.w * 0.06f);
 	const float Pitch = 55.0f;
-	const float Height = 32.0f;
+	const float Height = 34.0f;
 	CUIRect aRects[6];
 	const float aShiftX[] = {8, -4, 3, -3, 6, -9};
 	const float aShiftY[] = {-5, 0, 4, -1, 3, 0};
@@ -85,7 +89,7 @@ void CLucentMenu::RenderStartMenu(CUIRect MainView)
 	// Enclose all asymmetric targets in the existing Safe Triangle corridors.
 	CUIRect Left = {aRects[1].x, aRects[0].y - 6, Width + 16, aRects[2].y + Height - aRects[0].y + 12};
 	CUIRect Right = {aRects[5].x, aRects[3].y - 6, Width + 16, aRects[5].y + Height - aRects[3].y + 12};
-	CUIRect More = {CenterX - 48, Logo.y + Logo.h + 20, 96, 28};
+	CUIRect More = {CenterX - 42, Logo.y + Logo.h + 24, 84, 26};
 	CUIRect aExtra[5];
 	for(int i = 0; i < 5; ++i)
 		aExtra[i] = {CenterX - 90, More.y + More.h + 8 + i * 28, 180, 26};
@@ -169,18 +173,18 @@ void CLucentMenu::RenderStartMenu(CUIRect MainView)
 	// Lines form first; both lines and chips retract smoothly towards the orbit.
 	for(int i = 0; i < 6; ++i)
 	{
-		const bool Hot = Open && (Ui()->MouseInside(&aRects[i]) || m_Focus == i);
+		const bool Hot = Open && (Ui()->MouseInside(&aRects[i]) || m_Focus == i || (i == 3 && m_Focus == 12));
 		if(Hot && !m_aWasHot[i])
 			m_aPulseStart[i] = Now;
 		m_aWasHot[i] = Hot;
 		m_aHighlight[i] = Animate ? mix(m_aHighlight[i], Hot ? 1.0f : 0.0f, std::min(1.0f, Dt * 12)) : (Hot ? 1.0f : 0.0f);
-		CLucentMenuEffects::Connection(Graphics(), vec2(CenterX, CenterY), Scale, aRects[i], i, m_Progress, m_aHighlight[i], Animate ? Now : 0, Animate && m_aPulseStart[i] > 0 ? static_cast<float>(Now - m_aPulseStart[i]) : -1);
+		CLucentMenuEffects::Connection(Graphics(), vec2(CenterX, CenterY), Scale, aRects[i], i, m_Progress, m_aHighlight[i], Animate && m_aPulseStart[i] > 0 ? static_cast<float>(Now - m_aPulseStart[i]) : -1);
 	}
-	// Reuse cached logo text and brighten the existing orbit on hover.
+	// Cached wordmark with local orbit reactions for each navigation direction.
 	const float Activation = 1 - std::pow(1 - m_Progress, 3.0f);
-	m_Logo.Render(Graphics(), TextRender(), CenterX, CenterY - 29 * Scale, LogoWidth, Activation);
+	m_Logo.Render(Graphics(), TextRender(), CenterX, CenterY - 29 * Scale, LogoWidth, m_aHighlight);
 	bool aClick[6] = {};
-	const char *apLabels[] = {Localize("Play", "Start menu"), Localize("Demos"), Localize("Editor"), Localize("Run server"), Localize("Settings"), Localize("Quit")};
+	const char *apLabels[] = {Localize("Play", "Start menu"), Localize("Demos"), Localize("Editor"), Localize("Run server"), Localize("Settings"), Localize("Exit")};
 	for(int i = 0; i < 6; ++i)
 	{
 		const float T = Animate ? std::clamp((m_Progress * 0.35f - 0.065f - (i % 3) * 0.02f) / 0.245f, 0.0f, 1.0f) : m_Progress;
