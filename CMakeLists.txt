@@ -2756,6 +2756,10 @@ if(CLIENT)
     lucent/config_variables.h
     lucent/lucent_logo.cpp
     lucent/lucent_logo.h
+    lucent/lucent_menu.cpp
+    lucent/lucent_menu.h
+    lucent/lucent_menu_interaction.cpp
+    lucent/lucent_menu_interaction.h
     multiview.cpp
     pickup_data.cpp
     pickup_data.h
@@ -4329,3 +4333,13 @@ foreach(target ${TARGETS_DEP})
     target_compile_options(${target} PRIVATE ${OUR_FLAGS_DEP})
   endif()
 endforeach()
+
+# Small, dependency-free checks for the Lucent menu aim state machine.
+if(CLIENT)
+  add_executable(lucent-menu-test EXCLUDE_FROM_ALL
+    src/game/client/lucent/tests/menu_interaction_test.cc
+    src/game/client/lucent/lucent_menu_interaction.cpp
+  )
+  target_include_directories(lucent-menu-test PRIVATE src)
+  target_compile_features(lucent-menu-test PRIVATE cxx_std_20)
+endif()

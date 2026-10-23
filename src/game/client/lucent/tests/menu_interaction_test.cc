@@ -1,0 +1,68 @@
+// Standalone: compile with lucent_menu_interaction.cpp and the src include directory.
+#include "../lucent_menu_interaction.h"
+
+#include <cstdio>
+#include <cstdlib>
+
+#define CHECK(Expression) \
+	do \
+	{ \
+		if(!(Expression)) \
+		{ \
+			std::fprintf(stderr, "line %d: %s\n", __LINE__, #Expression); \
+			std::abort(); \
+		} \
+	} while(false)
+
+int main()
+{
+	using I = CLucentMenuInteraction;
+	CHECK(I::InTriangle(vec2(1, 1), vec2(0, 0), vec2(4, 0), vec2(0, 4)));
+	CHECK(I::InTriangle(vec2(2, 2), vec2(0, 0), vec2(4, 0), vec2(0, 4)));
+	CHECK(!I::InTriangle(vec2(3, 3), vec2(0, 0), vec2(4, 0), vec2(0, 4)));
+	CHECK(!I::InTriangle(vec2(0, 0), vec2(0, 0), vec2(0, 0), vec2(0, 0)));
+	const CUIRect Logo = {400, 250, 200, 100};
+	const CUIRect Left = {180, 200, 150, 200};
+	const CUIRect Right = {670, 200, 150, 200};
+	for(int Side : {-1, 1})
+	{
+		const auto Point = [Side](float X, float Y) { return vec2(500 + Side * X, Y); };
+		I Menu;
+		CHECK(!Menu.Update(0, vec2(0, 0), Logo, Left, Right, false, false));
+		CHECK(Menu.Update(0.01, Point(95, 300), Logo, Left, Right, false, false));
+		for(int Step = 0; Step <= 60; ++Step)
+			CHECK(Menu.Update(0.02 + Step * 0.02, Point(101 + Step, 300 + Step * 0.3f), Logo, Left, Right, false, false));
+		CHECK(Menu.Update(1.25, Point(180, 320), Logo, Left, Right, true, false));
+		CHECK(Menu.Update(1.3, Point(200, 380), Logo, Left, Right, true, false));
+		CHECK(Menu.Update(1.4, vec2(500, 500), Logo, Left, Right, false, false));
+		CHECK(!Menu.Update(1.61, vec2(500, 500), Logo, Left, Right, false, false));
+		Menu.Reset();
+		CHECK(Menu.Update(0, Point(95, 300), Logo, Left, Right, false, false));
+		CHECK(Menu.Update(0.005, Point(130, 280), Logo, Left, Right, false, false));
+		CHECK(Menu.Update(0.01, Point(180, 250), Logo, Left, Right, true, false));
+		Menu.Close();
+		CHECK(!Menu.Update(0.02, Point(180, 250), Logo, Left, Right, true, false));
+		Menu.Reset();
+		CHECK(Menu.Update(0, Point(99, 300), Logo, Left, Right, false, false));
+		CHECK(Menu.Update(0.01, Point(110, 300), Logo, Left, Right, false, false));
+		CHECK(Menu.Update(0.02, Point(105, 300), Logo, Left, Right, false, false));
+		CHECK(!Menu.Update(0.23, Point(105, 300), Logo, Left, Right, false, false));
+		Menu.Reset();
+		Menu.Update(0, Point(99, 300), Logo, Left, Right, false, false);
+		Menu.Update(0.01, Point(110, 300), Logo, Left, Right, false, false);
+		CHECK(Menu.Update(0.32, Point(110, 300), Logo, Left, Right, false, false));
+		CHECK(!Menu.Update(0.53, Point(110, 300), Logo, Left, Right, false, false));
+		Menu.Reset();
+		Menu.Update(0, Point(99, 300), Logo, Left, Right, false, false);
+		for(int Step = 1; Step < 200; ++Step)
+			Menu.Update(Step * 0.02, Point(101 + Step * 0.1f, 300), Logo, Left, Right, false, false);
+		CHECK(!Menu.IsOpen());
+	}
+	I Menu;
+	CHECK(Menu.Update(0, vec2(0, 0), Logo, Left, Right, false, true));
+	Menu.Close();
+	CHECK(!Menu.Update(0.01, vec2(500, 300), Logo, Left, Right, false, false));
+	Menu.Update(0.02, vec2(0, 0), Logo, Left, Right, false, false);
+	CHECK(Menu.Update(0.03, vec2(500, 300), Logo, Left, Right, false, false));
+	std::puts("Lucent geometry and state tests passed (both sides, slow/fast, reversal, dwell, deadline, keyboard, Escape)");
+}
