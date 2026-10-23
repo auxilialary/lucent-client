@@ -1,0 +1,403 @@
+diff --git a/src/engine/client.h b/src/engine/client.h
+index a27ae920d..24caf06c1 100644
+--- a/src/engine/client.h
++++ b/src/engine/client.h
+@@ -406,6 +406,7 @@ public:
+ 	virtual void OnRconLine(const char *pLine) = 0;
+ 	virtual void OnInit() = 0;
+ 	virtual void InvalidateSnapshot() = 0;
++	virtual void OnMapUnload() = 0;
+ 	virtual void OnNewSnapshot(bool DummySwapped) = 0;
+ 	virtual void OnEnterGame() = 0;
+ 	virtual void OnShutdown() = 0;
+diff --git a/src/engine/client/client.cpp b/src/engine/client/client.cpp
+index 90e4cda29..064e1321b 100644
+--- a/src/engine/client/client.cpp
++++ b/src/engine/client/client.cpp
+@@ -799,6 +799,7 @@ void CClient::DisconnectWithReason(const char *pReason)
+ 	GameClient()->ForceUpdateConsoleRemoteCompletionSuggestions();
+ 	m_aNetClient[CONN_MAIN].Disconnect(pReason);
+ 	SetState(IClient::STATE_OFFLINE);
++	GameClient()->OnMapUnload();
+ 	GameClient()->Map()->Unload();
+ 	m_CurrentServerPingInfoType = -1;
+ 	m_CurrentServerPingBasicToken = -1;
+@@ -1277,6 +1278,7 @@ const char *CClient::LoadMap(const char *pName, const char *pFilename, const std
+ 
+ 	// Unload the current map and reset all snapshots before loading a new map,
+ 	// because the snapshots are only valid for the old map.
++	GameClient()->OnMapUnload();
+ 	GameClient()->Map()->Unload();
+ 	for(int Dummy = 0; Dummy < NUM_DUMMIES; Dummy++)
+ 	{
+@@ -1304,7 +1306,8 @@ const char *CClient::LoadMap(const char *pName, const char *pFilename, const std
+ 		sha256_str(GameClient()->Map()->Sha256(), aGot, sizeof(aWanted));
+ 		str_format(s_aErrorMsg, sizeof(s_aErrorMsg), "map differs from the server. %s != %s", aGot, aWanted);
+ 		m_pConsole->Print(IConsole::OUTPUT_LEVEL_ADDINFO, "client", s_aErrorMsg);
+-		GameClient()->Map()->Unload();
++		GameClient()->OnMapUnload();
++	GameClient()->Map()->Unload();
+ 		return s_aErrorMsg;
+ 	}
+ 
+@@ -1313,7 +1316,8 @@ const char *CClient::LoadMap(const char *pName, const char *pFilename, const std
+ 	{
+ 		str_format(s_aErrorMsg, sizeof(s_aErrorMsg), "map differs from the server. %08x != %08x", GameClient()->Map()->Crc(), WantedCrc);
+ 		m_pConsole->Print(IConsole::OUTPUT_LEVEL_ADDINFO, "client", s_aErrorMsg);
+-		GameClient()->Map()->Unload();
++		GameClient()->OnMapUnload();
++	GameClient()->Map()->Unload();
+ 		return s_aErrorMsg;
+ 	}
+ 
+diff --git a/src/engine/shared/config_variables.h b/src/engine/shared/config_variables.h
+index ae5ace52e..f80659c70 100644
+--- a/src/engine/shared/config_variables.h
++++ b/src/engine/shared/config_variables.h
+@@ -801,6 +801,8 @@ MACRO_CONFIG_INT(GfxDriverIsBlocked, gfx_driver_is_blocked, 0, 0, 1, CFGFLAG_SAV
+ 
+ MACRO_CONFIG_INT(ClVideoRecorderFPS, cl_video_recorder_fps, 60, 1, 1000, CFGFLAG_SAVE | CFGFLAG_CLIENT, "At which FPS the videorecorder should record demos.")
+ 
++MACRO_CONFIG_INT(ClStagedMapLoad, cl_staged_map_load, 0, 0, 1, CFGFLAG_CLIENT, "Experimental staged map visuals (new maps only)")
++
+ /*
+  * Add config variables for mods below this comment to avoid merge conflicts.
+  */
+diff --git a/src/game/client/components/background.cpp b/src/game/client/components/background.cpp
+index 21a03065d..0802872ab 100644
+--- a/src/game/client/components/background.cpp
++++ b/src/game/client/components/background.cpp
+@@ -78,6 +78,8 @@ void CBackground::LoadBackground()
+ 			{
+ 				m_pImages->LoadBackground(m_pLayers, m_pMap);
+ 			}
++			while(m_pImages->IsPreparing())
++				m_pImages->PrepareNext();
+ 			CMapLayers::OnMapLoad();
+ 		}
+ 	}
+diff --git a/src/game/client/components/mapimages.cpp b/src/game/client/components/mapimages.cpp
+index 52bb996ae..43729f585 100644
+--- a/src/game/client/components/mapimages.cpp
++++ b/src/game/client/components/mapimages.cpp
+@@ -49,6 +49,7 @@ void CMapImages::OnInit()
+ 
+ void CMapImages::Unload()
+ {
++	m_vPendingImages.clear();
+ 	// unload all textures
+ 	for(int i = 0; i < m_Count; i++)
+ 	{
+@@ -60,6 +61,9 @@ void CMapImages::OnMapLoadImpl(class CLayers *pLayers, IMap *pMap)
+ {
+ 	Unload();
+ 
++	for(auto &Texture : m_aTextures)
++		Texture.Invalidate();
++
+ 	int Start;
+ 	pMap->GetType(MAPITEMTYPE_IMAGE, &Start, &m_Count);
+ 	m_Count = std::clamp<int>(m_Count, 0, MAX_MAPIMAGES);
+@@ -110,7 +114,23 @@ void CMapImages::OnMapLoadImpl(class CLayers *pLayers, IMap *pMap)
+ 			continue;
+ 		}
+ 
+-		const int LoadFlag = (((aTextureUsedByTileOrQuadLayerFlag[i] & 1) != 0) ? Graphics()->TextureLoadFlags() : 0) | (((aTextureUsedByTileOrQuadLayerFlag[i] & 2) != 0) ? 0 : (Graphics()->HasTextureArraysSupport() ? IGraphics::TEXLOAD_NO_2D_TEXTURE : 0));
++        if(g_Config.m_ClStagedMapLoad && pMap == GameClient()->Map() &&
++            Client()->State() != IClient::STATE_DEMOPLAYBACK && aTextureUsedByTileOrQuadLayerFlag[i] == 2)
++        {
++            m_vPendingImages.push_back({Start, i, aTextureUsedByTileOrQuadLayerFlag[i]});
++            continue;
++        }
++        ShowWarning = !LoadImage(pMap, Start, i, aTextureUsedByTileOrQuadLayerFlag[i]) || ShowWarning;
++	}
++	if(ShowWarning)
++	{
++		Client()->AddWarning(SWarning(Localize("Some map images could not be loaded. Check the local console for details.")));
++	}
++}
++
++bool CMapImages::LoadImage(IMap *pMap, int Start, int i, int Usage)
++{
++		const int LoadFlag = (((Usage & 1) != 0) ? Graphics()->TextureLoadFlags() : 0) | (((Usage & 2) != 0) ? 0 : (Graphics()->HasTextureArraysSupport() ? IGraphics::TEXLOAD_NO_2D_TEXTURE : 0));
+ 		const CMapItemImage_v2 *pImg = static_cast<const CMapItemImage_v2 *>(pMap->GetItem(Start + i));
+ 
+ 		const char *pName = pMap->GetDataString(pImg->m_ImageName);
+@@ -119,8 +139,7 @@ void CMapImages::OnMapLoadImpl(class CLayers *pLayers, IMap *pMap)
+ 			if(pImg->m_External)
+ 			{
+ 				log_error("mapimages", "Failed to load map image %d: failed to load name.", i);
+-				ShowWarning = true;
+-				continue;
++				return false;
+ 			}
+ 			pName = "(error)";
+ 		}
+@@ -128,8 +147,7 @@ void CMapImages::OnMapLoadImpl(class CLayers *pLayers, IMap *pMap)
+ 		if(pImg->m_Version > 1 && pImg->m_MustBe1 != 1)
+ 		{
+ 			log_error("mapimages", "Failed to load map image %d '%s': invalid map image type.", i, pName);
+-			ShowWarning = true;
+-			continue;
++			return false;
+ 		}
+ 
+ 		if(pImg->m_External)
+@@ -154,8 +172,7 @@ void CMapImages::OnMapLoadImpl(class CLayers *pLayers, IMap *pMap)
+ 			if(pImg->m_Width <= 0 || pImg->m_Height <= 0)
+ 			{
+ 				log_error("mapimages", "Failed to load map image %d '%s': invalid image dimensions.", i, pName);
+-				ShowWarning = true;
+-				continue;
++				return false;
+ 			}
+ 
+ 			CImageInfo ImageInfo;
+@@ -174,17 +191,27 @@ void CMapImages::OnMapLoadImpl(class CLayers *pLayers, IMap *pMap)
+ 			{
+ 				pMap->UnloadData(pImg->m_ImageData);
+ 				log_error("mapimages", "Failed to load map image %d: failed to load data.", i);
+-				ShowWarning = true;
+-				continue;
++				return false;
+ 			}
+ 		}
+ 		pMap->UnloadData(pImg->m_ImageName);
+-		ShowWarning = ShowWarning || m_aTextures[i].IsNullTexture();
+-	}
+-	if(ShowWarning)
+-	{
+-		Client()->AddWarning(SWarning(Localize("Some map images could not be loaded. Check the local console for details.")));
+-	}
++		return !m_aTextures[i].IsNullTexture();
++}
++
++void CMapImages::OnStateChange(int NewState, int OldState)
++{
++    if(NewState < IClient::STATE_ONLINE)
++        m_vPendingImages.clear();
++}
++
++void CMapImages::PrepareNext()
++{
++    if(m_vPendingImages.empty())
++        return;
++    const auto Image = m_vPendingImages.front();
++    m_vPendingImages.erase(m_vPendingImages.begin());
++    if(!LoadImage(GameClient()->Map(), Image.m_Start, Image.m_Index, Image.m_Flags))
++        Client()->AddWarning(SWarning(Localize("Some map images could not be loaded. Check the local console for details.")));
+ }
+ 
+ void CMapImages::OnMapLoad()
+diff --git a/src/game/client/components/mapimages.h b/src/game/client/components/mapimages.h
+index 76aea4669..3dc9939ab 100644
+--- a/src/game/client/components/mapimages.h
++++ b/src/game/client/components/mapimages.h
+@@ -3,6 +3,8 @@
+ #ifndef GAME_CLIENT_COMPONENTS_MAPIMAGES_H
+ #define GAME_CLIENT_COMPONENTS_MAPIMAGES_H
+ 
++#include <vector>
++
+ #include <engine/console.h>
+ #include <engine/graphics.h>
+ 
+@@ -52,6 +54,9 @@ public:
+ 
+ 	void OnMapLoadImpl(class CLayers *pLayers, class IMap *pMap);
+ 	void OnMapLoad() override;
++	void OnStateChange(int NewState, int OldState) override;
++	bool IsPreparing() const { return !m_vPendingImages.empty(); }
++	void PrepareNext();
+ 	void OnInit() override;
+ 	void Unload();
+ 	void LoadBackground(class CLayers *pLayers, class IMap *pMap);
+@@ -71,6 +76,9 @@ public:
+ 	void ChangeEntitiesPath(const char *pPath);
+ 
+ private:
++	struct SPendingImage { int m_Start; int m_Index; int m_Flags; };
++	std::vector<SPendingImage> m_vPendingImages;
++	bool LoadImage(IMap *pMap, int Start, int i, int Usage);
+ 	bool m_aEntitiesIsLoaded[MAP_IMAGE_MOD_TYPE_COUNT * 2];
+ 	bool m_SpeedupArrowIsLoaded;
+ 	bool m_TuneColorsIsLoaded;
+diff --git a/src/game/client/components/maplayers.cpp b/src/game/client/components/maplayers.cpp
+index e4b28e538..b0a507bc8 100644
+--- a/src/game/client/components/maplayers.cpp
++++ b/src/game/client/components/maplayers.cpp
+@@ -45,7 +45,15 @@ void CMapLayers::OnMapLoad()
+ 
+ 	m_EnvEvaluator = CEnvelopeState(m_pLayers->Map(), m_OnlineOnly);
+ 	m_EnvEvaluator.OnInterfacesInit(GameClient());
+-	m_MapRenderer.Load(m_Type, m_pLayers, m_pImages, &m_EnvEvaluator, ProgressBarCallback);
++	m_MapRenderer.Load(m_Type, m_pLayers, m_pImages, &m_EnvEvaluator, ProgressBarCallback, g_Config.m_ClStagedMapLoad &&
++		(m_Type == RENDERTYPE_BACKGROUND || m_Type == RENDERTYPE_FOREGROUND) &&
++		m_pLayers == GameClient()->Layers() && Client()->State() != IClient::STATE_DEMOPLAYBACK);
++}
++
++void CMapLayers::OnStateChange(int NewState, int OldState)
++{
++    if(NewState < IClient::STATE_ONLINE && m_pLayers == GameClient()->Layers())
++        m_MapRenderer.Clear(); // Cancel before the engine unloads or replaces the map.
+ }
+ 
+ void CMapLayers::OnRender()
+diff --git a/src/game/client/components/maplayers.h b/src/game/client/components/maplayers.h
+index e89de79f4..ae0859895 100644
+--- a/src/game/client/components/maplayers.h
++++ b/src/game/client/components/maplayers.h
+@@ -28,6 +28,9 @@ public:
+ 	void OnInit() override;
+ 	void OnRender() override;
+ 	void OnMapLoad() override;
++	void OnStateChange(int NewState, int OldState) override;
++	bool IsPreparing() const { return m_MapRenderer.IsPreparing(); }
++	void PrepareNext() { m_MapRenderer.PrepareNext(); }
+ 
+ 	virtual CCamera *GetCurCamera();
+ 
+diff --git a/src/game/client/gameclient.cpp b/src/game/client/gameclient.cpp
+index 35a5bd94b..4ef336ccf 100644
+--- a/src/game/client/gameclient.cpp
++++ b/src/game/client/gameclient.cpp
+@@ -575,6 +575,13 @@ int CGameClient::OnSnapInput(int *pData, bool Dummy, bool Force)
+ 	}
+ }
+ 
++void CGameClient::OnMapUnload()
++{
++    m_MapImages.OnStateChange(IClient::STATE_OFFLINE, IClient::STATE_LOADING);
++    m_MapLayersBackground.OnStateChange(IClient::STATE_OFFLINE, IClient::STATE_LOADING);
++    m_MapLayersForeground.OnStateChange(IClient::STATE_OFFLINE, IClient::STATE_LOADING);
++}
++
+ void CGameClient::OnConnected()
+ {
+ 	const char *pConnectCaption = DemoPlayer()->IsPlaying() ? Localize("Preparing demo playback") : Localize("Connected");
+@@ -772,6 +779,24 @@ void CGameClient::UpdatePositions()
+ 
+ void CGameClient::OnRender()
+ {
++    // Soft budget: an individual image decode or layer upload cannot be preempted.
++    // Advance during snapshot bootstrap as well as ONLINE, never from worker threads.
++    if(Client()->State() == IClient::STATE_LOADING || Client()->State() == IClient::STATE_ONLINE)
++    {
++        const auto Deadline = time_get_nanoseconds().count() + 2000000;
++        while(time_get_nanoseconds().count() < Deadline)
++        {
++            if(m_MapImages.IsPreparing())
++                m_MapImages.PrepareNext();
++            else if(m_MapLayersBackground.IsPreparing())
++                m_MapLayersBackground.PrepareNext();
++            else if(m_MapLayersForeground.IsPreparing())
++                m_MapLayersForeground.PrepareNext();
++            else
++                break;
++        }
++    }
++
+ 	const ColorRGBA ClearColor = color_cast<ColorRGBA>(ColorHSLA(g_Config.m_ClOverlayEntities ? g_Config.m_ClBackgroundEntitiesColor : g_Config.m_ClBackgroundColor));
+ 	Graphics()->Clear(ClearColor.r, ClearColor.g, ClearColor.b);
+ 
+diff --git a/src/game/client/gameclient.h b/src/game/client/gameclient.h
+index 51f829488..a58d08b9b 100644
+--- a/src/game/client/gameclient.h
++++ b/src/game/client/gameclient.h
+@@ -622,6 +622,7 @@ public:
+ 	int TranslateSnap(CSnapshotBuffer *pSnapDstSix, CSnapshot *pSnapSrcSeven, int Conn, bool Dummy) override;
+ 	void OnMessage(int MsgId, CUnpacker *pUnpacker, int Conn, bool Dummy) override;
+ 	void InvalidateSnapshot() override;
++	void OnMapUnload() override;
+ 	void OnNewSnapshot(bool DummySwapped) override;
+ 	void OnPredict() override;
+ 	void OnActivateEditor() override;
+diff --git a/src/game/map/map_renderer.cpp b/src/game/map/map_renderer.cpp
+index 0ac54fed1..c04bd7c07 100644
+--- a/src/game/map/map_renderer.cpp
++++ b/src/game/map/map_renderer.cpp
+@@ -11,12 +11,14 @@ const int LAYER_DEFAULT_TILESET = -1;
+ 
+ void CMapRenderer::Clear()
+ {
++	m_vDeferredInit.clear();
++	m_vPending.clear();
+ 	for(auto &pLayer : m_vpRenderLayers)
+ 		pLayer->Unload();
+ 	m_vpRenderLayers.clear();
+ }
+ 
+-void CMapRenderer::Load(ERenderType Type, CLayers *pLayers, IMapImages *pMapImages, const IEnvelopeEval *pEnvelopeEval, std::optional<FCallbackMapRendererInit> CallbackMapRendererInitOptional)
++void CMapRenderer::Load(ERenderType Type, CLayers *pLayers, IMapImages *pMapImages, const IEnvelopeEval *pEnvelopeEval, std::optional<FCallbackMapRendererInit> CallbackMapRendererInitOptional, bool Staged)
+ {
+ 	Clear();
+ 
+@@ -140,6 +142,23 @@ void CMapRenderer::Load(ERenderType Type, CLayers *pLayers, IMapImages *pMapImag
+ 			// just ignore invalid layers from rendering
+ 			if(pRenderLayer)
+ 			{
++                if(Staged && pLayer->m_Type == LAYERTYPE_QUADS)
++                {
++                    // Keep draw order, but never render a layer until Init has completed.
++                    CRenderLayer *pDeferred = pRenderLayer.get();
++                    m_vPending.push_back(pDeferred);
++                    m_vDeferredInit.push_back([this, pDeferred, pEnvelopeManager, pLayers, pMapImages]() mutable {
++                        std::optional<FCallbackLayerInit> NoCallback;
++                        pDeferred->OnInit(Graphics(), TextRender(), RenderMap(), pEnvelopeManager, pLayers->Map(), pMapImages, NoCallback);
++                        if(pDeferred->IsValid())
++                        {
++                            pDeferred->Init();
++                            m_vPending.erase(std::find(m_vPending.begin(), m_vPending.end(), pDeferred));
++                        }
++                    });
++                    m_vpRenderLayers.push_back(std::move(pRenderLayer));
++                    continue;
++                }
+ 				pRenderLayer->OnInit(Graphics(), TextRender(), RenderMap(), pEnvelopeManager, pLayers->Map(), pMapImages, CallbackLayerInitOptional);
+ 				if(pRenderLayer->IsValid())
+ 				{
+@@ -151,6 +170,15 @@ void CMapRenderer::Load(ERenderType Type, CLayers *pLayers, IMapImages *pMapImag
+ 	}
+ }
+ 
++void CMapRenderer::PrepareNext()
++{
++    if(m_vDeferredInit.empty())
++        return;
++    // Main thread only: Init queues GPU commands through the existing graphics API.
++    m_vDeferredInit.front()();
++    m_vDeferredInit.erase(m_vDeferredInit.begin());
++}
++
+ void CMapRenderer::Render(const CRenderLayerParams &Params)
+ {
+ 	CScreenRect ScreenRect = Graphics()->GetScreen();
+@@ -158,6 +186,8 @@ void CMapRenderer::Render(const CRenderLayerParams &Params)
+ 	bool DoRenderGroup = true;
+ 	for(auto &pRenderLayer : m_vpRenderLayers)
+ 	{
++		if(std::find(m_vPending.begin(), m_vPending.end(), pRenderLayer.get()) != m_vPending.end())
++			continue;
+ 		if(pRenderLayer->IsGroup())
+ 			DoRenderGroup = pRenderLayer->DoRender(Params);
+ 
+diff --git a/src/game/map/map_renderer.h b/src/game/map/map_renderer.h
+index 1449dc693..719ec20d9 100644
+--- a/src/game/map/map_renderer.h
++++ b/src/game/map/map_renderer.h
+@@ -15,10 +15,14 @@ public:
+ 	CMapRenderer() = default;
+ 
+ 	void Clear();
+-	void Load(ERenderType Type, CLayers *pLayers, IMapImages *pMapImages, const IEnvelopeEval *pEnvelopeEval, std::optional<FCallbackMapRendererInit> CallbackMapRendererInitOptional);
++	void Load(ERenderType Type, CLayers *pLayers, IMapImages *pMapImages, const IEnvelopeEval *pEnvelopeEval, std::optional<FCallbackMapRendererInit> CallbackMapRendererInitOptional, bool Staged = false);
++	bool IsPreparing() const { return !m_vDeferredInit.empty(); }
++	void PrepareNext();
+ 	void Render(const CRenderLayerParams &Params);
+ 
+ private:
++	std::vector<std::function<void()>> m_vDeferredInit;
++	std::vector<CRenderLayer *> m_vPending;
+ 	int GetLayerType(const CMapItemLayer *pLayer) const;
+ 
+ 	std::vector<std::unique_ptr<CRenderLayer>> m_vpRenderLayers;

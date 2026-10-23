@@ -1,0 +1,146 @@
+running 1 test
+client_can_connect ... [31mFAILED[m (out\build\x64-Release\integration_client_can_connect_4af4nc6m)
+
+failures:
+
+---- client_can_connect ----
+Traceback (most recent call last):
+  File "C:\Users\loren\Desktop\dev\Lucent-Client-DDNet\scripts\integration_test.py", line 144, in run_test
+    test(env)
+  File "C:\Users\loren\Desktop\dev\Lucent-Client-DDNet\scripts\integration_test.py", line 670, in client_can_connect
+    join = server.wait_for_log_prefix("server: player has entered the game", timeout=10).line
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\loren\Desktop\dev\Lucent-Client-DDNet\scripts\integration_test.py", line 428, in wait_for_log_prefix
+    return self.wait_for_log(lambda l: l.line.startswith(prefix), description=f"log line with prefix `{prefix}`", timeout=timeout)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\loren\Desktop\dev\Lucent-Client-DDNet\scripts\integration_test.py", line 420, in wait_for_log
+    event = self.next_event(timeout_id)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\loren\Desktop\dev\Lucent-Client-DDNet\scripts\integration_test.py", line 520, in next_event
+    event = super().next_event(timeout_id)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\loren\Desktop\dev\Lucent-Client-DDNet\scripts\integration_test.py", line 405, in next_event
+    event.raise_on_error(timeout_id)
+  File "C:\Users\loren\Desktop\dev\Lucent-Client-DDNet\scripts\integration_test.py", line 79, in raise_on_error
+    raise TimeoutError(f"timeout waiting for {self.description}")
+TimeoutError: timeout waiting for log line with prefix `server: player has entered the game`
+--- stdout: client0 ---
+2026-10-23 17:54:57 I engine: running on windows-win64-amd64
+2026-10-23 17:54:57 I engine: arch is little endian
+2026-10-23 17:54:57 I engine: operating system version: Windows 10.0.26100.9711
+2026-10-23 17:54:57 W storage: no data directory found
+2026-10-23 17:54:57 I storage: added path '.'
+2026-10-23 17:54:57 I storage: added path '..\data'
+2026-10-23 17:54:57 I binds: bound f1 = toggle_local_console
+2026-10-23 17:54:57 I binds: bound f2 = toggle_remote_console
+2026-10-23 17:54:57 I binds: bound tab = +scoreboard
+2026-10-23 17:54:57 I binds: bound equals = +statboard
+2026-10-23 17:54:57 I binds: bound f10 = screenshot
+2026-10-23 17:54:57 I binds: bound a = +left
+2026-10-23 17:54:57 I binds: bound d = +right
+2026-10-23 17:54:57 I binds: bound space = +jump
+2026-10-23 17:54:57 I binds: bound mouse1 = +fire
+2026-10-23 17:54:57 I binds: bound mouse2 = +hook
+2026-10-23 17:54:57 I binds: bound lshift = +emote
+2026-10-23 17:54:57 I binds: bound return = +show_chat; chat all
+2026-10-23 17:54:57 I binds: bound right = spectate_next
+2026-10-23 17:54:57 I binds: bound left = spectate_previous
+2026-10-23 17:54:57 I binds: bound rshift = +spectate
+2026-10-23 17:54:57 I binds: bound 1 = +weapon1
+2026-10-23 17:54:57 I binds: bound 2 = +weapon2
+2026-10-23 17:54:57 I binds: bound 3 = +weapon3
+2026-10-23 17:54:57 I binds: bound 4 = +weapon4
+2026-10-23 17:54:57 I binds: bound 5 = +weapon5
+2026-10-23 17:54:57 I binds: bound mousewheelup = +prevweapon
+2026-10-23 17:54:57 I binds: bound mousewheeldown = +nextweapon
+2026-10-23 17:54:57 I binds: bound t = +show_chat; chat all
+2026-10-23 17:54:57 I binds: bound y = +show_chat; chat team
+2026-10-23 17:54:57 I binds: bound u = +show_chat
+2026-10-23 17:54:57 I binds: bound i = +show_chat; chat all /c 
+2026-10-23 17:54:57 I binds: bound f3 = vote yes
+2026-10-23 17:54:57 I binds: bound f4 = vote no
+2026-10-23 17:54:57 I binds: bound k = kill
+2026-10-23 17:54:57 I binds: bound q = say /spec
+2026-10-23 17:54:57 I binds: bound p = say /pause
+2026-10-23 17:54:57 I binds: bound kp_plus = zoom+
+2026-10-23 17:54:57 I binds: bound kp_minus = zoom-
+2026-10-23 17:54:57 I binds: bound kp_multiply = zoom
+2026-10-23 17:54:57 I binds: bound pause = say /pause
+2026-10-23 17:54:57 I binds: bound up = +jump
+2026-10-23 17:54:57 I binds: bound left = +left
+2026-10-23 17:54:57 I binds: bound right = +right
+2026-10-23 17:54:57 I binds: bound leftbracket = +prevweapon
+2026-10-23 17:54:57 I binds: bound rightbracket = +nextweapon
+2026-10-23 17:54:57 I binds: bound c = say /rank
+2026-10-23 17:54:57 I binds: bound v = say /info
+2026-10-23 17:54:57 I binds: bound b = say /top5
+2026-10-23 17:54:57 I binds: bound s = +showhookcoll
+2026-10-23 17:54:57 I binds: bound x = toggle cl_dummy 0 1
+2026-10-23 17:54:57 I binds: bound h = toggle cl_dummy_hammer 0 1
+2026-10-23 17:54:57 I binds: bound slash = +show_chat; chat all /
+2026-10-23 17:54:57 I binds: bound kp_0 = say /emote normal 999999
+2026-10-23 17:54:57 I binds: bound kp_1 = say /emote happy 999999
+2026-10-23 17:54:57 I binds: bound kp_2 = say /emote angry 999999
+2026-10-23 17:54:57 I binds: bound kp_3 = say /emote pain 999999
+2026-10-23 17:54:57 I binds: bound kp_4 = say /emote surprise 999999
+2026-10-23 17:54:57 I binds: bound kp_5 = say /emote blink 999999
+2026-10-23 17:54:57 I binds: bound minus = spectate_previous
+2026-10-23 17:54:57 I binds: bound equals = spectate_next
+2026-10-23 17:54:57 I binds: bound mouse3 = toggle_scoreboard_cursor; +spectate
+2026-10-23 17:54:57 I binds: bound lalt = toggle_scoreboard_cursor
+2026-10-23 17:54:57 I binds: bound w = +jump
+2026-10-23 17:54:57 I http: libcurl version 8.8.0 (compiled = 8.8.0)
+2026-10-23 17:54:57 I sdl: SDL version 2.32.10 (compiled = 2.32.10)
+2026-10-23 17:54:57 I gfx: Created OpenGL 1.1 context
+2026-10-23 17:54:58 I gfx/opengl: Vendor string: ATI Technologies Inc.
+2026-10-23 17:54:58 I gfx/opengl: Version string: 4.6.0 Compatibility Profile Context 26.8.1.260810
+2026-10-23 17:54:58 I gfx: GPU vendor: ATI Technologies Inc.
+2026-10-23 17:54:58 I gfx: GPU renderer: AMD Radeon RX 7600
+2026-10-23 17:54:58 I gfx: GPU version: 4.6.0 Compatibility Profile Context 26.8.1.260810
+2026-10-23 17:54:58 I localization: Choosing default language based on user locale 'ru-RU'
+2026-10-23 17:54:58 I localization: loaded 'languages/russian.txt'
+2026-10-23 17:54:58 I sound: Sound init successful using audio driver 'wasapi'
+2026-10-23 17:54:58 I textrender: Freetype version 2.13.2 (compiled = 2.13.2)
+2026-10-23 17:54:58 I joystick: 0 joystick(s) found
+2026-10-23 17:54:58 I fifo: Created named pipe '\\.\pipe\client_can_connect_55df600a-3bbb-4d7b-a8d3-3ccd8bb691bc_client0'
+2026-10-23 17:54:58 I client: version 20.3 on win64 amd64
+2026-10-23 17:54:58 I client: git revision hash: 2f3473107bcd1ecc
+2026-10-23 17:54:58 I joinprobe: epoch=1 event=connect ns=803492600
+2026-10-23 17:54:58 I client: connecting to 'localhost:8303'
+2026-10-23 17:54:58 I joinprobe: epoch=1 event=dns_done ns=811474000
+2026-10-23 17:54:58 I joinscope: epoch=1 scope=max_network_gap ms=7.920600
+2026-10-23 17:54:58 I joinscope: epoch=1 scope=max_network_gap ms=8.938300
+2026-10-23 17:54:58 I joinscope: epoch=1 scope=max_network_gap ms=8.977600
+2026-10-23 17:54:58 I joinscope: epoch=1 scope=max_network_gap ms=9.277200
+2026-10-23 17:54:58 I http: task done: https://info.ddnet.org/info?name=nameless%20tee
+2026-10-23 17:54:58 E serverbrowser: invalid location
+2026-10-23 17:54:58 I joinscope: epoch=1 scope=max_network_gap ms=9.543600
+2026-10-23 17:54:59 I joinscope: epoch=1 scope=max_network_gap ms=9.571600
+2026-10-23 17:54:59 I joinscope: epoch=1 scope=max_network_gap ms=9.629500
+--- stdout: server0 ---
+2026-10-23 17:54:57 I engine: running on windows-win64-amd64
+2026-10-23 17:54:57 I engine: arch is little endian
+2026-10-23 17:54:57 I engine: operating system version: Windows 10.0.26100.9711
+2026-10-23 17:54:57 W storage: no data directory found
+2026-10-23 17:54:57 I storage: added path '.'
+2026-10-23 17:54:57 I storage: added path '..\data'
+2026-10-23 17:54:57 I console: executing 'autoexec_server.cfg'
+2026-10-23 17:54:57 I server: added maps to votes
+2026-10-23 17:54:57 E console: failed to open 'myServerconfig.cfg'
+2026-10-23 17:54:57 I server: using port 8303
+2026-10-23 17:54:57 I http: libcurl version 8.8.0 (compiled = 8.8.0)
+2026-10-23 17:54:57 I fifo: Created named pipe '\\.\pipe\client_can_connect_55df600a-3bbb-4d7b-a8d3-3ccd8bb691bc_server0'
+2026-10-23 17:54:57 I server: server name is 'My DDNet server'
+2026-10-23 17:54:57 I server: version 20.3 on win64 amd64
+2026-10-23 17:54:57 I server: git revision hash: ab5fccce90aab1db
+2026-10-23 17:54:57 I server: Loaded 0 announcements
+2026-10-23 17:54:57 I server: Found 19 maps for maplist
+2026-10-23 17:54:57 I server: +-------------------------+
+2026-10-23 17:54:57 I server: | rcon password: '8CRjYK' |
+2026-10-23 17:54:57 I server: +-------------------------+
+
+failures:
+    client_can_connect
+
+test result: [31mFAILED[m. 0 passed; 0 skipped, 1 failed; finished in 10.97s
+

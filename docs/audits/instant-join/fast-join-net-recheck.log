@@ -1,0 +1,25 @@
+Note: Google Test filter = Net.Ipv4AndIpv6Work
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from Net
+[ RUN      ] Net.Ipv4AndIpv6Work
+C:\Users\loren\Desktop\dev\Lucent-Client-DDNet\src\test\net_test.cpp(48): error: Expected equality of these values:
+  net_socket_read_wait(Socket1, 10s)
+    Which is: 0
+  1
+
+C:\Users\loren\Desktop\dev\Lucent-Client-DDNet\src\test\net_test.cpp(49): error: Expected equality of these values:
+  net_udp_recv(Socket1, &Addr, &pData)
+    Which is: -1
+  3
+
+[  FAILED  ] Net.Ipv4AndIpv6Work (10002 ms)
+[----------] 1 test from Net (10002 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (10002 ms total)
+[  PASSED  ] 0 tests.
+[  FAILED  ] 1 test, listed below:
+[  FAILED  ] Net.Ipv4AndIpv6Work
+
+ 1 FAILED TEST
