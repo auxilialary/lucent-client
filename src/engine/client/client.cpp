@@ -1865,7 +1865,7 @@ void CClient::ProcessServerPacket(CNetChunk *pPacket, int Conn, bool Dummy)
 					CMsgPacker MsgP(protocol7::NETMSG_REQUEST_MAP_DATA, true, true);
 					SendMsg(CONN_MAIN, &MsgP, MSGFLAG_VITAL | MSGFLAG_FLUSH);
 				}
-				else
+				else if(!IsSixup())
 				{
 					CMsgPacker MsgP(NETMSG_REQUEST_MAP_DATA, true);
 					MsgP.AddInt(m_MapdownloadChunk);

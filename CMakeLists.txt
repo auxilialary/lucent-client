@@ -3465,6 +3465,7 @@ if((GTEST_FOUND OR DOWNLOAD_GTEST) AND SERVER)
     json_test.cpp
     jsonwriter_test.cpp
     linereader_test.cpp
+    map_download_test.cpp
     mapbugs_test.cpp
     mapitems_test.cpp
     math_test.cpp
@@ -3514,10 +3515,18 @@ if((GTEST_FOUND OR DOWNLOAD_GTEST) AND SERVER)
     # tidy-alphabetical-end
   )
 
+  add_custom_command(OUTPUT ${PROJECT_BINARY_DIR}/src/generated/map_download_test.inc
+    COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/scripts/extract_map_download_test.py
+      ${PROJECT_SOURCE_DIR}/src/engine/client/client.cpp
+      ${PROJECT_BINARY_DIR}/src/generated/map_download_test.inc
+    DEPENDS scripts/extract_map_download_test.py src/engine/client/client.cpp
+  )
+
   set(TARGET_TESTRUNNER testrunner)
   add_executable(${TARGET_TESTRUNNER} EXCLUDE_FROM_ALL
     ${TESTS}
     ${TESTS_EXTRA}
+    ${PROJECT_BINARY_DIR}/src/generated/map_download_test.inc
     # tidy-alphabetical-start
     $<TARGET_OBJECTS:engine-gfx>
     $<TARGET_OBJECTS:engine-shared>

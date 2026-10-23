@@ -1,0 +1,154 @@
+#include "test.h"
+
+#include <base/dbg.h>
+#include <base/fs.h>
+#include <base/hash.h>
+#include <base/io.h>
+#include <base/log.h>
+#include <base/str.h>
+
+#include <engine/console.h>
+#include <engine/message.h>
+#include <engine/shared/config.h>
+#include <engine/shared/protocol.h>
+#include <engine/shared/uuid_manager.h>
+
+#include <generated/protocolglue.h>
+
+#include <gtest/gtest.h>
+
+#include <algorithm>
+#include <vector>
+
+// Exercise the production handler and repacker, isolating transport and final map
+// loading. Real packers, unpackers and file writes are used throughout.
+class CMapDownloadHarness
+{
+public:
+	static constexpr int CONN_MAIN = 0;
+	bool m_Sixup;
+	const char *m_aMapdownloadFilenameTemp = nullptr;
+	struct CStorageStub
+	{
+		IOHANDLE OpenFile(const char *pName, int Flags, int Type) { return io_open(pName, Flags); }
+	} m_Storage;
+	CStorageStub *Storage() { return &m_Storage; }
+	void SendMapRequest();
+	IOHANDLE m_MapdownloadFileTemp = nullptr;
+	int m_MapdownloadCrc = 12345;
+	int m_MapdownloadChunk = 0;
+	int m_MapdownloadAmount = 0;
+	struct
+	{
+		int m_MapdownloadTotalsize;
+		int m_MapDownloadChunkSize;
+		int m_MapDownloadChunksPerRequest;
+	} m_TranslationContext;
+	IConsole *m_pConsole = nullptr; // Debug logging disabled by the fixture.
+	bool m_Finished = false;
+	std::vector<std::vector<unsigned char>> m_Messages;
+
+	bool IsSixup() const { return m_Sixup; }
+	void FinishMapDownload() { m_Finished = true; }
+	void Receive(CUnpacker &Unpacker);
+	void SendMsg(int Conn, CMsgPacker *pMsg, int Flags);
+	~CMapDownloadHarness()
+	{
+		if(m_MapdownloadFileTemp)
+			io_close(m_MapdownloadFileTemp);
+	}
+};
+
+#include <generated/map_download_test.inc>
+
+void CMapDownloadHarness::SendMsg(int Conn, CMsgPacker *pMsg, int Flags)
+{
+	EXPECT_EQ(Conn, CONN_MAIN);
+	EXPECT_EQ(Flags, MSGFLAG_VITAL | MSGFLAG_FLUSH);
+	CPacker Wire;
+	ASSERT_TRUE(RepackMsg(pMsg, Wire, IsSixup()));
+	ASSERT_FALSE(Wire.Error());
+	m_Messages.emplace_back(Wire.Data(), Wire.Data() + Wire.Size());
+}
+
+static void TestMapDownload(int Window)
+{
+	constexpr int ChunkSize = 31;
+	for(bool Sixup : {false, true})
+	{
+		for(int Total : {1, Window * ChunkSize - 1, Window * ChunkSize, Window * ChunkSize + 1, 2 * Window * ChunkSize + 13})
+		{
+			SCOPED_TRACE(::testing::Message() << "sixup=" << Sixup << " window=" << Window << " bytes=" << Total);
+			CTestInfo Info;
+			Info.Filename(Info.m_aFilename, sizeof(Info.m_aFilename), ".map");
+			CMapDownloadHarness Client;
+			Client.m_Sixup = Sixup;
+			Client.m_TranslationContext = {Total, ChunkSize, Window};
+			Client.m_aMapdownloadFilenameTemp = Info.m_aFilename;
+			Client.SendMapRequest();
+			ASSERT_NE(Client.m_MapdownloadFileTemp, nullptr);
+			std::vector<unsigned char> Expected(Total);
+			for(int i = 0; i < Total; ++i)
+				Expected[i] = (i * 97 + 11) & 0xff;
+
+			const int Chunks = (Total + ChunkSize - 1) / ChunkSize;
+			for(int Chunk = 0, Offset = 0; Chunk < Chunks; ++Chunk)
+			{
+				int Size = std::min(ChunkSize, Total - Offset);
+				CPacker Packet;
+				Packet.Reset();
+				if(!Sixup)
+				{
+					Packet.AddInt(Chunk == Chunks - 1);
+					Packet.AddInt(Client.m_MapdownloadCrc);
+					Packet.AddInt(Chunk);
+					Packet.AddInt(Size);
+				}
+				Packet.AddRaw(Expected.data() + Offset, Size);
+				CUnpacker Unpacker;
+				Unpacker.Reset(Packet.Data(), Packet.Size());
+				Client.Receive(Unpacker);
+				Offset += Size;
+				const int Requests = Sixup ? std::min(Chunk + 1, Chunks - 1) / Window : std::min(Chunk + 1, Chunks - 1);
+				ASSERT_EQ(Client.m_Messages.size(), Requests + 1);
+				EXPECT_EQ(Client.m_Finished, Chunk == Chunks - 1);
+				EXPECT_EQ(Client.m_MapdownloadAmount, Offset);
+				EXPECT_EQ(Client.m_MapdownloadChunk, std::min(Chunk + 1, Chunks - 1));
+			}
+			for(size_t i = 0; i < Client.m_Messages.size(); ++i)
+			{
+				const auto &Wire = Client.m_Messages[i];
+				CUnpacker Unpacker;
+				Unpacker.Reset(Wire.data(), Wire.size());
+				int Header = Unpacker.GetInt();
+				EXPECT_EQ(Header & 1, 1);
+				EXPECT_EQ(Header >> 1, Sixup ? 23 : 19);
+				if(Sixup)
+				{
+					EXPECT_NE(Header >> 1, protocol7::NETMSG_ENTERGAME);
+					EXPECT_EQ(Wire.size(), 1);
+				}
+				else
+				{
+					EXPECT_EQ(Unpacker.GetInt(), i);
+					EXPECT_EQ(Wire.size(), 2);
+				}
+				EXPECT_FALSE(Unpacker.Error());
+			}
+			IOHANDLE File = io_open(Info.m_aFilename, IOFLAG_READ);
+			ASSERT_NE(File, nullptr);
+			std::vector<unsigned char> Actual(Total + 1);
+			unsigned Read = io_read(File, Actual.data(), Actual.size());
+			io_close(File);
+			ASSERT_EQ(Read, Total);
+			Actual.resize(Read);
+			EXPECT_EQ(Actual, Expected);
+			EXPECT_EQ(sha256(Actual.data(), Actual.size()), sha256(Expected.data(), Expected.size()));
+			EXPECT_FALSE(fs_remove(Info.m_aFilename));
+		}
+	}
+}
+
+TEST(MapDownload, Window1) { TestMapDownload(1); }
+TEST(MapDownload, Window2) { TestMapDownload(2); }
+TEST(MapDownload, Window8) { TestMapDownload(8); }
