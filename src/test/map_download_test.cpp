@@ -38,6 +38,7 @@ public:
 	int m_MapdownloadCrc = 12345;
 	int m_MapdownloadChunk = 0;
 	int m_MapdownloadAmount = 0;
+	int m_MapdownloadTotalsize = 1;
 	struct
 	{
 		int m_MapdownloadTotalsize;
@@ -65,7 +66,7 @@ public:
 		if(m_MapdownloadFileTemp)
 			io_close(m_MapdownloadFileTemp);
 		m_MapdownloadFileTemp = nullptr;
-		fs_remove(m_aMapdownloadFilenameTemp);
+		(void)fs_remove(m_aMapdownloadFilenameTemp);
 	}
 	std::vector<std::vector<unsigned char>> m_Messages;
 
@@ -111,6 +112,7 @@ static void TestMapDownload(int Window)
 			CMapDownloadHarness Client;
 			Client.m_Sixup = Sixup;
 			Client.m_TranslationContext = {Total, ChunkSize, Window};
+			Client.m_MapdownloadTotalsize = Total;
 			Client.m_aMapdownloadFilenameTemp = Info.m_aFilename;
 			Client.SendMapRequest();
 			ASSERT_NE(Client.m_MapdownloadFileTemp, nullptr);
@@ -215,5 +217,35 @@ TEST(MapDownload, IoFailures)
 		EXPECT_EQ(Client.m_MapdownloadFileTemp, nullptr);
 		EXPECT_EQ(Client.m_Messages.size(), 1);
 		EXPECT_EQ(fs_is_file(Info.m_aFilename), 0);
+	}
+}
+
+TEST(MapDownload, RejectInvalidLegacySize)
+{
+	// Overrun, premature Last, and exhausted budget without Last.
+	for(int Case = 0; Case < 3; ++Case)
+	{
+		CTestInfo Info;
+		CMapDownloadHarness Client;
+		Client.m_Sixup = false;
+		Client.m_aMapdownloadFilenameTemp = Info.m_aFilename;
+		Client.m_MapdownloadTotalsize = Case == 1 ? 2 : 1;
+		Client.m_MapdownloadAmount = Case == 2 ? 1 : 0;
+		Client.SendMapRequest();
+		CPacker Packet;
+		Packet.Reset();
+		Packet.AddInt(Case == 1);
+		Packet.AddInt(Client.m_MapdownloadCrc);
+		Packet.AddInt(0);
+		Packet.AddInt(Case == 0 ? 2 : 1);
+		Packet.AddRaw("ab", Case == 0 ? 2 : 1);
+		CUnpacker Unpacker;
+		Unpacker.Reset(Packet.Data(), Packet.Size());
+		const int PreviousAmount = Client.m_MapdownloadAmount;
+		Client.Receive(Unpacker);
+		EXPECT_TRUE(Client.m_Disconnected);
+		EXPECT_FALSE(Client.m_Finished);
+		EXPECT_EQ(Client.m_MapdownloadAmount, PreviousAmount);
+		EXPECT_EQ(Client.m_Messages.size(), 1);
 	}
 }

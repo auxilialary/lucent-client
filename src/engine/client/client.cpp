@@ -1844,6 +1844,15 @@ void CClient::ProcessServerPacket(CNetChunk *pPacket, int Conn, bool Dummy)
 				return;
 			}
 
+			// Subtract before adding so even an untrusted stream cannot overflow the counter.
+			if(!IsSixup() && (m_MapdownloadTotalsize < m_MapdownloadAmount ||
+				Size > m_MapdownloadTotalsize - m_MapdownloadAmount ||
+				(Last && Size != m_MapdownloadTotalsize - m_MapdownloadAmount)))
+			{
+				DisconnectWithReason("invalid map download size");
+				return;
+			}
+
 			if(io_write(m_MapdownloadFileTemp, pData, Size) != (unsigned)Size || io_error(m_MapdownloadFileTemp))
 			{
 				DisconnectWithReason("Could not write map download file");
