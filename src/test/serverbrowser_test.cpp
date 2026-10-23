@@ -102,3 +102,27 @@ TEST(ServerBrowser, PingCache)
 	EXPECT_EQ(pPingCache->GetPing(&OtherLocalhost4, 1), 1337);
 	EXPECT_EQ(pPingCache->GetPing(&OtherLocalhost6, 1), 345);
 }
+
+// Exercise the decoded-data cap without Content-Length or an HTTP server.
+#include <engine/http.h>
+class CBoundedListRequest : public IHttpRequest
+{
+public:
+	CBoundedListRequest() : IHttpRequest("https://invalid.invalid/servers.json")
+	{
+		m_WriteToMemory = false;
+		sha256_init(&m_ActualSha256Ctx);
+		MaxResponseSize(64 * 1024 * 1024);
+	}
+	void Header(const char *) override {}
+	using IHttpRequest::OnData;
+};
+
+TEST(ServerBrowser, HttpResponseBudget)
+{
+	CBoundedListRequest Request;
+	const std::string Block(1024 * 1024, ' ');
+	for(int i = 0; i < 64; ++i)
+		ASSERT_EQ(Request.OnData(Block.data(), Block.size()), Block.size());
+	EXPECT_EQ(Request.OnData("x", 1), 0);
+}
