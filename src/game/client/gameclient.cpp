@@ -372,7 +372,7 @@ void CGameClient::OnInit()
 	// Present from the first safe frame with fonts, before component loading.
 	m_Menus.RenderLoadingDirect("", "", std::nullopt);
 
-	const char *pLoadingDDNetCaption = Localize("Loading DDNet Client");
+	const char *pLoadingDDNetCaption = Localize("Loading Lucent Client");
 	const char *pLoadingMessageComponents = Localize("Initializing components");
 	const char *pLoadingMessageComponentsSpecial = Localize("Why are you slowmo replaying to read this?");
 	char aLoadingMessage[256];

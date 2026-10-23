@@ -157,3 +157,5 @@ tags
 *.vcxproj
 *.zip
 # tidy-alphabetical-end
+
+/docs/audits/

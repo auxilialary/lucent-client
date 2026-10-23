@@ -321,7 +321,7 @@ void CMenus::RenderSettingsDDNet(CUIRect MainView)
 			str_copy(aBuf, Localize("Updating…"));
 		else if(State == IUpdater::NEED_RESTART)
 		{
-			str_copy(aBuf, Localize("DDNet Client updated!"));
+			str_copy(aBuf, Localize("Lucent Client updated!"));
 			m_NeedRestartUpdate = true;
 		}
 		else

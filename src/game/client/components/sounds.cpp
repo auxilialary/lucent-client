@@ -28,7 +28,7 @@ void CSoundLoading::Run()
 {
 	for(int s = 0; s < g_pData->m_NumSounds; s++)
 	{
-		const char *pLoadingCaption = Localize("Loading DDNet Client");
+		const char *pLoadingCaption = Localize("Loading Lucent Client");
 		const char *pLoadingContent = Localize("Loading sound files");
 
 		for(int i = 0; i < g_pData->m_aSounds[s].m_NumSounds; i++)
@@ -113,7 +113,7 @@ void CSounds::OnInit()
 		m_pSoundJob = std::make_shared<CSoundLoading>(GameClient(), false);
 		GameClient()->Engine()->AddJob(m_pSoundJob);
 		m_WaitForSoundJob = true;
-		GameClient()->m_Menus.RenderLoading(Localize("Loading DDNet Client"), Localize("Loading sound files"), 0);
+		GameClient()->m_Menus.RenderLoading(Localize("Loading Lucent Client"), Localize("Loading sound files"), 0);
 	}
 	else
 	{

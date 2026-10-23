@@ -362,7 +362,7 @@ void CLucentMenu::RenderStartMenu(CUIRect MainView)
 		}
 		else if(State == IUpdater::NEED_RESTART)
 		{
-			str_copy(aBuf, Localize("DDNet Client updated!"));
+			str_copy(aBuf, Localize("Lucent Client updated!"));
 			TextRender()->TextColor(1.0f, 0.4f, 0.4f, 1.0f);
 		}
 		Ui()->DoLabel(&VersionUpdate, aBuf, 14.0f, TEXTALIGN_ML);
