@@ -1,0 +1,18 @@
+Traceback (most recent call last):
+  File "C:\Users\loren\Desktop\dev\Lucent-Client-DDNet\docs\audits\instant-join\run_local.py", line 149, in <module>
+    main()
+  File "C:\Users\loren\Desktop\dev\Lucent-Client-DDNet\docs\audits\instant-join\run_local.py", line 81, in main
+    connect(client, 'cold_fallback_udp')
+  File "C:\Users\loren\Desktop\dev\Lucent-Client-DDNet\docs\audits\instant-join\run_local.py", line 66, in connect
+    client.wait_for_log_prefix('client: Saved screenshot to', timeout=10)
+  File "C:\Users\loren\Desktop\dev\Lucent-Client-DDNet\scripts\integration_test.py", line 428, in wait_for_log_prefix
+    return self.wait_for_log(lambda l: l.line.startswith(prefix), description=f"log line with prefix `{prefix}`", timeout=timeout)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\loren\Desktop\dev\Lucent-Client-DDNet\scripts\integration_test.py", line 420, in wait_for_log
+    event = self.next_event(timeout_id)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\loren\Desktop\dev\Lucent-Client-DDNet\scripts\integration_test.py", line 405, in next_event
+    event.raise_on_error(timeout_id)
+  File "C:\Users\loren\Desktop\dev\Lucent-Client-DDNet\scripts\integration_test.py", line 79, in raise_on_error
+    raise TimeoutError(f"timeout waiting for {self.description}")
+TimeoutError: timeout waiting for log line with prefix `client: Saved screenshot to`

@@ -1,0 +1,175 @@
+Note: Google Test filter = Network.*:Net.*:NetAddr.*:ChunkHeader.*:Huffman.*:MapDownload.*:MapBugs.*:Mapitems.*:Datafile.*:Snapshot.*:Packer.*:GameWorld.*:Tunings.*
+[==========] Running 58 tests from 13 test suites.
+[----------] Global test environment set-up.
+[----------] 5 tests from ChunkHeader
+[ RUN      ] ChunkHeader.Seq255
+[       OK ] ChunkHeader.Seq255 (0 ms)
+[ RUN      ] ChunkHeader.Seq126
+[       OK ] ChunkHeader.Seq126 (0 ms)
+[ RUN      ] ChunkHeader.Seq63
+[       OK ] ChunkHeader.Seq63 (0 ms)
+[ RUN      ] ChunkHeader.Seq64
+[       OK ] ChunkHeader.Seq64 (0 ms)
+[ RUN      ] ChunkHeader.Seq5
+[       OK ] ChunkHeader.Seq5 (0 ms)
+[----------] 5 tests from ChunkHeader (0 ms total)
+
+[----------] 2 tests from Datafile
+[ RUN      ] Datafile.ExtendedType
+[       OK ] Datafile.ExtendedType (7 ms)
+[ RUN      ] Datafile.StringData
+[       OK ] Datafile.StringData (6 ms)
+[----------] 2 tests from Datafile (14 ms total)
+
+[----------] 6 tests from GameWorld
+[ RUN      ] GameWorld.DebugDummiesConnectAndDrop
+[       OK ] GameWorld.DebugDummiesConnectAndDrop (123 ms)
+[ RUN      ] GameWorld.ClosestCharacter
+[       OK ] GameWorld.ClosestCharacter (109 ms)
+[ RUN      ] GameWorld.IntersectEntity
+[       OK ] GameWorld.IntersectEntity (109 ms)
+[ RUN      ] GameWorld.LaserOfPlayerWithoutCharacterHitsOthers
+[       OK ] GameWorld.LaserOfPlayerWithoutCharacterHitsOthers (110 ms)
+[ RUN      ] GameWorld.BasicTick
+[       OK ] GameWorld.BasicTick (110 ms)
+[ RUN      ] GameWorld.CharacterEmote
+[       OK ] GameWorld.CharacterEmote (110 ms)
+[----------] 6 tests from GameWorld (674 ms total)
+
+[----------] 1 test from Tunings
+[ RUN      ] Tunings.OutOfRangeBecomesIntMin
+[       OK ] Tunings.OutOfRangeBecomesIntMin (0 ms)
+[----------] 1 test from Tunings (0 ms total)
+
+[----------] 6 tests from Huffman
+[ RUN      ] Huffman.CompressionInputSizeZero
+[       OK ] Huffman.CompressionInputSizeZero (0 ms)
+[ RUN      ] Huffman.CompressionShouldNotChangeData
+[       OK ] Huffman.CompressionShouldNotChangeData (18 ms)
+[ RUN      ] Huffman.CompressionCompatible
+[       OK ] Huffman.CompressionCompatible (0 ms)
+[ RUN      ] Huffman.CompressionNoTrailingNull
+[       OK ] Huffman.CompressionNoTrailingNull (0 ms)
+[ RUN      ] Huffman.CompressionTruncated
+[       OK ] Huffman.CompressionTruncated (0 ms)
+[ RUN      ] Huffman.DecompressionTableLookupIntegerOverflow
+[       OK ] Huffman.DecompressionTableLookupIntegerOverflow (0 ms)
+[----------] 6 tests from Huffman (18 ms total)
+
+[----------] 6 tests from MapDownload
+[ RUN      ] MapDownload.Window1
+[       OK ] MapDownload.Window1 (31 ms)
+[ RUN      ] MapDownload.Window2
+[       OK ] MapDownload.Window2 (27 ms)
+[ RUN      ] MapDownload.Window8
+[       OK ] MapDownload.Window8 (31 ms)
+[ RUN      ] MapDownload.OpenFailure
+[       OK ] MapDownload.OpenFailure (0 ms)
+[ RUN      ] MapDownload.IoFailures
+[       OK ] MapDownload.IoFailures (2 ms)
+[ RUN      ] MapDownload.RejectInvalidLegacySize
+[       OK ] MapDownload.RejectInvalidLegacySize (2 ms)
+[----------] 6 tests from MapDownload (96 ms total)
+
+[----------] 3 tests from MapBugs
+[ RUN      ] MapBugs.Contains
+[       OK ] MapBugs.Contains (0 ms)
+[ RUN      ] MapBugs.Update
+[       OK ] MapBugs.Update (0 ms)
+[ RUN      ] MapBugs.Dump
+[       OK ] MapBugs.Dump (0 ms)
+[----------] 3 tests from MapBugs (0 ms total)
+
+[----------] 1 test from Mapitems
+[ RUN      ] Mapitems.FixedTimeRoundtrip
+[       OK ] Mapitems.FixedTimeRoundtrip (2 ms)
+[----------] 1 test from Mapitems (2 ms total)
+
+[----------] 1 test from Net
+[ RUN      ] Net.Ipv4AndIpv6Work
+C:\Users\loren\Desktop\dev\Lucent-Client-DDNet\src\test\net_test.cpp(48): error: Expected equality of these values:
+  net_socket_read_wait(Socket1, 10s)
+    Which is: 0
+  1
+
+C:\Users\loren\Desktop\dev\Lucent-Client-DDNet\src\test\net_test.cpp(49): error: Expected equality of these values:
+  net_udp_recv(Socket1, &Addr, &pData)
+    Which is: -1
+  3
+
+[  FAILED  ] Net.Ipv4AndIpv6Work (10000 ms)
+[----------] 1 test from Net (10000 ms total)
+
+[----------] 6 tests from NetAddr
+[ RUN      ] NetAddr.FromUrlStringInvalid
+[       OK ] NetAddr.FromUrlStringInvalid (0 ms)
+[ RUN      ] NetAddr.FromUrlStringValid
+[       OK ] NetAddr.FromUrlStringValid (0 ms)
+[ RUN      ] NetAddr.FromStr
+[       OK ] NetAddr.FromStr (0 ms)
+[ RUN      ] NetAddr.StrV6
+[       OK ] NetAddr.StrV6 (0 ms)
+[ RUN      ] NetAddr.FromStrInvalid
+[       OK ] NetAddr.FromStrInvalid (0 ms)
+[ RUN      ] NetAddr.IsLocal
+[       OK ] NetAddr.IsLocal (0 ms)
+[----------] 6 tests from NetAddr (0 ms total)
+
+[----------] 8 tests from Network
+[ RUN      ] Network.UnpackMaximumUncompressedPacket
+[       OK ] Network.UnpackMaximumUncompressedPacket (0 ms)
+[ RUN      ] Network.UnpackOversizedUncompressedPacket
+[       OK ] Network.UnpackOversizedUncompressedPacket (0 ms)
+[ RUN      ] Network.UnpackCompressedPacket
+[       OK ] Network.UnpackCompressedPacket (0 ms)
+[ RUN      ] Network.UnpackCompressedPacketWithoutDecompression
+[       OK ] Network.UnpackCompressedPacketWithoutDecompression (0 ms)
+[ RUN      ] Network.UnpackOversizedCompressedPacket
+[       OK ] Network.UnpackOversizedCompressedPacket (0 ms)
+[ RUN      ] Network.UnpackUncompressedPacketWithoutDecompression
+[       OK ] Network.UnpackUncompressedPacketWithoutDecompression (0 ms)
+[ RUN      ] Network.UnpackChunks
+[       OK ] Network.UnpackChunks (0 ms)
+[ RUN      ] Network.RetryToken7
+[       OK ] Network.RetryToken7 (1101 ms)
+[----------] 8 tests from Network (1101 ms total)
+
+[----------] 8 tests from Packer
+[ RUN      ] Packer.AddInt
+[       OK ] Packer.AddInt (0 ms)
+[ RUN      ] Packer.AddExtendedInt
+[       OK ] Packer.AddExtendedInt (0 ms)
+[ RUN      ] Packer.AddString
+[       OK ] Packer.AddString (0 ms)
+[ RUN      ] Packer.AddStringLimit
+[       OK ] Packer.AddStringLimit (0 ms)
+[ RUN      ] Packer.AddStringBroken
+[       OK ] Packer.AddStringBroken (0 ms)
+[ RUN      ] Packer.Error1
+[       OK ] Packer.Error1 (0 ms)
+[ RUN      ] Packer.Error2
+[       OK ] Packer.Error2 (0 ms)
+[ RUN      ] Packer.Error3
+[       OK ] Packer.Error3 (0 ms)
+[----------] 8 tests from Packer (0 ms total)
+
+[----------] 5 tests from Snapshot
+[ RUN      ] Snapshot.CrcOneInt
+[       OK ] Snapshot.CrcOneInt (0 ms)
+[ RUN      ] Snapshot.CrcTwoInts
+[       OK ] Snapshot.CrcTwoInts (0 ms)
+[ RUN      ] Snapshot.CrcBiggerInts
+[       OK ] Snapshot.CrcBiggerInts (0 ms)
+[ RUN      ] Snapshot.CrcOverflow
+[       OK ] Snapshot.CrcOverflow (0 ms)
+[ RUN      ] Snapshot.StorageGet
+[       OK ] Snapshot.StorageGet (0 ms)
+[----------] 5 tests from Snapshot (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 58 tests from 13 test suites ran. (11909 ms total)
+[  PASSED  ] 57 tests.
+[  FAILED  ] 1 test, listed below:
+[  FAILED  ] Net.Ipv4AndIpv6Work
+
+ 1 FAILED TEST

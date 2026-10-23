@@ -1,0 +1,796 @@
+{
+  "date": "2026-10-23",
+  "base_head": "2f3473107bcd1ecc0280b03f6a3daaa35541da9c",
+  "branch": "dev/lucent-core",
+  "configuration": "Release x64 / MSVC 14.51.36231 / OpenGL 3.3",
+  "cpu": "AMD Ryzen 7 7700X",
+  "gpu": "AMD Radeon RX 7600",
+  "driver": "32.0.31041.1004",
+  "phase": {
+    "seed": 20261023,
+    "distribution": "uniform(0, 0.2) seconds before connect and server map switch"
+  },
+  "repetitions_per_protocol_scenario_variant": 10,
+  "final_transitions": 160,
+  "p95": "nearest rank; n=10 means p95=max",
+  "maps": {
+    "maps/Tutorial": {
+      "bytes": 1060483,
+      "sha256": "796a3716fe64657bfb8bc6af5f9422b197278919a9d875e43b9bbbcb73262fc0"
+    },
+    "maps/Sunny Side Up": {
+      "bytes": 1018869,
+      "sha256": "f9141934dfbfba005ea5f06a65ccebd9e74c6dbffc6cdf6bad231900f5a1eae0"
+    },
+    "maps7/Tutorial": {
+      "bytes": 1464891,
+      "sha256": "3be1834a8abb0d9b59908a273e2673239d4f4dc501e301966d5c619e5b52460a"
+    },
+    "maps7/Sunny Side Up": {
+      "bytes": 1368003,
+      "sha256": "e787aec6cca5219e4843bbb4197aaa52285b1e2dfd6391081813c0e9aab6a12b"
+    }
+  },
+  "logs": {
+    "out\\build\\x64-Release\\join_6_0_g_7e43o3\\client\\client0.stdout": {
+      "sha256": "c8142812fe700675efb23f17941ce7656843dd1a7ff3f3cd95d2a44df56190a9",
+      "graphics": [
+        "2026-10-23 17:45:07 I gfx: Created OpenGL 3.3 context",
+        "2026-10-23 17:45:07 I gfx: GPU vendor: ATI Technologies Inc.",
+        "2026-10-23 17:45:07 I gfx: GPU renderer: AMD Radeon RX 7600",
+        "2026-10-23 17:45:07 I gfx: GPU version: 3.3.0 Core Profile Context 26.8.1.260810"
+      ]
+    },
+    "out\\build\\x64-Release\\join_6_0_g_7e43o3\\client\\client1.stdout": {
+      "sha256": "a0a4ce828d283dfdf673d8cb701bbbf77a1e766049df4cf31a4592d321b1fbcd",
+      "graphics": [
+        "2026-10-23 17:45:10 I gfx: Created OpenGL 3.3 context",
+        "2026-10-23 17:45:10 I gfx: GPU vendor: ATI Technologies Inc.",
+        "2026-10-23 17:45:10 I gfx: GPU renderer: AMD Radeon RX 7600",
+        "2026-10-23 17:45:10 I gfx: GPU version: 3.3.0 Core Profile Context 26.8.1.260810"
+      ]
+    },
+    "out\\build\\x64-Release\\join_6_1_nbjrltw9\\client\\client0.stdout": {
+      "sha256": "82f7c4aadddd69eea61ae01b83c248ea95754cececb36dce0fa7d63e55d954cc",
+      "graphics": [
+        "2026-10-23 17:45:16 I gfx: Created OpenGL 3.3 context",
+        "2026-10-23 17:45:16 I gfx: GPU vendor: ATI Technologies Inc.",
+        "2026-10-23 17:45:16 I gfx: GPU renderer: AMD Radeon RX 7600",
+        "2026-10-23 17:45:16 I gfx: GPU version: 3.3.0 Core Profile Context 26.8.1.260810"
+      ]
+    },
+    "out\\build\\x64-Release\\join_6_1_nbjrltw9\\client\\client1.stdout": {
+      "sha256": "e3a37a051e4e16e99fb47782c4b5199a269aa9c6c2c52af07aad2f683fd89b11",
+      "graphics": [
+        "2026-10-23 17:45:19 I gfx: Created OpenGL 3.3 context",
+        "2026-10-23 17:45:19 I gfx: GPU vendor: ATI Technologies Inc.",
+        "2026-10-23 17:45:19 I gfx: GPU renderer: AMD Radeon RX 7600",
+        "2026-10-23 17:45:19 I gfx: GPU version: 3.3.0 Core Profile Context 26.8.1.260810"
+      ]
+    },
+    "out\\build\\x64-Release\\join_6_2_j2hgxuzx\\client\\client0.stdout": {
+      "sha256": "579d1ff56f60b38992640df871366f4305eee15b47aea7cb64adb1c429b40e29",
+      "graphics": [
+        "2026-10-23 17:45:25 I gfx: Created OpenGL 3.3 context",
+        "2026-10-23 17:45:25 I gfx: GPU vendor: ATI Technologies Inc.",
+        "2026-10-23 17:45:25 I gfx: GPU renderer: AMD Radeon RX 7600",
+        "2026-10-23 17:45:25 I gfx: GPU version: 3.3.0 Core Profile Context 26.8.1.260810"
+      ]
+    },
+    "out\\build\\x64-Release\\join_6_2_j2hgxuzx\\client\\client1.stdout": {
+      "sha256": "4ebd71c776496f65580a6821d586661a945fe81aacab0f1cc8563a273a9d6a04",
+      "graphics": [
+        "2026-10-23 17:45:28 I gfx: Created OpenGL 3.3 context",
+        "2026-10-23 17:45:28 I gfx: GPU vendor: ATI Technologies Inc.",
+        "2026-10-23 17:45:28 I gfx: GPU renderer: AMD Radeon RX 7600",
+        "2026-10-23 17:45:28 I gfx: GPU version: 3.3.0 Core Profile Context 26.8.1.260810"
+      ]
+    },
+    "out\\build\\x64-Release\\join_6_3_72hwn5io\\client\\client0.stdout": {
+      "sha256": "828ee7d6c96324df88489740349e30d8e5e4bc502af45b9d891dce1e06475c60",
+      "graphics": [
+        "2026-10-23 17:45:34 I gfx: Created OpenGL 3.3 context",
+        "2026-10-23 17:45:34 I gfx: GPU vendor: ATI Technologies Inc.",
+        "2026-10-23 17:45:34 I gfx: GPU renderer: AMD Radeon RX 7600",
+        "2026-10-23 17:45:34 I gfx: GPU version: 3.3.0 Core Profile Context 26.8.1.260810"
+      ]
+    },
+    "out\\build\\x64-Release\\join_6_3_72hwn5io\\client\\client1.stdout": {
+      "sha256": "715e60f0b1b3a2145a2fb205c6f45004342ad451bbff85abf096f16b62a8247d",
+      "graphics": [
+        "2026-10-23 17:45:37 I gfx: Created OpenGL 3.3 context",
+        "2026-10-23 17:45:38 I gfx: GPU vendor: ATI Technologies Inc.",
+        "2026-10-23 17:45:38 I gfx: GPU renderer: AMD Radeon RX 7600",
+        "2026-10-23 17:45:38 I gfx: GPU version: 3.3.0 Core Profile Context 26.8.1.260810"
+      ]
+    },
+    "out\\build\\x64-Release\\join_6_4_3yx8cts0\\client\\client0.stdout": {
+      "sha256": "2529682816552d9a97b2ed213a23d1fd3fd298260a2856b8703fc10eb5942ff4",
+      "graphics": [
+        "2026-10-23 17:45:43 I gfx: Created OpenGL 3.3 context",
+        "2026-10-23 17:45:43 I gfx: GPU vendor: ATI Technologies Inc.",
+        "2026-10-23 17:45:43 I gfx: GPU renderer: AMD Radeon RX 7600",
+        "2026-10-23 17:45:43 I gfx: GPU version: 3.3.0 Core Profile Context 26.8.1.260810"
+      ]
+    },
+    "out\\build\\x64-Release\\join_6_4_3yx8cts0\\client\\client1.stdout": {
+      "sha256": "7bf258d82fe76ee7d5fbf9cd46b78eb50d1bfd1581b31a3e1df18c0a86b91c45",
+      "graphics": [
+        "2026-10-23 17:45:47 I gfx: Created OpenGL 3.3 context",
+        "2026-10-23 17:45:47 I gfx: GPU vendor: ATI Technologies Inc.",
+        "2026-10-23 17:45:47 I gfx: GPU renderer: AMD Radeon RX 7600",
+        "2026-10-23 17:45:47 I gfx: GPU version: 3.3.0 Core Profile Context 26.8.1.260810"
+      ]
+    },
+    "out\\build\\x64-Release\\join_6_5_fiw2y0y2\\client\\client0.stdout": {
+      "sha256": "41c7a131055d8842c10184a5d8176e89a9b92da689f4fc69e6a97e650cbf2333",
+      "graphics": [
+        "2026-10-23 17:45:53 I gfx: Created OpenGL 3.3 context",
+        "2026-10-23 17:45:53 I gfx: GPU vendor: ATI Technologies Inc.",
+        "2026-10-23 17:45:53 I gfx: GPU renderer: AMD Radeon RX 7600",
+        "2026-10-23 17:45:53 I gfx: GPU version: 3.3.0 Core Profile Context 26.8.1.260810"
+      ]
+    },
+    "out\\build\\x64-Release\\join_6_5_fiw2y0y2\\client\\client1.stdout": {
+      "sha256": "83a14220f201413f90c6cd0467ef7ae4149aed2e7bafd8e9d2b803b696ba125e",
+      "graphics": [
+        "2026-10-23 17:45:56 I gfx: Created OpenGL 3.3 context",
+        "2026-10-23 17:45:56 I gfx: GPU vendor: ATI Technologies Inc.",
+        "2026-10-23 17:45:56 I gfx: GPU renderer: AMD Radeon RX 7600",
+        "2026-10-23 17:45:56 I gfx: GPU version: 3.3.0 Core Profile Context 26.8.1.260810"
+      ]
+    },
+    "out\\build\\x64-Release\\join_6_6_68umjlri\\client\\client0.stdout": {
+      "sha256": "a4b45d6e9c483a195d9f7d2c3d114e4b449b15c965de7af61361a52d02495757",
+      "graphics": [
+        "2026-10-23 17:46:02 I gfx: Created OpenGL 3.3 context",
+        "2026-10-23 17:46:02 I gfx: GPU vendor: ATI Technologies Inc.",
+        "2026-10-23 17:46:02 I gfx: GPU renderer: AMD Radeon RX 7600",
+        "2026-10-23 17:46:02 I gfx: GPU version: 3.3.0 Core Profile Context 26.8.1.260810"
+      ]
+    },
+    "out\\build\\x64-Release\\join_6_6_68umjlri\\client\\client1.stdout": {
+      "sha256": "d5358638d14d167ab2bdcfb85650ce578bbc4e5a1a1cc08f5c02ba6d5208dc3a",
+      "graphics": [
+        "2026-10-23 17:46:05 I gfx: Created OpenGL 3.3 context",
+        "2026-10-23 17:46:06 I gfx: GPU vendor: ATI Technologies Inc.",
+        "2026-10-23 17:46:06 I gfx: GPU renderer: AMD Radeon RX 7600",
+        "2026-10-23 17:46:06 I gfx: GPU version: 3.3.0 Core Profile Context 26.8.1.260810"
+      ]
+    },
+    "out\\build\\x64-Release\\join_6_7_o6g1t8d0\\client\\client0.stdout": {
+      "sha256": "8c70fbbc5df38e749af70b6e9d110004358db785d7b88fac4d5660d1f4c85825",
+      "graphics": [
+        "2026-10-23 17:46:11 I gfx: Created OpenGL 3.3 context",
+        "2026-10-23 17:46:11 I gfx: GPU vendor: ATI Technologies Inc.",
+        "2026-10-23 17:46:11 I gfx: GPU renderer: AMD Radeon RX 7600",
+        "2026-10-23 17:46:11 I gfx: GPU version: 3.3.0 Core Profile Context 26.8.1.260810"
+      ]
+    },
+    "out\\build\\x64-Release\\join_6_7_o6g1t8d0\\client\\client1.stdout": {
+      "sha256": "a078bdceb782a9eecdd661a021aa18e37b343f35f6dd19c96d07ba9d70e80158",
+      "graphics": [
+        "2026-10-23 17:46:14 I gfx: Created OpenGL 3.3 context",
+        "2026-10-23 17:46:14 I gfx: GPU vendor: ATI Technologies Inc.",
+        "2026-10-23 17:46:14 I gfx: GPU renderer: AMD Radeon RX 7600",
+        "2026-10-23 17:46:14 I gfx: GPU version: 3.3.0 Core Profile Context 26.8.1.260810"
+      ]
+    },
+    "out\\build\\x64-Release\\join_6_8_c_vp9lbu\\client\\client0.stdout": {
+      "sha256": "6a04bc7ccca80fff58fac70bbb36ea58cb22fe7a8946966e6b2d6bc6cda50c17",
+      "graphics": [
+        "2026-10-23 17:46:20 I gfx: Created OpenGL 3.3 context",
+        "2026-10-23 17:46:20 I gfx: GPU vendor: ATI Technologies Inc.",
+        "2026-10-23 17:46:20 I gfx: GPU renderer: AMD Radeon RX 7600",
+        "2026-10-23 17:46:20 I gfx: GPU version: 3.3.0 Core Profile Context 26.8.1.260810"
+      ]
+    },
+    "out\\build\\x64-Release\\join_6_8_c_vp9lbu\\client\\client1.stdout": {
+      "sha256": "15af81ca26dcb0d1025285976e8c4f0fbfb4aae76e36494e0d471e695667d0b2",
+      "graphics": [
+        "2026-10-23 17:46:23 I gfx: Created OpenGL 3.3 context",
+        "2026-10-23 17:46:24 I gfx: GPU vendor: ATI Technologies Inc.",
+        "2026-10-23 17:46:24 I gfx: GPU renderer: AMD Radeon RX 7600",
+        "2026-10-23 17:46:24 I gfx: GPU version: 3.3.0 Core Profile Context 26.8.1.260810"
+      ]
+    },
+    "out\\build\\x64-Release\\join_6_9_bed5mlnd\\client\\client0.stdout": {
+      "sha256": "f07a3b438142e800bd03aec3ecd79cb5c3ed9fd39b58a7549dd9e1233d7a606c",
+      "graphics": [
+        "2026-10-23 17:46:29 I gfx: Created OpenGL 3.3 context",
+        "2026-10-23 17:46:30 I gfx: GPU vendor: ATI Technologies Inc.",
+        "2026-10-23 17:46:30 I gfx: GPU renderer: AMD Radeon RX 7600",
+        "2026-10-23 17:46:30 I gfx: GPU version: 3.3.0 Core Profile Context 26.8.1.260810"
+      ]
+    },
+    "out\\build\\x64-Release\\join_6_9_bed5mlnd\\client\\client1.stdout": {
+      "sha256": "9b998297a075f0b6108380fbe4f33e901b3d20581edd8118836c62b4e4eb294c",
+      "graphics": [
+        "2026-10-23 17:46:33 I gfx: Created OpenGL 3.3 context",
+        "2026-10-23 17:46:33 I gfx: GPU vendor: ATI Technologies Inc.",
+        "2026-10-23 17:46:33 I gfx: GPU renderer: AMD Radeon RX 7600",
+        "2026-10-23 17:46:33 I gfx: GPU version: 3.3.0 Core Profile Context 26.8.1.260810"
+      ]
+    },
+    "out\\build\\x64-Release\\join_7_0_93f96tb6\\client\\client0.stdout": {
+      "sha256": "688063db28a25ca66b26cfacdf0ab0652e2a1bd26b6a8ba4889d48afad06f341",
+      "graphics": [
+        "2026-10-23 17:46:39 I gfx: Created OpenGL 3.3 context",
+        "2026-10-23 17:46:39 I gfx: GPU vendor: ATI Technologies Inc.",
+        "2026-10-23 17:46:39 I gfx: GPU renderer: AMD Radeon RX 7600",
+        "2026-10-23 17:46:39 I gfx: GPU version: 3.3.0 Core Profile Context 26.8.1.260810"
+      ]
+    },
+    "out\\build\\x64-Release\\join_7_0_93f96tb6\\client\\client1.stdout": {
+      "sha256": "d702bf050abe74a0bfdf5dc96d12838fda3fd901b518c093d9de7f083edf4048",
+      "graphics": [
+        "2026-10-23 17:46:42 I gfx: Created OpenGL 3.3 context",
+        "2026-10-23 17:46:42 I gfx: GPU vendor: ATI Technologies Inc.",
+        "2026-10-23 17:46:42 I gfx: GPU renderer: AMD Radeon RX 7600",
+        "2026-10-23 17:46:42 I gfx: GPU version: 3.3.0 Core Profile Context 26.8.1.260810"
+      ]
+    },
+    "out\\build\\x64-Release\\join_7_1_fm7l1cwq\\client\\client0.stdout": {
+      "sha256": "80bcba131ec6aefad09022a72b1b661902a0e6f9d19e681803bad6674a4fc49e",
+      "graphics": [
+        "2026-10-23 17:46:48 I gfx: Created OpenGL 3.3 context",
+        "2026-10-23 17:46:49 I gfx: GPU vendor: ATI Technologies Inc.",
+        "2026-10-23 17:46:49 I gfx: GPU renderer: AMD Radeon RX 7600",
+        "2026-10-23 17:46:49 I gfx: GPU version: 3.3.0 Core Profile Context 26.8.1.260810"
+      ]
+    },
+    "out\\build\\x64-Release\\join_7_1_fm7l1cwq\\client\\client1.stdout": {
+      "sha256": "5e4ea198cbae47ab13bd3611b4d6ae10b4e55fcbb4614a41996ac701ae202d45",
+      "graphics": [
+        "2026-10-23 17:46:52 I gfx: Created OpenGL 3.3 context",
+        "2026-10-23 17:46:52 I gfx: GPU vendor: ATI Technologies Inc.",
+        "2026-10-23 17:46:52 I gfx: GPU renderer: AMD Radeon RX 7600",
+        "2026-10-23 17:46:52 I gfx: GPU version: 3.3.0 Core Profile Context 26.8.1.260810"
+      ]
+    },
+    "out\\build\\x64-Release\\join_7_2_c8j72fvg\\client\\client0.stdout": {
+      "sha256": "575f2daa5a2ec6ee0c27275adc091d38bde5eafa1c051c2da35e766f49764d5b",
+      "graphics": [
+        "2026-10-23 17:46:58 I gfx: Created OpenGL 3.3 context",
+        "2026-10-23 17:46:58 I gfx: GPU vendor: ATI Technologies Inc.",
+        "2026-10-23 17:46:58 I gfx: GPU renderer: AMD Radeon RX 7600",
+        "2026-10-23 17:46:58 I gfx: GPU version: 3.3.0 Core Profile Context 26.8.1.260810"
+      ]
+    },
+    "out\\build\\x64-Release\\join_7_2_c8j72fvg\\client\\client1.stdout": {
+      "sha256": "2003b9deb1edd2b291df15bf0af479ee7c596773b356db360ffae78d4fc1927d",
+      "graphics": [
+        "2026-10-23 17:47:02 I gfx: Created OpenGL 3.3 context",
+        "2026-10-23 17:47:02 I gfx: GPU vendor: ATI Technologies Inc.",
+        "2026-10-23 17:47:02 I gfx: GPU renderer: AMD Radeon RX 7600",
+        "2026-10-23 17:47:02 I gfx: GPU version: 3.3.0 Core Profile Context 26.8.1.260810"
+      ]
+    },
+    "out\\build\\x64-Release\\join_7_3_rhr6ug9l\\client\\client0.stdout": {
+      "sha256": "84727a0e01e7f9a78a49f98bc75a349a7204e5863f9431411593a3706d0934ea",
+      "graphics": [
+        "2026-10-23 17:47:08 I gfx: Created OpenGL 3.3 context",
+        "2026-10-23 17:47:08 I gfx: GPU vendor: ATI Technologies Inc.",
+        "2026-10-23 17:47:08 I gfx: GPU renderer: AMD Radeon RX 7600",
+        "2026-10-23 17:47:08 I gfx: GPU version: 3.3.0 Core Profile Context 26.8.1.260810"
+      ]
+    },
+    "out\\build\\x64-Release\\join_7_3_rhr6ug9l\\client\\client1.stdout": {
+      "sha256": "f95d67ca21cd071eba630b711ecad18284cbae41bc5941339a4e9d749c589f4d",
+      "graphics": [
+        "2026-10-23 17:47:11 I gfx: Created OpenGL 3.3 context",
+        "2026-10-23 17:47:11 I gfx: GPU vendor: ATI Technologies Inc.",
+        "2026-10-23 17:47:11 I gfx: GPU renderer: AMD Radeon RX 7600",
+        "2026-10-23 17:47:11 I gfx: GPU version: 3.3.0 Core Profile Context 26.8.1.260810"
+      ]
+    },
+    "out\\build\\x64-Release\\join_7_4_p5zscwyn\\client\\client0.stdout": {
+      "sha256": "15a2c4b070d862d43b1f34c1106ed47ce55813ae4d2321dbb5a5885c623e7ae5",
+      "graphics": [
+        "2026-10-23 17:47:17 I gfx: Created OpenGL 3.3 context",
+        "2026-10-23 17:47:18 I gfx: GPU vendor: ATI Technologies Inc.",
+        "2026-10-23 17:47:18 I gfx: GPU renderer: AMD Radeon RX 7600",
+        "2026-10-23 17:47:18 I gfx: GPU version: 3.3.0 Core Profile Context 26.8.1.260810"
+      ]
+    },
+    "out\\build\\x64-Release\\join_7_4_p5zscwyn\\client\\client1.stdout": {
+      "sha256": "397a259f8605860460eb3df77d28a85f10f3593eb6d37ceefc896806be495969",
+      "graphics": [
+        "2026-10-23 17:47:21 I gfx: Created OpenGL 3.3 context",
+        "2026-10-23 17:47:21 I gfx: GPU vendor: ATI Technologies Inc.",
+        "2026-10-23 17:47:21 I gfx: GPU renderer: AMD Radeon RX 7600",
+        "2026-10-23 17:47:21 I gfx: GPU version: 3.3.0 Core Profile Context 26.8.1.260810"
+      ]
+    },
+    "out\\build\\x64-Release\\join_7_5_pbd_x16t\\client\\client0.stdout": {
+      "sha256": "644be08030c4ab74b3dcae60255d4495e67d7911ac18e87ad0b07651ac70f94b",
+      "graphics": [
+        "2026-10-23 17:47:27 I gfx: Created OpenGL 3.3 context",
+        "2026-10-23 17:47:27 I gfx: GPU vendor: ATI Technologies Inc.",
+        "2026-10-23 17:47:27 I gfx: GPU renderer: AMD Radeon RX 7600",
+        "2026-10-23 17:47:27 I gfx: GPU version: 3.3.0 Core Profile Context 26.8.1.260810"
+      ]
+    },
+    "out\\build\\x64-Release\\join_7_5_pbd_x16t\\client\\client1.stdout": {
+      "sha256": "4be9f70363f90a33ec2152e25294da818d32f7fa846672ffb678f87d2be51ab2",
+      "graphics": [
+        "2026-10-23 17:47:30 I gfx: Created OpenGL 3.3 context",
+        "2026-10-23 17:47:30 I gfx: GPU vendor: ATI Technologies Inc.",
+        "2026-10-23 17:47:30 I gfx: GPU renderer: AMD Radeon RX 7600",
+        "2026-10-23 17:47:30 I gfx: GPU version: 3.3.0 Core Profile Context 26.8.1.260810"
+      ]
+    },
+    "out\\build\\x64-Release\\join_7_6_e5dsjpw4\\client\\client0.stdout": {
+      "sha256": "d8f1b035d18663a1d7c98493f8939c2208bcf1b6010831148a16d11c1480ae74",
+      "graphics": [
+        "2026-10-23 17:47:36 I gfx: Created OpenGL 3.3 context",
+        "2026-10-23 17:47:36 I gfx: GPU vendor: ATI Technologies Inc.",
+        "2026-10-23 17:47:36 I gfx: GPU renderer: AMD Radeon RX 7600",
+        "2026-10-23 17:47:36 I gfx: GPU version: 3.3.0 Core Profile Context 26.8.1.260810"
+      ]
+    },
+    "out\\build\\x64-Release\\join_7_6_e5dsjpw4\\client\\client1.stdout": {
+      "sha256": "95e840dbbdcc45fec5e98d76dd840c240362a2afa834772b6d6bb5793172009d",
+      "graphics": [
+        "2026-10-23 17:47:40 I gfx: Created OpenGL 3.3 context",
+        "2026-10-23 17:47:40 I gfx: GPU vendor: ATI Technologies Inc.",
+        "2026-10-23 17:47:40 I gfx: GPU renderer: AMD Radeon RX 7600",
+        "2026-10-23 17:47:40 I gfx: GPU version: 3.3.0 Core Profile Context 26.8.1.260810"
+      ]
+    },
+    "out\\build\\x64-Release\\join_7_7_1b_3a8e1\\client\\client0.stdout": {
+      "sha256": "c99d2c5993d60b2d6715b5a9b311979954b797c9649714865bf66cb45a4502db",
+      "graphics": [
+        "2026-10-23 17:47:46 I gfx: Created OpenGL 3.3 context",
+        "2026-10-23 17:47:46 I gfx: GPU vendor: ATI Technologies Inc.",
+        "2026-10-23 17:47:46 I gfx: GPU renderer: AMD Radeon RX 7600",
+        "2026-10-23 17:47:46 I gfx: GPU version: 3.3.0 Core Profile Context 26.8.1.260810"
+      ]
+    },
+    "out\\build\\x64-Release\\join_7_7_1b_3a8e1\\client\\client1.stdout": {
+      "sha256": "f564ffcd5d6a2195d17cd96cf6c15bd42dd53e54a9cdb9b210390f50a0e2f988",
+      "graphics": [
+        "2026-10-23 17:47:49 I gfx: Created OpenGL 3.3 context",
+        "2026-10-23 17:47:50 I gfx: GPU vendor: ATI Technologies Inc.",
+        "2026-10-23 17:47:50 I gfx: GPU renderer: AMD Radeon RX 7600",
+        "2026-10-23 17:47:50 I gfx: GPU version: 3.3.0 Core Profile Context 26.8.1.260810"
+      ]
+    },
+    "out\\build\\x64-Release\\join_7_8_zwfphdwn\\client\\client0.stdout": {
+      "sha256": "268f9e321ee3df619a96f9787fc134d11d8d35b304aa76aad1e045a36c6b8759",
+      "graphics": [
+        "2026-10-23 17:47:55 I gfx: Created OpenGL 3.3 context",
+        "2026-10-23 17:47:56 I gfx: GPU vendor: ATI Technologies Inc.",
+        "2026-10-23 17:47:56 I gfx: GPU renderer: AMD Radeon RX 7600",
+        "2026-10-23 17:47:56 I gfx: GPU version: 3.3.0 Core Profile Context 26.8.1.260810"
+      ]
+    },
+    "out\\build\\x64-Release\\join_7_8_zwfphdwn\\client\\client1.stdout": {
+      "sha256": "c38f245cc062a14a98bcdca494a299404a4531285ebc9d94c4a591f8fbd829e2",
+      "graphics": [
+        "2026-10-23 17:47:59 I gfx: Created OpenGL 3.3 context",
+        "2026-10-23 17:47:59 I gfx: GPU vendor: ATI Technologies Inc.",
+        "2026-10-23 17:47:59 I gfx: GPU renderer: AMD Radeon RX 7600",
+        "2026-10-23 17:47:59 I gfx: GPU version: 3.3.0 Core Profile Context 26.8.1.260810"
+      ]
+    },
+    "out\\build\\x64-Release\\join_7_9_mip5mi_k\\client\\client0.stdout": {
+      "sha256": "0d52c7f6b9047bd3b3332ef3ba1effeda8e4d032eb2ee2b1f5c9a84b24edfe09",
+      "graphics": [
+        "2026-10-23 17:48:05 I gfx: Created OpenGL 3.3 context",
+        "2026-10-23 17:48:05 I gfx: GPU vendor: ATI Technologies Inc.",
+        "2026-10-23 17:48:05 I gfx: GPU renderer: AMD Radeon RX 7600",
+        "2026-10-23 17:48:05 I gfx: GPU version: 3.3.0 Core Profile Context 26.8.1.260810"
+      ]
+    },
+    "out\\build\\x64-Release\\join_7_9_mip5mi_k\\client\\client1.stdout": {
+      "sha256": "04b0f943b70282a13c5a513263f079380d7178248a4fd6cff710f8f5bd3ec7eb",
+      "graphics": [
+        "2026-10-23 17:48:09 I gfx: Created OpenGL 3.3 context",
+        "2026-10-23 17:48:09 I gfx: GPU vendor: ATI Technologies Inc.",
+        "2026-10-23 17:48:09 I gfx: GPU renderer: AMD Radeon RX 7600",
+        "2026-10-23 17:48:09 I gfx: GPU version: 3.3.0 Core Profile Context 26.8.1.260810"
+      ]
+    },
+    "out\\build\\x64-Release\\join_6_0_chkmc2wj\\client\\client0.stdout": {
+      "sha256": "74c8f22d0e5495baf72e8d8239bf38237b09d17e48d1a24679362d8c53eaef65",
+      "graphics": [
+        "2026-10-23 17:49:56 I gfx: Created OpenGL 3.3 context",
+        "2026-10-23 17:49:56 I gfx: GPU vendor: ATI Technologies Inc.",
+        "2026-10-23 17:49:56 I gfx: GPU renderer: AMD Radeon RX 7600",
+        "2026-10-23 17:49:56 I gfx: GPU version: 3.3.0 Core Profile Context 26.8.1.260810"
+      ]
+    },
+    "out\\build\\x64-Release\\join_6_0_chkmc2wj\\client\\client1.stdout": {
+      "sha256": "0149345fc838413ee0d7b208e5fe9e3cf1d9981baf5c0683ac635ca0125bbf27",
+      "graphics": [
+        "2026-10-23 17:49:59 I gfx: Created OpenGL 3.3 context",
+        "2026-10-23 17:49:59 I gfx: GPU vendor: ATI Technologies Inc.",
+        "2026-10-23 17:49:59 I gfx: GPU renderer: AMD Radeon RX 7600",
+        "2026-10-23 17:49:59 I gfx: GPU version: 3.3.0 Core Profile Context 26.8.1.260810"
+      ]
+    },
+    "out\\build\\x64-Release\\join_6_1_25842tj_\\client\\client0.stdout": {
+      "sha256": "0a9ad92d92d3eb2e6ceb49e24dae815ee0418e01acbcbb57864aa004db547305",
+      "graphics": [
+        "2026-10-23 17:50:05 I gfx: Created OpenGL 3.3 context",
+        "2026-10-23 17:50:05 I gfx: GPU vendor: ATI Technologies Inc.",
+        "2026-10-23 17:50:05 I gfx: GPU renderer: AMD Radeon RX 7600",
+        "2026-10-23 17:50:05 I gfx: GPU version: 3.3.0 Core Profile Context 26.8.1.260810"
+      ]
+    },
+    "out\\build\\x64-Release\\join_6_1_25842tj_\\client\\client1.stdout": {
+      "sha256": "b9c1651ec0f81ffd46c045e3948bf11f09c24df93c5d810f7a91b6af5e4682f7",
+      "graphics": [
+        "2026-10-23 17:50:08 I gfx: Created OpenGL 3.3 context",
+        "2026-10-23 17:50:08 I gfx: GPU vendor: ATI Technologies Inc.",
+        "2026-10-23 17:50:08 I gfx: GPU renderer: AMD Radeon RX 7600",
+        "2026-10-23 17:50:08 I gfx: GPU version: 3.3.0 Core Profile Context 26.8.1.260810"
+      ]
+    },
+    "out\\build\\x64-Release\\join_6_2_hc0wgtcy\\client\\client0.stdout": {
+      "sha256": "87b451cd304dd142d5a7357e1230319a039f4f8c667152209a023f8681974288",
+      "graphics": [
+        "2026-10-23 17:50:14 I gfx: Created OpenGL 3.3 context",
+        "2026-10-23 17:50:14 I gfx: GPU vendor: ATI Technologies Inc.",
+        "2026-10-23 17:50:14 I gfx: GPU renderer: AMD Radeon RX 7600",
+        "2026-10-23 17:50:14 I gfx: GPU version: 3.3.0 Core Profile Context 26.8.1.260810"
+      ]
+    },
+    "out\\build\\x64-Release\\join_6_2_hc0wgtcy\\client\\client1.stdout": {
+      "sha256": "9e35305f9fdb82638812c43eae50d154dab0928bf01e2b0b25cd89c098bb53b6",
+      "graphics": [
+        "2026-10-23 17:50:17 I gfx: Created OpenGL 3.3 context",
+        "2026-10-23 17:50:17 I gfx: GPU vendor: ATI Technologies Inc.",
+        "2026-10-23 17:50:17 I gfx: GPU renderer: AMD Radeon RX 7600",
+        "2026-10-23 17:50:17 I gfx: GPU version: 3.3.0 Core Profile Context 26.8.1.260810"
+      ]
+    },
+    "out\\build\\x64-Release\\join_6_3_ppmfqwt2\\client\\client0.stdout": {
+      "sha256": "6bc65bcff5d817478830965eb06fdfc08f4df0a2f99bdcc91c8fae7c771de625",
+      "graphics": [
+        "2026-10-23 17:50:22 I gfx: Created OpenGL 3.3 context",
+        "2026-10-23 17:50:23 I gfx: GPU vendor: ATI Technologies Inc.",
+        "2026-10-23 17:50:23 I gfx: GPU renderer: AMD Radeon RX 7600",
+        "2026-10-23 17:50:23 I gfx: GPU version: 3.3.0 Core Profile Context 26.8.1.260810"
+      ]
+    },
+    "out\\build\\x64-Release\\join_6_3_ppmfqwt2\\client\\client1.stdout": {
+      "sha256": "aaa935a2e8e2c9a19b180d0ea1f192f73926f111e30d3a9a1411673723c93b09",
+      "graphics": [
+        "2026-10-23 17:50:25 I gfx: Created OpenGL 3.3 context",
+        "2026-10-23 17:50:26 I gfx: GPU vendor: ATI Technologies Inc.",
+        "2026-10-23 17:50:26 I gfx: GPU renderer: AMD Radeon RX 7600",
+        "2026-10-23 17:50:26 I gfx: GPU version: 3.3.0 Core Profile Context 26.8.1.260810"
+      ]
+    },
+    "out\\build\\x64-Release\\join_6_4_xl9x386w\\client\\client0.stdout": {
+      "sha256": "b4f5bfa93c7a3559910802faa6f9dbdb4b9b02be0659028a6b354a50a2c26d99",
+      "graphics": [
+        "2026-10-23 17:50:31 I gfx: Created OpenGL 3.3 context",
+        "2026-10-23 17:50:31 I gfx: GPU vendor: ATI Technologies Inc.",
+        "2026-10-23 17:50:31 I gfx: GPU renderer: AMD Radeon RX 7600",
+        "2026-10-23 17:50:31 I gfx: GPU version: 3.3.0 Core Profile Context 26.8.1.260810"
+      ]
+    },
+    "out\\build\\x64-Release\\join_6_4_xl9x386w\\client\\client1.stdout": {
+      "sha256": "dfa14e2990545942ab780bc32f6b78d8fe09490bf77a199f90b1492e53399d04",
+      "graphics": [
+        "2026-10-23 17:50:34 I gfx: Created OpenGL 3.3 context",
+        "2026-10-23 17:50:35 I gfx: GPU vendor: ATI Technologies Inc.",
+        "2026-10-23 17:50:35 I gfx: GPU renderer: AMD Radeon RX 7600",
+        "2026-10-23 17:50:35 I gfx: GPU version: 3.3.0 Core Profile Context 26.8.1.260810"
+      ]
+    },
+    "out\\build\\x64-Release\\join_6_5_j896ah4j\\client\\client0.stdout": {
+      "sha256": "2d3abd8b20a1749a7ce63b664fcd6b7c6f94990a9e51f1750c9eb32076d535bb",
+      "graphics": [
+        "2026-10-23 17:50:40 I gfx: Created OpenGL 3.3 context",
+        "2026-10-23 17:50:40 I gfx: GPU vendor: ATI Technologies Inc.",
+        "2026-10-23 17:50:40 I gfx: GPU renderer: AMD Radeon RX 7600",
+        "2026-10-23 17:50:40 I gfx: GPU version: 3.3.0 Core Profile Context 26.8.1.260810"
+      ]
+    },
+    "out\\build\\x64-Release\\join_6_5_j896ah4j\\client\\client1.stdout": {
+      "sha256": "d8371bf6745c6e2ab0d2a30f4fe428d8f8c01f6d21bff6c6e88824cf7cfc6b2f",
+      "graphics": [
+        "2026-10-23 17:50:43 I gfx: Created OpenGL 3.3 context",
+        "2026-10-23 17:50:43 I gfx: GPU vendor: ATI Technologies Inc.",
+        "2026-10-23 17:50:43 I gfx: GPU renderer: AMD Radeon RX 7600",
+        "2026-10-23 17:50:43 I gfx: GPU version: 3.3.0 Core Profile Context 26.8.1.260810"
+      ]
+    },
+    "out\\build\\x64-Release\\join_6_6_zsbt6fu9\\client\\client0.stdout": {
+      "sha256": "9e221023df3efaa37d2b20333ce466c52f91668b451c603cbc8c5bd9c95b80d8",
+      "graphics": [
+        "2026-10-23 17:50:49 I gfx: Created OpenGL 3.3 context",
+        "2026-10-23 17:50:49 I gfx: GPU vendor: ATI Technologies Inc.",
+        "2026-10-23 17:50:49 I gfx: GPU renderer: AMD Radeon RX 7600",
+        "2026-10-23 17:50:49 I gfx: GPU version: 3.3.0 Core Profile Context 26.8.1.260810"
+      ]
+    },
+    "out\\build\\x64-Release\\join_6_6_zsbt6fu9\\client\\client1.stdout": {
+      "sha256": "8379d91c3fe813f88ab8823fba726a544c819cc51fbfb8ae36fa0fd8738c270f",
+      "graphics": [
+        "2026-10-23 17:50:52 I gfx: Created OpenGL 3.3 context",
+        "2026-10-23 17:50:53 I gfx: GPU vendor: ATI Technologies Inc.",
+        "2026-10-23 17:50:53 I gfx: GPU renderer: AMD Radeon RX 7600",
+        "2026-10-23 17:50:53 I gfx: GPU version: 3.3.0 Core Profile Context 26.8.1.260810"
+      ]
+    },
+    "out\\build\\x64-Release\\join_6_7_fm0hil4t\\client\\client0.stdout": {
+      "sha256": "1c53e35d9454a6b0c4f4005fc5f496b5750dcb00b14916c50093bf1519faa83a",
+      "graphics": [
+        "2026-10-23 17:50:58 I gfx: Created OpenGL 3.3 context",
+        "2026-10-23 17:50:58 I gfx: GPU vendor: ATI Technologies Inc.",
+        "2026-10-23 17:50:58 I gfx: GPU renderer: AMD Radeon RX 7600",
+        "2026-10-23 17:50:58 I gfx: GPU version: 3.3.0 Core Profile Context 26.8.1.260810"
+      ]
+    },
+    "out\\build\\x64-Release\\join_6_7_fm0hil4t\\client\\client1.stdout": {
+      "sha256": "69e81bc3a982717bdb0650cb17083a863ab2cfb7f487f77f8e82116a021d1451",
+      "graphics": [
+        "2026-10-23 17:51:01 I gfx: Created OpenGL 3.3 context",
+        "2026-10-23 17:51:01 I gfx: GPU vendor: ATI Technologies Inc.",
+        "2026-10-23 17:51:01 I gfx: GPU renderer: AMD Radeon RX 7600",
+        "2026-10-23 17:51:01 I gfx: GPU version: 3.3.0 Core Profile Context 26.8.1.260810"
+      ]
+    },
+    "out\\build\\x64-Release\\join_6_8_vxek90tf\\client\\client0.stdout": {
+      "sha256": "a12e9aee6382d35d3feff1f16d8d8884a2c834e12ffbd116f366dfdee7f37ee2",
+      "graphics": [
+        "2026-10-23 17:51:07 I gfx: Created OpenGL 3.3 context",
+        "2026-10-23 17:51:07 I gfx: GPU vendor: ATI Technologies Inc.",
+        "2026-10-23 17:51:07 I gfx: GPU renderer: AMD Radeon RX 7600",
+        "2026-10-23 17:51:07 I gfx: GPU version: 3.3.0 Core Profile Context 26.8.1.260810"
+      ]
+    },
+    "out\\build\\x64-Release\\join_6_8_vxek90tf\\client\\client1.stdout": {
+      "sha256": "9b8119b1cd8b2a31625af25b70a4155b250bd1bf57c63e7ecba9e381c98e8a4f",
+      "graphics": [
+        "2026-10-23 17:51:10 I gfx: Created OpenGL 3.3 context",
+        "2026-10-23 17:51:10 I gfx: GPU vendor: ATI Technologies Inc.",
+        "2026-10-23 17:51:10 I gfx: GPU renderer: AMD Radeon RX 7600",
+        "2026-10-23 17:51:10 I gfx: GPU version: 3.3.0 Core Profile Context 26.8.1.260810"
+      ]
+    },
+    "out\\build\\x64-Release\\join_6_9_93huqvxl\\client\\client0.stdout": {
+      "sha256": "354abb283aa71951523e7fd8f100c4f9862f2bbab76b8614ba85d059c74b2065",
+      "graphics": [
+        "2026-10-23 17:51:16 I gfx: Created OpenGL 3.3 context",
+        "2026-10-23 17:51:16 I gfx: GPU vendor: ATI Technologies Inc.",
+        "2026-10-23 17:51:16 I gfx: GPU renderer: AMD Radeon RX 7600",
+        "2026-10-23 17:51:16 I gfx: GPU version: 3.3.0 Core Profile Context 26.8.1.260810"
+      ]
+    },
+    "out\\build\\x64-Release\\join_6_9_93huqvxl\\client\\client1.stdout": {
+      "sha256": "a7366909d85d749aa4fabbca7387a47b7ca742f385d6ce931a48214ff4bf9057",
+      "graphics": [
+        "2026-10-23 17:51:19 I gfx: Created OpenGL 3.3 context",
+        "2026-10-23 17:51:19 I gfx: GPU vendor: ATI Technologies Inc.",
+        "2026-10-23 17:51:19 I gfx: GPU renderer: AMD Radeon RX 7600",
+        "2026-10-23 17:51:19 I gfx: GPU version: 3.3.0 Core Profile Context 26.8.1.260810"
+      ]
+    },
+    "out\\build\\x64-Release\\join_7_0_fuvvdaqg\\client\\client0.stdout": {
+      "sha256": "d00753105edde01e7e91c472e739e45bd344a9bada8483fb36418eb416828bbb",
+      "graphics": [
+        "2026-10-23 17:51:25 I gfx: Created OpenGL 3.3 context",
+        "2026-10-23 17:51:25 I gfx: GPU vendor: ATI Technologies Inc.",
+        "2026-10-23 17:51:25 I gfx: GPU renderer: AMD Radeon RX 7600",
+        "2026-10-23 17:51:25 I gfx: GPU version: 3.3.0 Core Profile Context 26.8.1.260810"
+      ]
+    },
+    "out\\build\\x64-Release\\join_7_0_fuvvdaqg\\client\\client1.stdout": {
+      "sha256": "a2264cd9290dfa3b33483ae7cab621a26b571e692fdca4e3f65c433c22481af9",
+      "graphics": [
+        "2026-10-23 17:51:28 I gfx: Created OpenGL 3.3 context",
+        "2026-10-23 17:51:29 I gfx: GPU vendor: ATI Technologies Inc.",
+        "2026-10-23 17:51:29 I gfx: GPU renderer: AMD Radeon RX 7600",
+        "2026-10-23 17:51:29 I gfx: GPU version: 3.3.0 Core Profile Context 26.8.1.260810"
+      ]
+    },
+    "out\\build\\x64-Release\\join_7_1_8ewuq24p\\client\\client0.stdout": {
+      "sha256": "e3fcc6b962277baa0e0491669da8a89057f9831d30386de63f929bb8c5bf6ad2",
+      "graphics": [
+        "2026-10-23 17:51:34 I gfx: Created OpenGL 3.3 context",
+        "2026-10-23 17:51:34 I gfx: GPU vendor: ATI Technologies Inc.",
+        "2026-10-23 17:51:34 I gfx: GPU renderer: AMD Radeon RX 7600",
+        "2026-10-23 17:51:34 I gfx: GPU version: 3.3.0 Core Profile Context 26.8.1.260810"
+      ]
+    },
+    "out\\build\\x64-Release\\join_7_1_8ewuq24p\\client\\client1.stdout": {
+      "sha256": "d734951ba2d079cbda1a6033f73b4484c557524bb6d1199208e91a5bae3e4108",
+      "graphics": [
+        "2026-10-23 17:51:38 I gfx: Created OpenGL 3.3 context",
+        "2026-10-23 17:51:38 I gfx: GPU vendor: ATI Technologies Inc.",
+        "2026-10-23 17:51:38 I gfx: GPU renderer: AMD Radeon RX 7600",
+        "2026-10-23 17:51:38 I gfx: GPU version: 3.3.0 Core Profile Context 26.8.1.260810"
+      ]
+    },
+    "out\\build\\x64-Release\\join_7_2_e1_lkz3w\\client\\client0.stdout": {
+      "sha256": "b1e29fc173856bc4dadbb6b3c36e5a1ed2970d1033d0eb43e9d538d5d7e41205",
+      "graphics": [
+        "2026-10-23 17:51:44 I gfx: Created OpenGL 3.3 context",
+        "2026-10-23 17:51:44 I gfx: GPU vendor: ATI Technologies Inc.",
+        "2026-10-23 17:51:44 I gfx: GPU renderer: AMD Radeon RX 7600",
+        "2026-10-23 17:51:44 I gfx: GPU version: 3.3.0 Core Profile Context 26.8.1.260810"
+      ]
+    },
+    "out\\build\\x64-Release\\join_7_2_e1_lkz3w\\client\\client1.stdout": {
+      "sha256": "0ca54c3d942e51201926b5f399085b3ec82aa1e2d7077f89a530065cb8127adf",
+      "graphics": [
+        "2026-10-23 17:51:47 I gfx: Created OpenGL 3.3 context",
+        "2026-10-23 17:51:47 I gfx: GPU vendor: ATI Technologies Inc.",
+        "2026-10-23 17:51:47 I gfx: GPU renderer: AMD Radeon RX 7600",
+        "2026-10-23 17:51:47 I gfx: GPU version: 3.3.0 Core Profile Context 26.8.1.260810"
+      ]
+    },
+    "out\\build\\x64-Release\\join_7_3_cqbr_050\\client\\client0.stdout": {
+      "sha256": "91ce867f401c441e139704a9d740fc937b7403f763854c3677a8f5cf1ec23067",
+      "graphics": [
+        "2026-10-23 17:51:53 I gfx: Created OpenGL 3.3 context",
+        "2026-10-23 17:51:53 I gfx: GPU vendor: ATI Technologies Inc.",
+        "2026-10-23 17:51:53 I gfx: GPU renderer: AMD Radeon RX 7600",
+        "2026-10-23 17:51:53 I gfx: GPU version: 3.3.0 Core Profile Context 26.8.1.260810"
+      ]
+    },
+    "out\\build\\x64-Release\\join_7_3_cqbr_050\\client\\client1.stdout": {
+      "sha256": "9492c253a5582eb5e68a94acb53fadef4a3a99aa627f5f3a7e9060c0d9cef259",
+      "graphics": [
+        "2026-10-23 17:51:56 I gfx: Created OpenGL 3.3 context",
+        "2026-10-23 17:51:57 I gfx: GPU vendor: ATI Technologies Inc.",
+        "2026-10-23 17:51:57 I gfx: GPU renderer: AMD Radeon RX 7600",
+        "2026-10-23 17:51:57 I gfx: GPU version: 3.3.0 Core Profile Context 26.8.1.260810"
+      ]
+    },
+    "out\\build\\x64-Release\\join_7_4_is550e0l\\client\\client0.stdout": {
+      "sha256": "82e536073c8245f28419041ff5ac30c9330122efa9be47a7c913f9cb821f1089",
+      "graphics": [
+        "2026-10-23 17:52:03 I gfx: Created OpenGL 3.3 context",
+        "2026-10-23 17:52:03 I gfx: GPU vendor: ATI Technologies Inc.",
+        "2026-10-23 17:52:03 I gfx: GPU renderer: AMD Radeon RX 7600",
+        "2026-10-23 17:52:03 I gfx: GPU version: 3.3.0 Core Profile Context 26.8.1.260810"
+      ]
+    },
+    "out\\build\\x64-Release\\join_7_4_is550e0l\\client\\client1.stdout": {
+      "sha256": "3a1b0c4592011f406136d6f96d8c4b232e7304317637f9645da760d78c5423dc",
+      "graphics": [
+        "2026-10-23 17:52:06 I gfx: Created OpenGL 3.3 context",
+        "2026-10-23 17:52:06 I gfx: GPU vendor: ATI Technologies Inc.",
+        "2026-10-23 17:52:06 I gfx: GPU renderer: AMD Radeon RX 7600",
+        "2026-10-23 17:52:06 I gfx: GPU version: 3.3.0 Core Profile Context 26.8.1.260810"
+      ]
+    },
+    "out\\build\\x64-Release\\join_7_5_2yvny9pe\\client\\client0.stdout": {
+      "sha256": "5f6a13d814b0730777b3ae9c2a8526ccdc8e7c423e02105dbed5689dbef51cac",
+      "graphics": [
+        "2026-10-23 17:52:12 I gfx: Created OpenGL 3.3 context",
+        "2026-10-23 17:52:12 I gfx: GPU vendor: ATI Technologies Inc.",
+        "2026-10-23 17:52:12 I gfx: GPU renderer: AMD Radeon RX 7600",
+        "2026-10-23 17:52:12 I gfx: GPU version: 3.3.0 Core Profile Context 26.8.1.260810"
+      ]
+    },
+    "out\\build\\x64-Release\\join_7_5_2yvny9pe\\client\\client1.stdout": {
+      "sha256": "c345ea32dcd875ba325abb0cb8591cc60aa16b688141ec35486d75ec08581aaf",
+      "graphics": [
+        "2026-10-23 17:52:15 I gfx: Created OpenGL 3.3 context",
+        "2026-10-23 17:52:16 I gfx: GPU vendor: ATI Technologies Inc.",
+        "2026-10-23 17:52:16 I gfx: GPU renderer: AMD Radeon RX 7600",
+        "2026-10-23 17:52:16 I gfx: GPU version: 3.3.0 Core Profile Context 26.8.1.260810"
+      ]
+    },
+    "out\\build\\x64-Release\\join_7_6_bpt7h821\\client\\client0.stdout": {
+      "sha256": "62f073c42600faea9b33052c4111bae3dadd2fa9f6d1234be4f1eaf8cf65b713",
+      "graphics": [
+        "2026-10-23 17:52:21 I gfx: Created OpenGL 3.3 context",
+        "2026-10-23 17:52:21 I gfx: GPU vendor: ATI Technologies Inc.",
+        "2026-10-23 17:52:21 I gfx: GPU renderer: AMD Radeon RX 7600",
+        "2026-10-23 17:52:21 I gfx: GPU version: 3.3.0 Core Profile Context 26.8.1.260810"
+      ]
+    },
+    "out\\build\\x64-Release\\join_7_6_bpt7h821\\client\\client1.stdout": {
+      "sha256": "8f16221678083d58c6964617bd30b59e158e20347e4ad5ad15ea825daea79e1c",
+      "graphics": [
+        "2026-10-23 17:52:25 I gfx: Created OpenGL 3.3 context",
+        "2026-10-23 17:52:25 I gfx: GPU vendor: ATI Technologies Inc.",
+        "2026-10-23 17:52:25 I gfx: GPU renderer: AMD Radeon RX 7600",
+        "2026-10-23 17:52:25 I gfx: GPU version: 3.3.0 Core Profile Context 26.8.1.260810"
+      ]
+    },
+    "out\\build\\x64-Release\\join_7_7_kr9cfk92\\client\\client0.stdout": {
+      "sha256": "1a25c2dc21be8568f87214b7b6098583a22a3afb3b5af90b33a6ce3176f7438f",
+      "graphics": [
+        "2026-10-23 17:52:31 I gfx: Created OpenGL 3.3 context",
+        "2026-10-23 17:52:31 I gfx: GPU vendor: ATI Technologies Inc.",
+        "2026-10-23 17:52:31 I gfx: GPU renderer: AMD Radeon RX 7600",
+        "2026-10-23 17:52:31 I gfx: GPU version: 3.3.0 Core Profile Context 26.8.1.260810"
+      ]
+    },
+    "out\\build\\x64-Release\\join_7_7_kr9cfk92\\client\\client1.stdout": {
+      "sha256": "f907d11ea32efadf63ed38cdcfaca66523859635ed5949cae36f28c8787a0474",
+      "graphics": [
+        "2026-10-23 17:52:34 I gfx: Created OpenGL 3.3 context",
+        "2026-10-23 17:52:34 I gfx: GPU vendor: ATI Technologies Inc.",
+        "2026-10-23 17:52:34 I gfx: GPU renderer: AMD Radeon RX 7600",
+        "2026-10-23 17:52:34 I gfx: GPU version: 3.3.0 Core Profile Context 26.8.1.260810"
+      ]
+    },
+    "out\\build\\x64-Release\\join_7_8_ulv7mrai\\client\\client0.stdout": {
+      "sha256": "0e910d4345f6a650489d969b63a42af84e8bb768b9976b5638222bb2c2cc516f",
+      "graphics": [
+        "2026-10-23 17:52:40 I gfx: Created OpenGL 3.3 context",
+        "2026-10-23 17:52:40 I gfx: GPU vendor: ATI Technologies Inc.",
+        "2026-10-23 17:52:40 I gfx: GPU renderer: AMD Radeon RX 7600",
+        "2026-10-23 17:52:40 I gfx: GPU version: 3.3.0 Core Profile Context 26.8.1.260810"
+      ]
+    },
+    "out\\build\\x64-Release\\join_7_8_ulv7mrai\\client\\client1.stdout": {
+      "sha256": "d59c41f404ed1ef95cd377dbcf9671e0c4a180e53411621c48eee9f7f491fd24",
+      "graphics": [
+        "2026-10-23 17:52:43 I gfx: Created OpenGL 3.3 context",
+        "2026-10-23 17:52:44 I gfx: GPU vendor: ATI Technologies Inc.",
+        "2026-10-23 17:52:44 I gfx: GPU renderer: AMD Radeon RX 7600",
+        "2026-10-23 17:52:44 I gfx: GPU version: 3.3.0 Core Profile Context 26.8.1.260810"
+      ]
+    },
+    "out\\build\\x64-Release\\join_7_9_m1eyr73o\\client\\client0.stdout": {
+      "sha256": "7fe3ec3d308ad7df9fc92c45246800b75aad87354bfaa77b1dfea5e8911443b4",
+      "graphics": [
+        "2026-10-23 17:52:49 I gfx: Created OpenGL 3.3 context",
+        "2026-10-23 17:52:50 I gfx: GPU vendor: ATI Technologies Inc.",
+        "2026-10-23 17:52:50 I gfx: GPU renderer: AMD Radeon RX 7600",
+        "2026-10-23 17:52:50 I gfx: GPU version: 3.3.0 Core Profile Context 26.8.1.260810"
+      ]
+    },
+    "out\\build\\x64-Release\\join_7_9_m1eyr73o\\client\\client1.stdout": {
+      "sha256": "bb13fd5236d99234243033c7874d8fdbef7883c8a1f81d01bcd035c577097494",
+      "graphics": [
+        "2026-10-23 17:52:53 I gfx: Created OpenGL 3.3 context",
+        "2026-10-23 17:52:53 I gfx: GPU vendor: ATI Technologies Inc.",
+        "2026-10-23 17:52:53 I gfx: GPU renderer: AMD Radeon RX 7600",
+        "2026-10-23 17:52:53 I gfx: GPU version: 3.3.0 Core Profile Context 26.8.1.260810"
+      ]
+    }
+  },
+  "validation": {
+    "tests": {
+      "path": "fast-join-tests.log",
+      "sha256": "cf6539923b49bf57baa8ff47df3da4349fa0e35a8dc8c6f577371b2a31515917"
+    },
+    "map-integration": {
+      "path": "fast-join-map-integration.log",
+      "sha256": "b8fd18a53a0f9de78aafa81e49f3916727c3af59bd522ee19660cdde8c0e9f9b"
+    },
+    "connect-integration": {
+      "path": "fast-join-connect-integration.log",
+      "sha256": "752627c4fce74b57fec07b3ab30da3cfa75820a973883c8d5a61896260410aa3"
+    },
+    "baseline-connect-integration": {
+      "path": "fast-join-baseline-connect-integration.log",
+      "sha256": "75ce328b99012faafe43536de83e07ab74663ddd0866dc0153ec3cb6d53d113f"
+    },
+    "net-recheck": {
+      "path": "fast-join-net-recheck.log",
+      "sha256": "2a851cc0f1a007819c24d7b49d6f8829f66989979301332185fe5e799bc82545"
+    },
+    "cancellation": {
+      "path": "fast-join-cancellation.log",
+      "sha256": "300dba6868f9ad29322b6224fe7f9f24c1e875727acf7f6dd71d96bd9a7764fe"
+    },
+    "baseline-validation": {
+      "path": "fast-join-baseline-validation.log",
+      "sha256": "c159c19c08ef76d0f644dd669a7388362863758498ef27742203e3b6f71f8b85"
+    }
+  },
+  "limitations": [
+    "cold storage download with unavailable HTTPS then UDP fallback; OS page cache not flushed",
+    "CPU submission only, no monitor scanout or GPU present measurement",
+    "network service gaps are wall time including scheduling, IO and render waits",
+    "no UI double-click measurement; command-driven loopback connects",
+    "working set peak is process lifetime, not incremental scene allocation; no VRAM telemetry",
+    "screenshot capture skipped by graphics implementation for inactive window",
+    "pilot series excluded: duplicate map contents and compilation overlapped part of pilot baseline"
+  ],
+  "prototype_patch_sha256": "9cc403b8d781570dd7e71280e1dab1e65e1df2a35670729be84c51007d0c66c9"
+}
