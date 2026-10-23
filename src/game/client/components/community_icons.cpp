@@ -1,8 +1,10 @@
 #include "community_icons.h"
 
+#include <base/io.h>
 #include <base/log.h>
 
 #include <engine/engine.h>
+#include <engine/gfx/image_loader.h>
 #include <engine/gfx/image_manipulation.h>
 #include <engine/http.h>
 #include <engine/storage.h>
@@ -63,16 +65,26 @@ const CCommunityIcon *CCommunityIcons::Find(const char *pCommunityId)
 	auto Icon = std::find_if(m_vCommunityIcons.begin(), m_vCommunityIcons.end(), [pCommunityId](const CCommunityIcon &Element) {
 		return str_comp(Element.m_aCommunityId, pCommunityId) == 0;
 	});
-	return Icon == m_vCommunityIcons.end() ? nullptr : &(*Icon);
+	if(Icon != m_vCommunityIcons.end())
+		return &(*Icon);
+	// Optional icons may be absent or invalid. Use the bundled neutral icon,
+	// or let callers render their text fallback if that is unavailable too.
+	return str_comp(pCommunityId, "none") == 0 ? nullptr : Find("none");
 }
 
 bool CCommunityIcons::LoadFile(const char *pPath, int DirType, CImageInfo &Info, CImageInfo &InfoGrayscale, SHA256_DIGEST &Sha256)
 {
-	if(!Graphics()->LoadPng(Info, pPath, DirType))
+	// Community icons are external, hash-verified assets, not map resources
+	// exported for old clients. Decode and check them without queueing a modal
+	// graphics warning. Never rewrite the source: its hash identifies updates.
+	int PngliteIncompatible = 0;
+	if(!CImageLoader::LoadPng(Storage()->OpenFile(pPath, IOFLAG_READ, DirType), pPath, Info, PngliteIncompatible))
 	{
 		log_error("menus/browser", "Failed to load community icon from '%s'", pPath);
 		return false;
 	}
+	if(PngliteIncompatible != 0)
+		log_warn("menus/browser", "Community icon '%s' has pnglite incompatibility flags %d; decoded for local rendering", pPath, PngliteIncompatible);
 	if(Info.m_Format != CImageInfo::FORMAT_RGBA)
 	{
 		Info.Free();
