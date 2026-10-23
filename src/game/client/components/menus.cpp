@@ -2303,6 +2303,7 @@ void CMenus::SetActive(bool Active)
 
 void CMenus::OnShutdown()
 {
+	m_MenusStart.ResetLogo(TextRender());
 	m_CommunityIcons.Shutdown();
 }
 
@@ -2373,6 +2374,7 @@ void CMenus::OnStateChange(int NewState, int OldState)
 
 void CMenus::OnWindowResize()
 {
+	m_MenusStart.ResetLogo(TextRender());
 	TextRender()->DeleteTextContainer(m_MotdTextContainerIndex);
 }
 

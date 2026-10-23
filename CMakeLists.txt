@@ -2753,6 +2753,9 @@ if(CLIENT)
     laser_data.h
     lineinput.cpp
     lineinput.h
+    lucent/config_variables.h
+    lucent/lucent_logo.cpp
+    lucent/lucent_logo.h
     multiview.cpp
     pickup_data.cpp
     pickup_data.h
