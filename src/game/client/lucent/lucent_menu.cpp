@@ -35,18 +35,23 @@ bool CLucentMenu::Button(int Index, const char *pLabel, const CUIRect &Rect, flo
 	const bool Hover = Enabled && Ui()->MouseInside(&Rect);
 	const bool Focus = m_Focus == Index;
 	CUIRect Visual = Rect;
-	Visual.x += Offset;
+	const float Highlight = m_aHighlight[Index];
+	Visual.x += Offset + (Index < 3 ? -2.5f : 2.5f) * Highlight;
 	const bool Accent = Hover || Focus;
-	CLucentMenuEffects::Chip(Graphics(), Visual, Index, Alpha, Index < 6 ? m_aHighlight[Index] : (Accent ? 1.0f : 0.0f));
+	const double PulseTime = g_Config.m_ClLucentLogoAnimation && Index < 6 && m_aPulseStart[Index] > 0 ? m_LastFrame - m_aPulseStart[Index] : m_EffectTime;
+	CLucentMenuEffects::Chip(Graphics(), Visual, Index, Alpha, Highlight, PulseTime);
 	CUIRect Label = Visual;
 	const float Inset = std::min(34.0f, Rect.w * 0.27f);
 	Label.x += Inset;
 	Label.w -= Inset + 10;
 	SLabelProperties Props;
-	Props.m_MaxWidth = Label.w;
-	Props.SetColor(Accent ? ColorRGBA(1, 0.82f, 0.9f, Alpha) : ColorRGBA(0.88f, 0.87f, 0.92f, Alpha));
-	const float FontSize = std::min(14.0f, 14.0f * Label.w / std::max(1.0f, TextRender()->TextWidth(14.0f, pLabel)));
+	// Width is fitted before rendering; keep the label on one line.
+	Props.m_MaxWidth = -1;
+	const ColorRGBA PreviousColor = TextRender()->GetTextColor();
+	TextRender()->TextColor(Accent ? ColorRGBA(1, 0.82f, 0.9f, Alpha) : ColorRGBA(0.88f, 0.87f, 0.92f, Alpha));
+	const float FontSize = std::min(14.0f, 14.0f * (Label.w - 2) / std::max(1.0f, TextRender()->TextWidth(14.0f, pLabel)));
 	Ui()->DoLabel(&Label, pLabel, FontSize, TEXTALIGN_ML, Props);
+	TextRender()->TextColor(PreviousColor);
 	return Enabled && (Ui()->DoButtonLogic(&m_aButtons[Index], 0, &Rect, BUTTONFLAG_LEFT) || (Focus && Activate));
 }
 
@@ -56,7 +61,7 @@ void CLucentMenu::RenderStartMenu(CUIRect MainView)
 	// Cover the full viewport, including the vanilla menu margin.
 	Ui()->Screen()->Draw(ColorRGBA(0.018f, 0.015f, 0.027f, 0.985f), 0, 0);
 	const double Now = static_cast<double>(time_get()) / time_freq();
-	const bool Animate = g_Config.m_ClLucentLogoAnimation && (g_Config.m_GfxRefreshRate == 0 || g_Config.m_GfxRefreshRate >= 30);
+	const bool Animate = g_Config.m_ClLucentLogoAnimation != 0;
 	if(m_LastFrame < 0 || Now - m_LastFrame > 1.0)
 	{
 		m_Interaction.Reset();
@@ -67,6 +72,9 @@ void CLucentMenu::RenderStartMenu(CUIRect MainView)
 		std::fill(std::begin(m_aWasHot), std::end(m_aWasHot), false);
 		std::fill(std::begin(m_aPulseStart), std::end(m_aPulseStart), 0.0);
 	}
+	if(m_AnimationEpoch < 0)
+		m_AnimationEpoch = Now;
+	m_EffectTime = Animate ? Now - m_AnimationEpoch : 0;
 	const float Dt = m_LastFrame < 0 ? 0 : static_cast<float>(std::min(Now - m_LastFrame, 0.05));
 	m_LastFrame = Now;
 	const float CenterX = MainView.x + MainView.w / 2;
@@ -170,6 +178,18 @@ void CLucentMenu::RenderStartMenu(CUIRect MainView)
 	m_Progress = Animate ? std::clamp(m_Progress + (Open ? Dt : -Dt) / 0.35f, 0.0f, 1.0f) : Target;
 	if(!Open && m_Progress <= 0)
 		m_Extras = false;
+	const float Response = Animate ? 1 - std::exp(-Dt * 8) : 1;
+	m_LogoEnergy = mix(m_LogoEnergy, Ui()->MouseInside(&Logo) ? 1.0f : 0.0f, Response);
+	const vec2 Cursor = Mouse - vec2(CenterX, CenterY);
+	const vec2 Parallax(std::clamp(Cursor.x / 160.0f, -1.0f, 1.0f) * 2 * Scale, std::clamp(Cursor.y / 100.0f, -1.0f, 1.0f) * 1.5f * Scale);
+	m_OrbitOffset = mix(m_OrbitOffset, Animate ? Parallax : vec2(0, 0), Response);
+	for(int i = 6; i < 13; ++i)
+	{
+		const CUIRect &Rect = i == 6 ? More : i < 12 ? aExtra[i - 7] :
+							       aRects[3];
+		const bool Hot = Open && (i == 6 || (i < 12 && m_Extras) || (i == 12 && Running)) && (Ui()->MouseInside(&Rect) || m_Focus == i);
+		m_aHighlight[i] = mix(m_aHighlight[i], Hot ? 1.0f : 0.0f, Response);
+	}
 	// Lines form first; both lines and chips retract smoothly towards the orbit.
 	for(int i = 0; i < 6; ++i)
 	{
@@ -177,14 +197,16 @@ void CLucentMenu::RenderStartMenu(CUIRect MainView)
 		if(Hot && !m_aWasHot[i])
 			m_aPulseStart[i] = Now;
 		m_aWasHot[i] = Hot;
-		m_aHighlight[i] = Animate ? mix(m_aHighlight[i], Hot ? 1.0f : 0.0f, std::min(1.0f, Dt * 12)) : (Hot ? 1.0f : 0.0f);
-		CLucentMenuEffects::Connection(Graphics(), vec2(CenterX, CenterY), Scale, aRects[i], i, m_Progress, m_aHighlight[i], Animate && m_aPulseStart[i] > 0 ? static_cast<float>(Now - m_aPulseStart[i]) : -1);
+		m_aHighlight[i] = Animate ? mix(m_aHighlight[i], Hot ? 1.0f : 0.0f, 1 - std::exp(-Dt * 12)) : (Hot ? 1.0f : 0.0f);
+		CUIRect ConnectionTarget = aRects[i];
+		ConnectionTarget.x += (i < 3 ? -2.5f : 2.5f) * m_aHighlight[i];
+		CLucentMenuEffects::Connection(Graphics(), vec2(CenterX, CenterY) + m_OrbitOffset, Scale, ConnectionTarget, i, m_Progress, m_aHighlight[i], Animate && m_aPulseStart[i] > 0 ? static_cast<float>(std::fmod(Now - m_aPulseStart[i], 1.8)) : -1);
 	}
 	// Cached wordmark with local orbit reactions for each navigation direction.
 	const float Activation = 1 - std::pow(1 - m_Progress, 3.0f);
-	m_Logo.Render(Graphics(), TextRender(), CenterX, CenterY - 29 * Scale, LogoWidth, m_aHighlight);
+	m_Logo.Render(Graphics(), TextRender(), CenterX, CenterY - 29 * Scale, LogoWidth, m_EffectTime, m_LogoEnergy, m_OrbitOffset, m_aHighlight);
 	bool aClick[6] = {};
-	const char *apLabels[] = {Localize("Play", "Start menu"), Localize("Demos"), Localize("Editor"), Localize("Run server"), Localize("Settings"), Localize("Exit")};
+	const char *apLabels[] = {Localize("Play", "Start menu"), Localize("Demos"), Localize("Editor"), Localize("Run server"), Localize("Settings"), Localize("Quit")};
 	for(int i = 0; i < 6; ++i)
 	{
 		const float T = Animate ? std::clamp((m_Progress * 0.35f - 0.065f - (i % 3) * 0.02f) / 0.245f, 0.0f, 1.0f) : m_Progress;

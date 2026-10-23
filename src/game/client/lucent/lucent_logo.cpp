@@ -2,9 +2,7 @@
 
 #include "lucent_menu_effects.h"
 
-#include <base/time.h>
-
-#include <engine/shared/config.h>
+#include <game/client/ui_rect.h>
 
 #include <algorithm>
 #include <cmath>
@@ -15,7 +13,7 @@ namespace
 
 	ColorRGBA Gradient(float Position, double Time)
 	{
-		const float Wave = 0.5f + 0.5f * std::sin(TAU * (Position - static_cast<float>(Time / 6.0)));
+		const float Wave = 0.5f + 0.5f * std::sin(TAU * (Position - static_cast<float>(std::fmod(Time, 6.0) / 6.0)));
 		const ColorRGBA White(1.0f, 1.0f, 1.0f, 1.0f);
 		const ColorRGBA Rose(243.0f / 255.0f, 180.0f / 255.0f, 210.0f / 255.0f, 1.0f);
 		const ColorRGBA Pink(239.0f / 255.0f, 161.0f / 255.0f, 199.0f / 255.0f, 1.0f);
@@ -35,7 +33,7 @@ void CLucentLogo::Reset(ITextRender *pTextRender)
 	m_Scale = 0.0f;
 }
 
-void CLucentLogo::Render(IGraphics *pGraphics, ITextRender *pTextRender, float CenterX, float Top, float AvailableWidth, const float *pHighlight)
+void CLucentLogo::Render(IGraphics *pGraphics, ITextRender *pTextRender, float CenterX, float Top, float AvailableWidth, double Time, float Energy, vec2 OrbitOffset, const float *pHighlight)
 {
 	const float Scale = std::min(1.0f, AvailableWidth / 400.0f);
 	if(m_Scale != Scale)
@@ -59,10 +57,15 @@ void CLucentLogo::Render(IGraphics *pGraphics, ITextRender *pTextRender, float C
 		pTextRender->TextColor(Color);
 		pTextRender->SetRenderFlags(Flags);
 	}
-	// time_get is monotonic. No accumulated frame deltas or work outside this view.
-	const bool Animate = g_Config.m_ClLucentLogoAnimation && (g_Config.m_GfxRefreshRate == 0 || g_Config.m_GfxRefreshRate >= 30);
-	const double Time = Animate ? static_cast<double>(time_get()) / time_freq() : 0.0;
-	CLucentMenuEffects::Orbit(pGraphics, vec2(CenterX, Top + 29.0f * Scale), Scale, Time, pHighlight, false);
+	// Subtle diffuse wordmark light, rendered before the rear orbital streams.
+	for(int i = 5; i > 0; --i)
+	{
+		const float Spread = i * 4.0f * Scale;
+		CUIRect Glow = {CenterX - m_Width / 2 - Spread, Top + 8 * Scale - Spread, m_Width * 0.7f + 2 * Spread, 32 * Scale + 2 * Spread};
+		Glow.Draw(ColorRGBA(1, 0.70f, 0.85f, 0.003f + Energy * 0.001f), IGraphics::CORNER_ALL, 24 * Scale);
+	}
+	const vec2 OrbitCenter = vec2(CenterX, Top + 29.0f * Scale) + OrbitOffset;
+	CLucentMenuEffects::Orbit(pGraphics, OrbitCenter, Scale, Time, pHighlight, false, Energy);
 
 	const CScreenRect Screen = pGraphics->GetScreen();
 	const vec2 Pixels = pGraphics->ScreenSize() / Screen.Size();
@@ -85,6 +88,6 @@ void CLucentLogo::Render(IGraphics *pGraphics, ITextRender *pTextRender, float C
 				pTextRender->RenderTextContainer(Text, Color, ColorRGBA(0, 0, 0, 0), Left, Top);
 	}
 	pGraphics->ClipDisable();
-	CLucentMenuEffects::Orbit(pGraphics, vec2(CenterX, Top + 29.0f * Scale), Scale, Time, pHighlight, true);
+	CLucentMenuEffects::Orbit(pGraphics, OrbitCenter, Scale, Time, pHighlight, true, Energy);
 	pGraphics->SetColor(1, 1, 1, 1);
 }
