@@ -4,15 +4,18 @@
 #define GAME_CLIENT_COMPONENTS_MENUS_START_H
 
 #include <game/client/component.h>
+#include <game/client/lucent/lucent_logo.h>
 #include <game/client/ui_rect.h>
 
 class CMenusStart : public CComponentInterfaces
 {
 public:
 	void RenderStartMenu(CUIRect MainView);
+	void ResetLogo(ITextRender *pTextRender) { m_Logo.Reset(pTextRender); }
 
 private:
 	bool CheckHotKey(int Key) const;
+	CLucentLogo m_Logo;
 };
 
 #endif
