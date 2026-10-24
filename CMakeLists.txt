@@ -2753,6 +2753,9 @@ if(CLIENT)
     laser_data.h
     lineinput.cpp
     lineinput.h
+    lucent/browser.cpp
+    lucent/browser_panels.cpp
+    lucent/browser_state.h
     lucent/config_variables.h
     lucent/lucent_logo.cpp
     lucent/lucent_logo.h
@@ -2765,6 +2768,9 @@ if(CLIENT)
     lucent/lucent_menu_transition.cpp
     lucent/lucent_startup.cpp
     lucent/lucent_startup.h
+    lucent/map_preview.cpp
+    lucent/map_preview.h
+    lucent/preview_policy.h
     lucent/radial_transition.h
     lucent/server_controls.h
     multiview.cpp
@@ -4354,4 +4360,10 @@ if(CLIENT)
   )
   target_include_directories(lucent-radial-transition-test PRIVATE src)
   target_compile_features(lucent-radial-transition-test PRIVATE cxx_std_20)
+endif()
+
+if(CLIENT)
+  add_executable(lucent-browser-test EXCLUDE_FROM_ALL src/game/client/lucent/tests/browser_test.cc)
+  target_include_directories(lucent-browser-test PRIVATE src)
+  target_compile_features(lucent-browser-test PRIVATE cxx_std_20)
 endif()

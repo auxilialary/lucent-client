@@ -128,6 +128,8 @@ int CMenus::DoButton_Menu(CButtonContainer *pButtonContainer, const char *pText,
 
 	if(Checked)
 		Color = ColorRGBA(0.6f, 0.6f, 0.6f, 0.5f);
+	if(m_LucentPanelRendering)
+		Color = ColorRGBA(1, .85f, .93f, Checked ? .12f : .06f);
 	Color.a *= Ui()->ButtonColorMul(pButtonContainer);
 
 	pRect->Draw(Color, Corners, Rounding);
@@ -287,7 +289,7 @@ int CMenus::DoButton_CheckBox_Common(const void *pId, const char *pText, const c
 	Label.VSplitLeft(5.0f, nullptr, &Label);
 
 	Box.Margin(2.0f, &Box);
-	Box.Draw(ColorRGBA(1, 1, 1, 0.25f * Ui()->ButtonColorMul(pId)), IGraphics::CORNER_ALL, 3.0f);
+	Box.Draw(m_LucentPanelRendering ? ColorRGBA(1, .85f, .93f, .09f * Ui()->ButtonColorMul(pId)) : ColorRGBA(1, 1, 1, 0.25f * Ui()->ButtonColorMul(pId)), IGraphics::CORNER_ALL, 3.0f);
 
 	const bool Checkable = *pBoxText == 'X';
 	if(Checkable)
@@ -969,22 +971,6 @@ bool CMenus::CanDisplayWarning() const
 	return m_Popup == POPUP_NONE;
 }
 
-void CMenus::RenderLucentBrowser(CUIRect Screen)
-{
-	// The click frame already contains Lucent's opaque source. Start the
-	// destination from the same clear color as CGameClient::OnRender, including
-	// themes with transparent or clipped map layers.
-	const ColorRGBA ClearColor = color_cast<ColorRGBA>(ColorHSLA(g_Config.m_ClOverlayEntities ? g_Config.m_ClBackgroundEntitiesColor : g_Config.m_ClBackgroundColor));
-	Graphics()->Clear(ClearColor.r, ClearColor.g, ClearColor.b);
-	if(!GameClient()->m_MenuBackground.Render())
-		RenderBackground();
-	Ui()->MapScreen();
-	CUIRect TabBar, MainView;
-	Screen.HSplitTop(24.0f, &TabBar, &MainView);
-	RenderServerbrowser(MainView);
-	RenderMenubar(TabBar, IClient::STATE_OFFLINE);
-}
-
 void CMenus::Render()
 {
 	Ui()->MapScreen();
@@ -1099,7 +1085,7 @@ void CMenus::Render()
 			}
 			else if(m_MenuPage >= PAGE_INTERNET && m_MenuPage <= PAGE_FAVORITE_COMMUNITY_5)
 			{
-				RenderServerbrowser(MainView);
+				RenderLucentBrowser(*Ui()->Screen());
 			}
 			else if(m_MenuPage == PAGE_DEMOS)
 			{
@@ -1114,7 +1100,8 @@ void CMenus::Render()
 				dbg_assert_failed("Invalid m_MenuPage: %d", m_MenuPage);
 			}
 
-			RenderMenubar(TabBar, ClientState);
+			if(!(m_MenuPage >= PAGE_INTERNET && m_MenuPage <= PAGE_FAVORITE_COMMUNITY_5))
+				RenderMenubar(TabBar, ClientState);
 		}
 		break;
 
@@ -2329,6 +2316,7 @@ void CMenus::SetActive(bool Active)
 
 void CMenus::OnShutdown()
 {
+	m_LucentPreview.Shutdown(Graphics());
 	m_MenusStart.ResetLogo(TextRender());
 	m_LucentStartup.ResetLogo(TextRender());
 	m_CommunityIcons.Shutdown();

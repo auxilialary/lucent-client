@@ -24,6 +24,8 @@
 #include <game/client/components/skins7.h>
 #include <game/client/lineinput.h>
 #include <game/client/lucent/lucent_startup.h>
+#include <game/client/lucent/browser_state.h>
+#include <game/client/lucent/map_preview.h>
 #include <game/client/ui.h>
 #include <game/voting.h>
 
@@ -34,6 +36,15 @@
 class CMenus : public CComponent
 {
 	CLucentStartup m_LucentStartup;
+	CLucentBrowserState m_LucentBrowser;
+	CLucentMapPreview m_LucentPreview;
+	double m_LucentBrowserTime = 0;
+	bool m_LucentLegacyBrowser = false;
+	bool m_LucentPanelRendering = false;
+	std::vector<float> m_vLucentRowHover;
+	void RenderLucentServerList(CUIRect View, bool &Activated);
+	void RenderLucentPanel(CUIRect View);
+	bool LucentBrowserButton(const void *pId, const char *pText, CUIRect Rect, bool Selected = false);
 	static ColorRGBA ms_GuiColor;
 	static ColorRGBA ms_ColorTabbarInactiveOutgame;
 	static ColorRGBA ms_ColorTabbarActiveOutgame;

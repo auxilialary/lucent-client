@@ -36,6 +36,8 @@ private:
 	float m_ScrollbarMargin;
 	bool m_HasHeader;
 	bool m_Active;
+	ColorRGBA m_SelectionColor = ColorRGBA(1, 1, 1, .5f);
+	ColorRGBA m_HoverColor = ColorRGBA(1, 1, 1, .33f);
 
 protected:
 	CListboxItem DoNextRow();
@@ -43,6 +45,7 @@ protected:
 public:
 	CListBox();
 	void Reset();
+	void SetColors(ColorRGBA Selection, ColorRGBA Hover) { m_SelectionColor = Selection; m_HoverColor = Hover; }
 
 	void DoHeader(const CUIRect *pRect, const char *pTitle, float HeaderHeight = 20.0f, float Spacing = 2.0f);
 	void DoAutoSpacing(float Spacing = 20.0f) { m_AutoSpacing = Spacing; }
