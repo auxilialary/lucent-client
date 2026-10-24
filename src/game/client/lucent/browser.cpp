@@ -55,18 +55,13 @@ void CMenus::RenderLucentBrowser(CUIRect Screen)
 		RenderServerbrowser(Screen);
 		return;
 	}
-	// VEIL uses one continuous surface: one header, a working list and open atmosphere.
+	// A single field of content and map atmosphere beneath restrained navigation.
 	Screen.Margin(18, &Screen);
 	CUIRect Top, Nav, Tools, Footer, Status, List;
 	Screen.HSplitTop(32, &Top, &Screen);
 	Screen.HSplitTop(22, nullptr, &Screen);
 	Screen.HSplitBottom(26, &Screen, &Footer);
-	CUIRect Brand, Search;
-	const float Compact = std::clamp(Top.w / 900.f, .65f, 1.f);
-	Top.VSplitLeft(80 * Compact, &Brand, &Top);
-	TextRender()->TextColor(LucentUi::Accent(1));
-	Ui()->DoLabel(&Brand, "LUCENT", 12, TEXTALIGN_ML);
-	TextRender()->TextColor(TextRender()->DefaultTextColor());
+	CUIRect Search;
 	Top.VSplitRight(112, &Top, &Tools);
 	Top.VSplitRight(std::clamp(Top.w * .34f, 105.f, 205.f), &Nav, &Search);
 	Search.Margin(4, &Search);
@@ -175,7 +170,7 @@ void CMenus::RenderLucentBrowser(CUIRect Screen)
 	}
 	// The list keeps a stable width when context changes; panels use the open right side.
 	CUIRect Atmosphere;
-	Screen.VSplitLeft(Screen.w * .60f, &List, &Atmosphere);
+	Screen.VSplitLeft(Screen.w * .46f, &List, &Atmosphere);
 	Atmosphere.VSplitLeft(18, nullptr, &Atmosphere);
 	if(m_LucentBrowser.m_Open > .001f && m_LucentBrowser.VisiblePanel() != CLucentBrowserState::EPanel::NONE)
 	{
@@ -343,7 +338,7 @@ void CMenus::RenderLucentServerList(CUIRect View, bool &Activated)
 			str_format(aPing, sizeof(aPing), "%d", pInfo->m_Latency);
 		char aDescriptor[128], aRegion[16];
 		const auto Descriptor = CLucentBrowserState::Descriptor(pInfo->m_aName, str_comp(pInfo->m_aCommunityId, IServerBrowser::COMMUNITY_DDNET) == 0 ? pInfo->m_aCommunityType : "");
-		str_copy(aDescriptor, std::string(Descriptor).c_str());
+		str_copy(aDescriptor, Descriptor.data());
 		const char *pRegion = pInfo->m_aCommunityCountry[0] && str_comp(pInfo->m_aCommunityCountry, IServerBrowser::COMMUNITY_COUNTRY_NONE) != 0 ? pInfo->m_aCommunityCountry : apRegions[std::clamp(pInfo->m_Location, 0, 7)];
 		str_copy(aRegion, str_comp(pRegion, "RUS") == 0 ? "RU" : str_comp(pRegion, "GER") == 0 ? "DE" :
 													 pRegion);

@@ -209,7 +209,7 @@ void CLucentMapPreview::Render(IGraphics *pGraphics, const CUIRect &Screen, doub
 		const float Settle = Animate ? std::pow(1.f - std::clamp(float((Now - Entry.m_RevealStart) / 3.5), 0.f, 1.f), 3.f) : 0.f;
 		const float Scale = LucentPreview::FrameScale(Entry.m_Width, Entry.m_Height, Screen.w, Screen.h) * (1.f - .015f * Settle);
 		const float Width = Entry.m_Width * Scale, Height = Entry.m_Height * Scale;
-		const float X = Screen.x + Screen.w * .76f - Width * .5f;
+		const float X = Screen.x + Screen.w * .73f - Width * .5f;
 		const float Y = Screen.y + Screen.h * .47f - Height * .5f;
 		// Feather all four edges in texture space. Geometry stays identical through fades.
 		constexpr int Steps = 24;
@@ -247,8 +247,8 @@ void CLucentMapPreview::Render(IGraphics *pGraphics, const CUIRect &Screen, doub
 		IGraphics::CQuadItem Band(Screen.x + Screen.w * Left, Screen.y, Screen.w * (Right - Left), Screen.h);
 		pGraphics->QuadsDrawTL(&Band, 1);
 	};
-	ScrimBand(0, .52f, .86f, .86f);
-	ScrimBand(.52f, .72f, .86f, .10f);
+	ScrimBand(0, .40f, .86f, .86f);
+	ScrimBand(.40f, .62f, .86f, .04f);
 	const float Response = 1 - .12f * std::sin(std::clamp(SelectionPulse, 0.f, 1.f) * 3.14159265f);
 	ScrimBand(.72f, 1, .10f * Response, .06f * Response);
 	pGraphics->QuadsEnd();
