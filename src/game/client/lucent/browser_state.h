@@ -19,6 +19,8 @@ public:
 		COMMUNITIES
 	};
 	EPanel m_Panel = EPanel::NONE;
+	EPanel m_VisiblePanel = EPanel::NONE;
+	EPanel VisiblePanel() const { return m_VisiblePanel; }
 	int m_Focus = 0; // list, search, filters, details, players, address, connect
 	void Tab(bool Reverse) { m_Focus = (m_Focus + (Reverse ? 6 : 1)) % 7; }
 	float m_Open = 0;
@@ -26,7 +28,11 @@ public:
 	void Toggle(EPanel Panel)
 	{
 		m_Panel = m_Panel == Panel ? EPanel::NONE : Panel;
-		m_Content = 0;
+		if(m_Panel != EPanel::NONE)
+		{
+			m_VisiblePanel = m_Panel;
+			m_Content = 0;
+		}
 	}
 	bool Escape()
 	{
@@ -43,6 +49,8 @@ public:
 		if(std::abs(Target - m_Open) < .001f)
 			m_Open = Target;
 		m_Content += (1.f - m_Content) * Response;
+		if(m_Open == 0)
+			m_VisiblePanel = EPanel::NONE;
 	}
 	float PanelWidth(float Width) const { return std::min(290.f, Width * .43f) * m_Open; }
 	template<typename T>

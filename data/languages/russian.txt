@@ -2726,3 +2726,75 @@ Show cursor
 
 More
 == Ещё
+
+All servers
+== Все серверы
+
+Filters
+== Фильтры
+
+Server details
+== Сведения о сервере
+
+Legacy view
+== Классический вид
+
+Return to Lucent browser
+== Вернуться в браузер Lucent
+
+Search maps, servers, players
+== Поиск карт, серверов и игроков
+
+Direct connect
+== Быстрое подключение
+
+Server address
+== Адрес сервера
+
+Refreshing...
+== Обновление...
+
+servers
+== серверов
+
+players
+== игроков
+
+Region
+== Регион
+
+Estimated
+== Приблизительно
+
+Password required
+== Требуется пароль
+
+Login required
+== Требуется авторизация
+
+Current DDNet map artwork; revisions may differ.
+== Превью карты DDNet; версии могут отличаться.
+
+Unknown region
+== Неизвестный регион
+
+Africa
+== Африка
+
+Asia
+== Азия
+
+Australia
+== Австралия
+
+Europe
+== Европа
+
+North America
+== Северная Америка
+
+South America
+== Южная Америка
+
+China
+== Китай

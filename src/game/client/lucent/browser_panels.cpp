@@ -11,9 +11,9 @@
 void CMenus::RenderLucentPanel(CUIRect View)
 {
 	using EPanel = CLucentBrowserState::EPanel;
-	const auto Mode = m_LucentBrowser.m_Panel;
+	const auto Mode = m_LucentBrowser.VisiblePanel();
 	const CUIRect PanelBounds = View;
-	View.Draw(ColorRGBA(.025f, .021f, .035f, .88f), IGraphics::CORNER_ALL, 4);
+	View.Draw(ColorRGBA(.025f, .021f, .035f, .32f), IGraphics::CORNER_ALL, 3);
 	CUIRect Edge = {View.x, View.y + 8, .5f, View.h - 16};
 	Edge.Draw(ColorRGBA(1, .8f, .9f, .12f), 0, 0);
 	View.Margin(10, &View);
@@ -22,6 +22,14 @@ void CMenus::RenderLucentPanel(CUIRect View)
 	Title.VSplitRight(24, &Title, &Close);
 	const char *apTitles[] = {"", "Filters", "Server details", "Players", "Friends", "Communities"};
 	Ui()->DoLabel(&Title, Localize(apTitles[int(Mode)]), 13, TEXTALIGN_ML);
+	static int s_Legacy;
+	if(Mode == EPanel::FILTERS)
+	{
+		CUIRect Legacy;
+		View.HSplitBottom(22, &View, &Legacy);
+		if(LucentBrowserButton(&s_Legacy, "Legacy view", Legacy))
+			m_LucentLegacyBrowser = true;
+	}
 	static int s_Close;
 	if(LucentBrowserButton(&s_Close, "x", Close))
 	{
@@ -87,7 +95,7 @@ void CMenus::RenderLucentPanel(CUIRect View)
 		Label(pServer->m_aMap, 24, 14);
 		char aMeta[128];
 		const char *apRegions[] = {"Unknown region", "Africa", "Asia", "Australia", "Europe", "North America", "South America", "China"};
-		str_format(aMeta, sizeof(aMeta), "%s   /   %d/%d %s", apRegions[std::clamp(pServer->m_Location, 0, 7)], pServer->m_NumPlayers, pServer->m_MaxPlayers, Localize("players"));
+		str_format(aMeta, sizeof(aMeta), "%s   /   %d/%d %s", Localize(apRegions[std::clamp(pServer->m_Location, 0, 7)]), pServer->m_NumPlayers, pServer->m_MaxPlayers, Localize("players"));
 		Label(aMeta, 20, 10);
 		CUIRect ConnectButton;
 		View.HSplitTop(24, &ConnectButton, &View);

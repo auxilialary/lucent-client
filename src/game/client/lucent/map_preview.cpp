@@ -213,7 +213,7 @@ void CLucentMapPreview::Render(IGraphics *pGraphics, const CUIRect &Screen, doub
 		pGraphics->TextureSet(m_aCache[Index].m_Texture);
 		pGraphics->WrapClamp();
 		pGraphics->QuadsBegin();
-		pGraphics->SetColor(1, 1, 1, Alpha * .20f);
+		pGraphics->SetColor(1, 1, 1, Alpha * .38f);
 		// Cover with aspect-correct center crop.
 		const float Scale = std::max(Screen.w / 320, Screen.h / 180);
 		IGraphics::CQuadItem Quad(Screen.x + (Screen.w - 320 * Scale) / 2, Screen.y + (Screen.h - 180 * Scale) / 2, 320 * Scale, 180 * Scale);
@@ -223,6 +223,13 @@ void CLucentMapPreview::Render(IGraphics *pGraphics, const CUIRect &Screen, doub
 	};
 	Draw(m_Previous, 1 - Fade);
 	Draw(m_Current, Fade);
+	// Preserve the artwork in open space, with a stronger scrim behind map names.
+	pGraphics->TextureClear();
+	pGraphics->QuadsBegin();
+	pGraphics->SetColor4(ColorRGBA(.018f, .015f, .027f, .76f), ColorRGBA(.018f, .015f, .027f, .16f), ColorRGBA(.018f, .015f, .027f, .76f), ColorRGBA(.018f, .015f, .027f, .16f));
+	IGraphics::CQuadItem Scrim(Screen.x, Screen.y, Screen.w, Screen.h);
+	pGraphics->QuadsDrawTL(&Scrim, 1);
+	pGraphics->QuadsEnd();
 }
 void CLucentMapPreview::Shutdown(IGraphics *pGraphics)
 {

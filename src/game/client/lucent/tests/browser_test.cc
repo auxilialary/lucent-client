@@ -36,6 +36,7 @@ int main()
 	State.Escape();
 	State.Update(.016f, true);
 	const float Closing = State.m_Open;
+	CHECK(State.VisiblePanel() == P::FILTERS);
 	State.Toggle(P::FILTERS);
 	State.Update(.016f, true);
 	CHECK(State.m_Open > Closing);
@@ -45,6 +46,7 @@ int main()
 	CHECK(State.Escape());
 	State.Update(.016f, false);
 	CHECK(State.m_Open == 0);
+	CHECK(State.VisiblePanel() == P::NONE);
 	int Sort = 3, Order = 0;
 	State.Sort(3, Sort, Order, true);
 	CHECK(Order == 1);

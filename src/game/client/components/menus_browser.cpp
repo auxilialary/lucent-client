@@ -919,7 +919,7 @@ void CMenus::RenderServerbrowserDDNetFilter(CUIRect View,
 	ScrollParams.m_ScrollbarThickness = 10.0f;
 	ScrollParams.m_ScrollbarMargin = 3.0f;
 	ScrollParams.m_ScrollUnit = 2.0f * ItemHeight;
-	const bool InLucentFilters = m_LucentPanelRendering && m_LucentBrowser.m_Panel == CLucentBrowserState::EPanel::FILTERS;
+	const bool InLucentFilters = m_LucentPanelRendering && m_LucentBrowser.VisiblePanel() == CLucentBrowserState::EPanel::FILTERS;
 	if(!InLucentFilters)
 		ScrollRegion.Begin(&View, &ScrollParams);
 
