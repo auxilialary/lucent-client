@@ -193,7 +193,7 @@ void CLucentMapPreview::Update(const CServerInfo *pServer, double Now, bool Anim
 	pHttp->Run(m_pRequest);
 }
 
-void CLucentMapPreview::Render(IGraphics *pGraphics, const CUIRect &Screen, double Now, bool Animate, float SelectionPulse)
+void CLucentMapPreview::Render(IGraphics *pGraphics, const CUIRect &Screen, double Now, bool Animate, float SelectionPulse, float Opacity)
 {
 	Screen.Draw(ColorRGBA(.018f, .015f, .027f, 1), 0, 0);
 	const float T = Animate ? std::clamp(float((Now - m_FadeStart) / .42), 0.f, 1.f) : 1;
@@ -219,7 +219,7 @@ void CLucentMapPreview::Render(IGraphics *pGraphics, const CUIRect &Screen, doub
 				const auto Mask = [&](float u, float v) {
 					const float Edge = std::clamp(std::min({u, v, 1 - u, 1 - v}) * 6.f, 0.f, 1.f);
 					const float Feather = Edge * Edge * (3 - 2 * Edge);
-					const float A = .9f * Feather;
+					const float A = .9f * Feather * Opacity;
 					// Compensate alpha-over so equally framed images keep constant
 					// brightness and the outgoing image vanishes without a final jump.
 					return LucentPreview::FadeAlpha(A, Fade, Previous, m_Current >= 0);

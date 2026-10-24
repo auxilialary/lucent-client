@@ -21,6 +21,7 @@
 #include <game/client/components/countryflags.h>
 #include <game/client/gameclient.h>
 #include <game/client/lucent/browser_layout.h>
+#include <game/client/lucent/ui.h>
 #include <game/client/ui.h>
 #include <game/client/ui_listbox.h>
 #include <game/localization.h>
@@ -1499,7 +1500,33 @@ void CMenus::RenderServerbrowserFriends(CUIRect View)
 	const float SpacingH = 2.0f;
 
 	CUIRect List, ServerFriends;
-	View.HSplitBottom(Ui()->LucentStyle() ? 86.0f : 70.0f, &List, &ServerFriends);
+	static bool s_ShowAdd = false;
+	static CLineInputBuffered<MAX_NAME_LENGTH> s_NameInput;
+	static CLineInputBuffered<MAX_CLAN_LENGTH> s_ClanInput;
+	static int s_AddAction;
+	float AddReveal = 1;
+	if(Ui()->LucentStyle())
+	{
+		CUIRect Heading, Action;
+		View.HSplitTop(28, &Heading, &View);
+		Heading.VSplitRight(100, &Heading, &Action);
+		char aHeading[96];
+		str_format(aHeading, sizeof(aHeading), "%s · %d", Localize("Friends"), GameClient()->Friends()->NumFriends());
+		Ui()->DoLabel(&Heading, aHeading, 14, TEXTALIGN_ML);
+		if(LucentUi::TextButton(Ui(), TextRender(), &s_AddAction, Localize("Add friend"), Action, s_ShowAdd, 10))
+		{
+			s_ShowAdd = !s_ShowAdd;
+			if(!s_ShowAdd)
+			{
+				s_NameInput.Deactivate();
+				s_ClanInput.Deactivate();
+			}
+		}
+		AddReveal = LucentUi::Highlight(&s_ShowAdd, s_ShowAdd);
+		View.HSplitTop(86.f * AddReveal, &ServerFriends, &List);
+	}
+	else
+		View.HSplitBottom(70.0f, &List, &ServerFriends);
 	List.HSplitTop(5.0f, nullptr, &List);
 	List.VSplitLeft(5.0f, nullptr, &List);
 
@@ -1778,8 +1805,12 @@ void CMenus::RenderServerbrowserFriends(CUIRect View)
 	}
 
 	// add friend
-	if(GameClient()->Friends()->NumFriends() < IFriends::MAX_FRIENDS)
+	if(GameClient()->Friends()->NumFriends() < IFriends::MAX_FRIENDS && AddReveal > 0)
 	{
+		if(Ui()->LucentStyle())
+			Ui()->ClipEnable(&ServerFriends);
+		LucentUi::CInteractionScope AddInteraction(Ui(), !Ui()->LucentStyle() || (s_ShowAdd && AddReveal > .99f));
+		LucentUi::COpacityScope AddOpacity(TextRender(), AddReveal);
 		CUIRect Button;
 		ServerFriends.Margin(5.0f, &ServerFriends);
 
@@ -1787,7 +1818,6 @@ void CMenus::RenderServerbrowserFriends(CUIRect View)
 		str_format(aBuf, sizeof(aBuf), "%s:", Localize("Name"));
 		Ui()->DoLabel(&Button, aBuf, FontSize + 2.0f, TEXTALIGN_ML);
 		Button.VSplitLeft(Ui()->LucentStyle() ? 58.0f : 80.0f, nullptr, &Button);
-		static CLineInputBuffered<MAX_NAME_LENGTH> s_NameInput;
 		Ui()->DoEditBox(&s_NameInput, &Button, FontSize + 2.0f);
 
 		ServerFriends.HSplitTop(3.0f, nullptr, &ServerFriends);
@@ -1795,7 +1825,6 @@ void CMenus::RenderServerbrowserFriends(CUIRect View)
 		str_format(aBuf, sizeof(aBuf), "%s:", Localize("Clan"));
 		Ui()->DoLabel(&Button, aBuf, FontSize + 2.0f, TEXTALIGN_ML);
 		Button.VSplitLeft(Ui()->LucentStyle() ? 58.0f : 80.0f, nullptr, &Button);
-		static CLineInputBuffered<MAX_CLAN_LENGTH> s_ClanInput;
 		Ui()->DoEditBox(&s_ClanInput, &Button, FontSize + 2.0f);
 
 		ServerFriends.HSplitTop(3.0f, nullptr, &ServerFriends);
@@ -1808,7 +1837,10 @@ void CMenus::RenderServerbrowserFriends(CUIRect View)
 			s_ClanInput.Clear();
 			FriendlistOnUpdate();
 			Client()->ServerBrowserUpdate();
+			s_ShowAdd = false;
 		}
+		if(Ui()->LucentStyle())
+			Ui()->ClipDisable();
 	}
 }
 

@@ -35,6 +35,29 @@ int main()
 	CHECK(Narrow.m_ContentHeight > Types.m_ContentHeight);
 	CHECK(CLucentBrowserFilterLayout::Measure(600, 8, 4, true, true, true, false).m_ContentHeight == Narrow.m_ContentHeight - 21);
 	CHECK(CLucentBrowserFilterLayout::Measure(600, 8, 4, true, false, false, false).m_GridHeight == 0);
+	CLucentBrowserState Context;
+	CHECK(Context.PrimarySelection("browser:8303") == nullptr);
+	Context.Toggle(CLucentBrowserState::EPanel::FRIENDS);
+	CHECK(std::string(Context.PrimarySelection("browser:8303")).empty());
+	Context.Toggle(CLucentBrowserState::EPanel::COMMUNITIES);
+	CHECK(std::string(Context.PrimarySelection("friend:8303")).empty());
+	Context.Servers();
+	CHECK(std::string(Context.PrimarySelection("")).compare("browser:8303") == 0);
+	Context.Toggle(CLucentBrowserState::EPanel::FILTERS);
+	CHECK(Context.FiltersWorkspace());
+	for(int i = 0; i < 24; ++i)
+	{
+		Context.Update(1.f / 60, true);
+		CHECK(Context.BrowserOpacity() == 0 || Context.FiltersOpacity() == 0);
+	}
+	CHECK(Context.BrowserOpacity() == 0 && Context.FiltersOpacity() == 1);
+	Context.Escape();
+	for(int i = 0; i < 24; ++i)
+	{
+		Context.Update(1.f / 60, true);
+		CHECK(Context.BrowserOpacity() == 0 || Context.FiltersOpacity() == 0);
+	}
+	CHECK(!Context.FiltersWorkspace() && Context.BrowserOpacity() == 1);
 	CLucentBrowserState State;
 	using P = CLucentBrowserState::EPanel;
 	CHECK(!State.Escape());

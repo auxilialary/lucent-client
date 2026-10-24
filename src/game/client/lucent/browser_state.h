@@ -101,6 +101,24 @@ public:
 	float m_Expansion = 0;
 	float m_ScenePosition = 0;
 	std::string m_LastSelection;
+	std::string m_ServerSelection;
+	EPrimary m_SelectionPrimary = EPrimary::SERVERS;
+	float m_SelectionY = 0;
+	const char *PrimarySelection(const char *pAddress)
+	{
+		if(m_SelectionPrimary == m_Primary.m_Target)
+			return nullptr;
+		if(m_SelectionPrimary == EPrimary::SERVERS)
+			m_ServerSelection = pAddress;
+		m_SelectionPrimary = m_Primary.m_Target;
+		return m_SelectionPrimary == EPrimary::SERVERS ? m_ServerSelection.c_str() : "";
+	}
+	bool FiltersWorkspace() const
+	{
+		return m_Overlay.m_Target == EOverlay::FILTERS || m_Overlay.m_Visible == EOverlay::FILTERS;
+	}
+	float BrowserOpacity() const { return FiltersWorkspace() ? std::max(0.f, 1 - 2 * Expansion()) : 1.f; }
+	float FiltersOpacity() const { return std::max(0.f, 2 * Expansion() - 1); }
 	float m_SelectionPulse = 0;
 	bool m_DirectFocusPending = false;
 	int m_Focus = 0;
@@ -177,14 +195,14 @@ public:
 		const auto Move = [&](float Value, bool Target, float Duration) {
 			return Animate ? std::clamp(Value + (Target ? Step : -Step) / Duration, 0.f, 1.f) : float(Target);
 		};
-		m_Expansion = Move(m_Expansion, m_Overlay.m_Target != EOverlay::NONE, .32f);
+		m_Expansion = Move(m_Expansion, m_Overlay.m_Target != EOverlay::NONE, .38f);
 		if(m_Expansion == 0 && m_Overlay.m_Target == EOverlay::NONE)
 		{
 			m_Overlay.m_Visible = EOverlay::NONE;
 			m_Overlay.m_Alpha = 1;
 		}
 		m_ScenePosition = Move(m_ScenePosition, m_Scene.m_Target != EScene::PREVIEW, .36f);
-		m_SelectionPulse = Animate ? std::max(0.f, m_SelectionPulse - Step / .42f) : 0;
+		m_SelectionPulse = Animate ? std::max(0.f, m_SelectionPulse - Step / .36f) : 0;
 	}
 	float Expansion() const { return m_Expansion * m_Expansion * (3 - 2 * m_Expansion); }
 	float ScenePosition() const { return m_ScenePosition * m_ScenePosition * (3 - 2 * m_ScenePosition); }
