@@ -16,6 +16,67 @@
 
 int main()
 {
+	CLucentSecondaryNavigation Secondary;
+	Secondary.Update(0, true, true, true, true);
+	Secondary.Toggle();
+	Secondary.Update(0.08f, true, true, true, true);
+	CHECK(Secondary.Progress(0) > Secondary.Progress(1));
+	CHECK(Secondary.Progress(2) == 0);
+	const float Before = Secondary.Progress(0);
+	Secondary.Toggle();
+	Secondary.Update(0, true, true, true, true);
+	CHECK(Secondary.Progress(0) == Before);
+	Secondary.Update(0.02f, true, true, true, true);
+	CHECK(Secondary.Progress(0) < Before);
+	Secondary.Toggle();
+	Secondary.Update(0.32f, true, true, true, true);
+	CHECK(Secondary.Progress(4) == 1);
+	Secondary.Update(0.04f, true, false, true, true);
+	CHECK(!Secondary.Interactive(0));
+	CHECK(Secondary.Progress(4) < 1);
+	Secondary.Update(0.04f, true, true, true, true);
+	CHECK(Secondary.IsOpen());
+	CHECK(Secondary.Progress(4) == 1);
+	Secondary.Update(0, true, false, false, true);
+	Secondary.Update(0, true, true, true, true);
+	CHECK(!Secondary.IsOpen());
+	Secondary.Toggle();
+	Secondary.Update(0, false, true, true, true);
+	CHECK(Secondary.Progress(4) == 1);
+	Secondary.Update(0, true, true, true, false);
+	CHECK(!Secondary.IsOpen());
+	CHECK(Secondary.Progress(0) == 0);
+	Secondary.Update(0, false, true, true, true);
+	CHECK(!Secondary.IsOpen());
+	Secondary.Toggle();
+	Secondary.Update(0, false, true, true, true);
+	Secondary.Close();
+	Secondary.Update(0, false, true, true, true);
+	CHECK(Secondary.Progress(0) == 0);
+	// Frame-rate-independent ordering, full reverse, and zero-time reversals.
+	for(int Fps : {60, 144, 240})
+	{
+		Secondary.Reset();
+		Secondary.Update(0, true, true, true, true);
+		Secondary.Toggle();
+		for(int Frame = 0; Frame < Fps; ++Frame)
+		{
+			Secondary.Update(1.0f / Fps, true, true, true, true);
+			for(int Row = 1; Row < 5; ++Row)
+				CHECK(Secondary.Progress(Row - 1) >= Secondary.Progress(Row));
+		}
+		for(int Row = 0; Row < 5; ++Row)
+			CHECK(Secondary.Progress(Row) == 1);
+		Secondary.Close();
+		for(int Frame = 0; Frame < Fps; ++Frame)
+			Secondary.Update(1.0f / Fps, true, true, true, true);
+		for(int Row = 0; Row < 5; ++Row)
+		{
+			CHECK(Secondary.Progress(Row) == 0);
+			CHECK(!Secondary.Interactive(Row));
+		}
+	}
+	std::puts("Secondary opening, closing, reversal, parent synchronization, focus loss and disabled animations passed");
 	using I = CLucentMenuInteraction;
 	CHECK(I::InTriangle(vec2(1, 1), vec2(0, 0), vec2(4, 0), vec2(0, 4)));
 	CHECK(I::InTriangle(vec2(2, 2), vec2(0, 0), vec2(4, 0), vec2(0, 4)));
@@ -82,6 +143,13 @@ int main()
 		CHECK(Scaled.Update(0.45, vec2(500, 300) * Scale, Rect(Logo), Rect(Left), Rect(Right), false, false));
 		CHECK(Scaled.Update(1, vec2(500, 300) * Scale, Rect(Logo), Rect(Left), Rect(Right), false, false));
 	}
+	I Resume;
+	CHECK(Resume.Update(0, vec2(500, 300), Logo, Left, Right, false, false));
+	CHECK(Resume.Update(0.01, vec2(500, 500), Logo, Left, Right, false, false));
+	CHECK(!Resume.Update(0.27, vec2(500, 500), Logo, Left, Right, false, false));
+	CHECK(Resume.Update(0.28, vec2(700, 300), Logo, Left, Right, true, false, true));
+	Resume.Close();
+	CHECK(!Resume.Update(0.29, vec2(700, 300), Logo, Left, Right, true, false, true));
 	I Resized;
 	CHECK(Resized.Update(0, vec2(500, 300), Logo, Left, Right, false, false));
 	CHECK(Resized.Update(0.01, vec2(640, 300), Logo, Left, Right, false, false));

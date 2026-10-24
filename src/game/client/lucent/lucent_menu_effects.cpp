@@ -132,11 +132,11 @@ namespace
 		}
 	};
 
-	const std::array<CIconGeometry, 7> &Icons()
+	const std::array<CIconGeometry, 12> &Icons()
 	{
 		// Tessellated once, no heap or GPU resource ownership. 20 x 20 viewbox.
 		static const auto s_Icons = [] {
-			std::array<CIconGeometry, 7> G{};
+			std::array<CIconGeometry, 12> G{};
 			G[0].Line({-4, -6.5f}, {6, 0});
 			G[0].Line({6, 0}, {-4, 6.5f});
 			G[0].Line({-4, 6.5f}, {-4, -6.5f});
@@ -173,6 +173,36 @@ namespace
 			G[5].Line({0, -8}, {0, -1});
 			G[5].Curve({-4, -5.7f}, {-10, -1.5f}, {-6.5f, 7}, {0, 7});
 			G[5].Curve({0, 7}, {6.5f, 7}, {10, -1.5f}, {4, -5.7f});
+			// Secondary symbols share the primary icons' 20 DIP viewbox and stroke.
+			G[7].RoundBox(-8, -6, 16, 12, 1);
+			G[7].RoundBox(-5, -3, 4, 4, 0.5f);
+			for(float Y : {-3.0f, 0.0f, 3.0f})
+				G[7].Line({2, Y}, {5, Y});
+			G[7].Line({-5, 3}, {-1, 3});
+			G[8].RoundBox(-8, -8, 16, 16, 8);
+			G[8].RoundBox(-3.5f, -8, 7, 16, 3.5f);
+			G[8].Line({-8, 0}, {8, 0});
+			for(float Side : {-1.0f, 1.0f})
+			{
+				G[9].Line({0, -5}, {Side * 8, -7});
+				G[9].Line({Side * 8, -7}, {Side * 8, 5});
+				G[9].Line({Side * 8, 5}, {0, 7});
+			}
+			G[9].Line({0, 7}, {0, -5});
+			G[10].Line({-9, -3}, {0, -7});
+			G[10].Line({0, -7}, {9, -3});
+			G[10].Line({9, -3}, {0, 1});
+			G[10].Line({0, 1}, {-9, -3});
+			G[10].Line({-5, -1}, {-5, 5});
+			G[10].Curve({-5, 5}, {-2, 8}, {2, 8}, {5, 5});
+			G[10].Line({5, 5}, {5, -1});
+			G[10].Line({9, -3}, {9, 5});
+			// Community/chat, rather than an unavailable Solid-font Discord brand.
+			G[11].RoundBox(-8, -7, 16, 12, 3);
+			G[11].Line({-4, 5}, {-5, 8});
+			G[11].Line({-5, 8}, {0, 5});
+			for(float X : {-4.0f, 0.0f, 4.0f})
+				G[11].Line({X, -1}, {X, 1});
 			for(auto &Icon : G)
 				Icon.Join();
 			return G;
@@ -401,12 +431,11 @@ void CLucentMenuEffects::Chip(IGraphics *pGraphics, const CUIRect &Rect, int Ico
 		}
 	}
 	const ColorRGBA Color(0.88f + Highlight * 0.12f, 0.85f + Highlight * 0.1f, 0.92f + Highlight * 0.06f, Alpha * (0.82f + Highlight * 0.18f));
-	const auto &Geometry = Icons()[Icon < 6 ? Icon : Icon == 12 ? 3 :
-								      6];
+	const auto &Geometry = Icons()[Icon == 12 ? 3 : Icon];
 	const float IconScale = std::min(1.0f, Rect.h / 24.0f);
 	for(int i = 0; i < Geometry.m_Count; ++i)
 		Ribbon(pGraphics, Origin + Geometry.m_aSegments[i].m_A * IconScale, Origin + Geometry.m_aSegments[i].m_B * IconScale, Geometry.m_aSegments[i].m_NA, Geometry.m_aSegments[i].m_NB, 0.85f * IconScale, Color);
-	if(Icon >= 6 && Icon != 12)
+	if(Icon == 6)
 		for(float X : {-5.0f, 0.0f, 5.0f})
 		{
 			const vec2 Center = Origin + vec2(X, 0);

@@ -61,12 +61,13 @@ void CLucentMenu::RenderStartMenu(CUIRect MainView)
 	Ui()->Screen()->Draw(ColorRGBA(0.018f, 0.015f, 0.027f, 0.985f), 0, 0);
 	const double Now = static_cast<double>(time_get()) / time_freq();
 	const bool Animate = g_Config.m_ClLucentLogoAnimation != 0;
+	const bool Focused = Kernel()->RequestInterface<IEngineGraphics>()->WindowActive() != 0;
 	if(m_LastFrame < 0 || Now - m_LastFrame > 1.0)
 	{
 		m_Interaction.Reset();
 		m_Progress = 0;
 		m_Focus = -1;
-		m_Extras = false;
+		m_Secondary.Reset();
 		std::fill(std::begin(m_aHighlight), std::end(m_aHighlight), 0.0f);
 		std::fill(std::begin(m_aWasHot), std::end(m_aWasHot), false);
 		std::fill(std::begin(m_aPulseStart), std::end(m_aPulseStart), 0.0);
@@ -130,7 +131,7 @@ void CLucentMenu::RenderStartMenu(CUIRect MainView)
 		aOrder[7] = 6;
 		Count = 8;
 	}
-	if(m_Extras)
+	if(m_Secondary.IsOpen())
 		for(int i = 7; i < 12; ++i)
 			aOrder[Count++] = i;
 	const auto AdvanceFocus = [&](int Direction) {
@@ -162,11 +163,16 @@ void CLucentMenu::RenderStartMenu(CUIRect MainView)
 	}
 	if(Keyboard)
 		m_LastMouse = Mouse;
-	const bool Enter = Ui()->ConsumeHotkey(CUi::HOTKEY_ENTER);
-	const bool Escape = Ui()->ConsumeHotkey(CUi::HOTKEY_ESCAPE);
+	const bool Enter = Focused && Ui()->ConsumeHotkey(CUi::HOTKEY_ENTER);
+	const bool Escape = Focused && Ui()->ConsumeHotkey(CUi::HOTKEY_ESCAPE);
 	if(Escape)
 	{
-		if(m_Interaction.IsOpen())
+		if(m_Secondary.IsOpen())
+		{
+			m_Secondary.Close();
+			m_Focus = 6;
+		}
+		else if(m_Interaction.IsOpen())
 		{
 			m_Interaction.Close();
 			m_Focus = -1;
@@ -175,20 +181,32 @@ void CLucentMenu::RenderStartMenu(CUIRect MainView)
 			GameClient()->m_Menus.ShowQuitPopup();
 	}
 	bool OverControl = false;
-	if(m_Interaction.IsOpen())
+	if(m_Progress > 0 || m_Interaction.IsOpen())
 	{
 		for(const auto &Rect : aRects)
 			OverControl |= CLucentMenuInteraction::Contains(Rect, Mouse);
 		OverControl |= CLucentMenuInteraction::Contains(More, Mouse);
-		if(m_Extras)
-			for(const auto &Rect : aExtra)
-				OverControl |= CLucentMenuInteraction::Contains(Rect, Mouse);
+		if(m_Secondary.Progress(0) > 0)
+		{
+			// A continuous corridor includes the gaps below More and between rows.
+			CUIRect Corridor = {aExtra[0].x, More.y, aExtra[0].w, More.h};
+			for(int i = 0; i < 5; ++i)
+				if(m_Secondary.Progress(i) > 0.05f)
+					Corridor.h = aExtra[i].y + aExtra[i].h - Corridor.y;
+			OverControl |= CLucentMenuInteraction::Contains(Corridor, Mouse);
+		}
 	}
-	const bool Open = m_Interaction.Update(Now, Mouse, Logo, Left, Right, OverControl, Keyboard || m_Focus >= 0);
+	if(!Focused)
+	{
+		m_Interaction.Close();
+		m_Focus = -1;
+	}
+	const bool Open = Focused && m_Interaction.Update(Now, Mouse, Logo, Left, Right, OverControl, Keyboard || m_Focus >= 0, m_Progress > 0);
 	const float Target = Open ? 1.0f : 0.0f;
 	m_Progress = Animate ? std::clamp(m_Progress + (Open ? Dt : -Dt) / 0.35f, 0.0f, 1.0f) : Target;
-	if(!Open && m_Progress <= 0)
-		m_Extras = false;
+	m_Secondary.Update(Dt, Animate, Open, m_Progress > 0, Focused);
+	if(!Open && m_Focus >= 7 && m_Focus < 12)
+		m_Focus = -1;
 	const float Response = Animate ? 1 - std::exp(-Dt * 12) : 1;
 	m_LogoEnergy = mix(m_LogoEnergy, Ui()->MouseInside(&Logo) ? 1.0f : 0.0f, Response);
 	const vec2 Cursor = Mouse - vec2(CenterX, CenterY);
@@ -196,9 +214,11 @@ void CLucentMenu::RenderStartMenu(CUIRect MainView)
 	m_OrbitOffset = mix(m_OrbitOffset, Animate ? Parallax : vec2(0, 0), Response);
 	for(int i = 6; i < 13; ++i)
 	{
-		const CUIRect &Rect = i == 6 ? More : i < 12 ? aExtra[i - 7] :
+		CUIRect Rect = i == 6 ? More : i < 12 ? aExtra[i - 7] :
 							       aRects[3];
-		const bool Hot = Open && (i == 6 || (i < 12 && m_Extras) || (i == 12 && Running)) && (Ui()->MouseInside(&Rect) || m_Focus == i);
+		if(i >= 7 && i < 12)
+			Rect.y -= 10 * (1 - m_Secondary.Progress(i - 7));
+		const bool Hot = Open && (i == 6 || (i < 12 && m_Secondary.Interactive(i - 7)) || (i == 12 && Running)) && (Ui()->MouseInside(&Rect) || m_Focus == i || (i == 6 && m_Secondary.IsOpen()));
 		m_aHighlight[i] = mix(m_aHighlight[i], Hot ? 1.0f : 0.0f, Response);
 	}
 	// Lines form first; both lines and chips retract smoothly towards the orbit.
@@ -274,11 +294,18 @@ void CLucentMenu::RenderStartMenu(CUIRect MainView)
 			Client()->Quit();
 	}
 	if(Button(6, Localize("More"), More, Activation, Open, Enter))
-		m_Extras = !m_Extras;
+		{
+		m_Secondary.Toggle();
+		// The disabled-animation path resolves in the activation frame too.
+		m_Secondary.Update(0, Animate, Open, m_Progress > 0, Focused);
+	}
 	const char *apExtra[] = {Localize("News"), Localize("Website"), Localize("Tutorial"), Localize("Learn"), Localize("Discord")};
-	for(int i = 0; m_Extras && i < 5; ++i)
+	for(int i = 0; i < 5; ++i)
 	{
-		if(!Button(7 + i, apExtra[i], aExtra[i], Activation, Open, Enter))
+		const float Reveal = m_Secondary.Progress(i);
+		CUIRect Row = aExtra[i];
+		Row.y -= 10 * (1 - Reveal);
+		if(!Button(7 + i, apExtra[i], Row, Activation * Reveal, Open && m_Secondary.Interactive(i), Enter))
 			continue;
 		if(i == 0)
 			NewPage = CMenus::PAGE_NEWS;
@@ -294,7 +321,7 @@ void CLucentMenu::RenderStartMenu(CUIRect MainView)
 	if(CheckHotKey(KEY_N))
 		NewPage = CMenus::PAGE_NEWS;
 	// Keep secondary DDNet controls accessible without cluttering the resting view.
-	if(m_Extras)
+	if(m_Secondary.IsOpen())
 	{
 		const float VMargin = std::max(20.0f, MainView.w / 2 - 190.0f);
 		// render version
@@ -401,6 +428,7 @@ void CLucentMenu::RenderStartMenu(CUIRect MainView)
 	if(NewPage != -1)
 	{
 		m_Interaction.Reset();
+		m_Secondary.Reset();
 		m_Focus = -1;
 		GameClient()->m_Menus.SetShowStart(false);
 		GameClient()->m_Menus.SetMenuPage(NewPage);

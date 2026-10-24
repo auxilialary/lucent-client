@@ -21,7 +21,7 @@ class CLucentMenu : public CComponentInterfaces
 	float m_LogoEnergy = 0;
 	vec2 m_OrbitOffset = vec2(0, 0);
 	int m_Focus = -1;
-	bool m_Extras = false;
+	CLucentSecondaryNavigation m_Secondary;
 	vec2 m_LastMouse = vec2(-1, -1);
 	bool CheckHotKey(int Key) const;
 	bool Button(int Index, const char *pLabel, const CUIRect &Rect, float Alpha, bool Enabled, bool Activate, float Offset = 0);

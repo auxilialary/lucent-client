@@ -33,7 +33,7 @@ void CLucentMenuInteraction::Close()
 	m_OutsideSince = -1;
 }
 
-bool CLucentMenuInteraction::Update(double Now, vec2 Mouse, const CUIRect &Logo, const CUIRect &Left, const CUIRect &Right, bool OverControl, bool Keyboard)
+bool CLucentMenuInteraction::Update(double Now, vec2 Mouse, const CUIRect &Logo, const CUIRect &Left, const CUIRect &Right, bool OverControl, bool Keyboard, bool CanResume)
 {
 	const bool OverLogo = Contains(Logo, Mouse);
 	const int Region = OverLogo ? 1 : OverControl ? (Contains(Left, Mouse) ? 2 : Contains(Right, Mouse) ? 3 : 4) : 0;
@@ -61,7 +61,7 @@ bool CLucentMenuInteraction::Update(double Now, vec2 Mouse, const CUIRect &Logo,
 		m_Suppressed = false;
 	if(Keyboard)
 		m_Suppressed = false;
-	if((OverLogo && !m_Suppressed) || Keyboard || (m_Open && OverControl))
+	if((OverLogo && !m_Suppressed) || Keyboard || ((m_Open || (CanResume && !m_Suppressed)) && OverControl))
 	{
 		m_Open = true;
 		m_OutsideSince = -1;
@@ -103,7 +103,12 @@ bool CLucentMenuInteraction::Update(double Now, vec2 Mouse, const CUIRect &Logo,
 			if(m_OutsideSince < 0)
 				m_OutsideSince = Now;
 			if(Now - m_OutsideSince >= 0.25)
+			{
 				Close();
+				// Natural hover closure may reverse while its visuals remain.
+				// Explicit Escape/focus closure keeps suppression instead.
+				m_Suppressed = false;
+			}
 		}
 	}
 	m_Previous = Mouse;
