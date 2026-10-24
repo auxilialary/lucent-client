@@ -2762,8 +2762,10 @@ if(CLIENT)
     lucent/lucent_menu_effects.h
     lucent/lucent_menu_interaction.cpp
     lucent/lucent_menu_interaction.h
+    lucent/lucent_menu_transition.cpp
     lucent/lucent_startup.cpp
     lucent/lucent_startup.h
+    lucent/radial_transition.h
     multiview.cpp
     pickup_data.cpp
     pickup_data.h
@@ -4346,4 +4348,9 @@ if(CLIENT)
   )
   target_include_directories(lucent-menu-test PRIVATE src)
   target_compile_features(lucent-menu-test PRIVATE cxx_std_20)
+  add_executable(lucent-radial-transition-test EXCLUDE_FROM_ALL
+    src/game/client/lucent/tests/radial_transition_test.cc
+  )
+  target_include_directories(lucent-radial-transition-test PRIVATE src)
+  target_compile_features(lucent-radial-transition-test PRIVATE cxx_std_20)
 endif()

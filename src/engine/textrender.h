@@ -9,6 +9,7 @@
 #include <engine/graphics.h>
 
 #include <cstdint>
+#include <functional>
 #include <memory>
 
 enum
@@ -220,6 +221,9 @@ public:
 
 	virtual void RenderTextContainer(STextContainerIndex TextContainerIndex, const ColorRGBA &TextColor, const ColorRGBA &TextOutlineColor) = 0;
 	virtual void RenderTextContainer(STextContainerIndex TextContainerIndex, const ColorRGBA &TextColor, const ColorRGBA &TextOutlineColor, float X, float Y) = 0;
+	// Spatial alpha in screen coordinates, applied to fill and outline alike.
+	// Uses cached glyphs and the existing streaming buffers on every backend.
+	virtual void RenderTextContainerSoftMask(STextContainerIndex TextContainerIndex, const ColorRGBA &TextColor, const ColorRGBA &TextOutlineColor, const std::function<float(vec2)> &Coverage) = 0;
 
 	virtual STextBoundingBox GetBoundingBoxTextContainer(STextContainerIndex TextContainerIndex) = 0;
 
