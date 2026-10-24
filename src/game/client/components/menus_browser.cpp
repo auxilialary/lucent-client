@@ -678,6 +678,8 @@ void CMenus::PopupConfirmSwitchServer()
 
 void CMenus::RenderServerbrowserFilters(CUIRect View, CScrollRegion *pScroll)
 {
+	const bool Wide = pScroll && View.w >= 720;
+	CUIRect Columns[3];
 	const float RowHeight = pScroll ? 21.0f : 18.0f;
 	const float FontSize = (18.0f - 4.0f) * CUi::ms_FontmodHeight; // based on DoButton_CheckBox
 
@@ -701,9 +703,7 @@ void CMenus::RenderServerbrowserFilters(CUIRect View, CScrollRegion *pScroll)
 			GridHeight = LayoutTab == FILTERTAB_COUNTRIES ? ((Countries + Columns - 1) / Columns) * 22.0f : ((Types + 2) / 3) * 17.0f;
 		}
 		const bool Ranks = ServerBrowser()->CommunityCache().AnyRanksAvailable();
-		const float ContentHeight = 21.0f + 10.0f + 11 * RowHeight + 15.0f + 48.0f +
-					    (Ranks ? RowHeight * (1 + LayoutFinished) : 0.0f) +
-					    (ServerBrowser()->CommunityCache().CountriesTypesFilterAvailable() ? 25.0f + GridHeight : 0.0f) + 3.0f + RowHeight;
+		const float ContentHeight = Wide ? std::max(300.f, 35.f + GridHeight) : 21.0f + 10.0f + 11 * RowHeight + 15.0f + 48.0f + (Ranks ? RowHeight * (1 + LayoutFinished) : 0.0f) + (ServerBrowser()->CommunityCache().CountriesTypesFilterAvailable() ? 25.0f + GridHeight : 0.0f) + 3.0f + RowHeight;
 		CScrollRegionParams Params;
 		Params.m_ScrollbarThickness = 8.0f;
 		Params.m_ScrollbarMargin = 1.0f;
@@ -714,6 +714,13 @@ void CMenus::RenderServerbrowserFilters(CUIRect View, CScrollRegion *pScroll)
 		View.VSplitRight(4.0f, &View, nullptr);
 		View.h = ContentHeight;
 		pScroll->AddRect(View);
+		if(Wide)
+		{
+			const float Width = View.w / 3;
+			for(int i = 0; i < 3; ++i)
+				Columns[i] = {View.x + i * Width + 8, View.y, Width - 16, View.h};
+			View = Columns[0];
+		}
 		CUIRect Exclude, Label;
 		View.HSplitTop(21.0f, &Exclude, &View);
 		Exclude.VSplitLeft(65.0f, &Label, &Exclude);
@@ -764,6 +771,8 @@ void CMenus::RenderServerbrowserFilters(CUIRect View, CScrollRegion *pScroll)
 	if(DoButton_CheckBox(&g_Config.m_BrFilterLogin, Localize("No login required"), g_Config.m_BrFilterLogin, &Button))
 		g_Config.m_BrFilterLogin ^= 1;
 
+	if(Wide)
+		View = Columns[1];
 	Section("Identity and location");
 	View.HSplitTop(RowHeight, &Button, &View);
 	if(DoButton_CheckBox(&g_Config.m_BrFilterGametypeStrict, Localize("Strict gametype filter"), g_Config.m_BrFilterGametypeStrict, &Button))
@@ -838,6 +847,8 @@ void CMenus::RenderServerbrowserFilters(CUIRect View, CScrollRegion *pScroll)
 		}
 	}
 
+	if(Wide)
+		View = Columns[2];
 	// countries and types filters
 	if(ServerBrowser()->CommunityCache().CountriesTypesFilterAvailable())
 	{
@@ -932,7 +943,7 @@ void CMenus::RenderServerbrowserDDNetFilter(CUIRect View,
 	ScrollParams.m_ScrollbarThickness = 10.0f;
 	ScrollParams.m_ScrollbarMargin = 3.0f;
 	ScrollParams.m_ScrollUnit = 2.0f * ItemHeight;
-	const bool InLucentFilters = m_LucentPanelRendering && m_LucentBrowser.VisiblePanel() == CLucentBrowserState::EPanel::FILTERS;
+	const bool InLucentFilters = m_LucentFiltersRendering;
 	if(!InLucentFilters)
 		ScrollRegion.Begin(&View, &ScrollParams);
 

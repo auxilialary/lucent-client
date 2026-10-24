@@ -10,64 +10,15 @@
 
 #include <algorithm>
 
-void CMenus::RenderLucentPanel(CUIRect View)
+// Content is rendered in its owning region; no generic sliding surface.
+void CMenus::RenderLucentContext(CUIRect View, CLucentBrowserState::EPanel Mode)
 {
 	using EPanel = CLucentBrowserState::EPanel;
-	const auto Mode = m_LucentBrowser.VisiblePanel();
-	// Translate the entire surface, content and hitboxes together.
-	View.x += (1 - m_LucentBrowser.m_Open) * 12;
-	const CUIRect PanelBounds = View;
-	const float aX[] = {View.x - 36, View.x, View.x + View.w};
-	const float aY[] = {View.y - 16, View.y, View.y + View.h, View.y + View.h + 16};
-	const float aHorizontal[] = {0, 1, 1}, aVertical[] = {0, 1, 1, 0};
-	for(int y = 0; y < 3; ++y)
-		for(int x = 0; x < 2; ++x)
-		{
-			const auto Color = [&](int X, int Y) { return ColorRGBA(.025f, .021f, .035f, .97f * m_LucentBrowser.m_Open * aHorizontal[X] * aVertical[Y]); };
-			CUIRect Band = {aX[x], aY[y], aX[x + 1] - aX[x], aY[y + 1] - aY[y]};
-			Band.Draw4(Color(x, y), Color(x + 1, y), Color(x, y + 1), Color(x + 1, y + 1), 0, 0);
-		}
-	// Fade labels, cached text and shared controls with the same panel clock.
-	LucentUi::COpacityScope Opacity(TextRender(), m_LucentBrowser.m_Open);
-	View.Margin(10, &View);
-	CUIRect Title, Close;
-	View.HSplitTop(24, &Title, &View);
-	Title.VSplitRight(24, &Title, &Close);
-	const char *apTitles[] = {"", "Filters", "Server details", "Players", "Friends", "Communities", "Direct connect"};
-	Ui()->DoLabel(&Title, Localize(Mode == EPanel::DETAILS || Mode == EPanel::PLAYERS ? "Server" : apTitles[int(Mode)]), 13, TEXTALIGN_ML);
-	static int s_Close;
-	if(LucentBrowserButton(&s_Close, "x", Close))
-	{
-		m_LucentBrowser.Escape();
-		return;
-	}
-	if(Mode == EPanel::DETAILS || Mode == EPanel::PLAYERS)
-	{
-		CUIRect Tabs, Details, Players;
-		View.HSplitTop(24, &Tabs, &View);
-		Tabs.VSplitMid(&Details, &Players);
-		static int s_Details, s_Players;
-		if(LucentUi::TextButton(Ui(), TextRender(), &s_Details, Localize("Server details"), Details, m_LucentBrowser.m_Panel == EPanel::DETAILS, 11, TEXTALIGN_MC, false) && m_LucentBrowser.m_Panel != EPanel::DETAILS)
-			m_LucentBrowser.Toggle(EPanel::DETAILS);
-		if(LucentUi::TextButton(Ui(), TextRender(), &s_Players, Localize("Players"), Players, m_LucentBrowser.m_Panel == EPanel::PLAYERS, 11, TEXTALIGN_MC, false) && m_LucentBrowser.m_Panel != EPanel::PLAYERS)
-			m_LucentBrowser.Toggle(EPanel::PLAYERS);
-		const bool PlayersActive = m_LucentBrowser.m_Panel == EPanel::PLAYERS;
-		auto &Indicator = m_LucentBrowser.m_DetailNavigation;
-		Indicator.Update(PlayersActive ? Players.x : Details.x, Details.w, Client()->RenderFrameTime(), g_Config.m_ClLucentLogoAnimation != 0);
-		CUIRect Line = {Indicator.X() + 4, Tabs.y + Tabs.h - 2, std::max(0.f, Indicator.Width() - 8), 1};
-		Line.Draw(LucentUi::Accent(.7f), 0, 0);
-	}
-	LucentUi::CInteractionScope ContentInteraction(Ui(), Mode == m_LucentBrowser.m_Panel && m_LucentBrowser.m_Content > .15f);
-	LucentUi::COpacityScope ContentOpacity(TextRender(), m_LucentBrowser.m_Content);
-	View.HSplitTop(5, nullptr, &View);
-	// Restrained content slide, geometry shared by drawing and hitboxes.
-	View.x += (1 - m_LucentBrowser.m_Content) * 12;
-	View.w -= (1 - m_LucentBrowser.m_Content) * 12;
 	if(Mode == EPanel::DIRECT_CONNECT)
 	{
 		CUIRect Address, Action;
 		View.HSplitTop(26, &Address, &View);
-		if(m_LucentBrowser.m_DirectFocusPending && Ui()->Enabled() && m_LucentBrowser.m_Open > .99f && m_LucentBrowser.m_Content > .99f)
+		if(m_LucentBrowser.m_DirectFocusPending && Ui()->Enabled() && m_LucentBrowser.m_Overlay.m_Target == CLucentBrowserState::EOverlay::DIRECT_CONNECT)
 		{
 			Ui()->SetActiveItem(&m_LucentDirectAddress);
 			m_LucentBrowser.m_DirectFocusPending = false;
@@ -90,15 +41,12 @@ void CMenus::RenderLucentPanel(CUIRect View)
 		static CScrollRegion s_Scroll;
 		// Consume over the whole panel before the server list sees the wheel,
 		// including the fixed header and padding on the first hover frame.
-		if(Ui()->Enabled() && Ui()->MouseHovered(&PanelBounds))
-		{
-			if(Ui()->ConsumeHotkey(CUi::HOTKEY_SCROLL_UP))
-				s_Scroll.ScrollRelative(CScrollRegion::SCROLLRELATIVE_UP);
-			else if(Ui()->ConsumeHotkey(CUi::HOTKEY_SCROLL_DOWN))
-				s_Scroll.ScrollRelative(CScrollRegion::SCROLLRELATIVE_DOWN);
-		}
+		if(m_LucentFilterWheel != 0)
+			s_Scroll.ScrollRelative(m_LucentFilterWheel < 0 ? CScrollRegion::SCROLLRELATIVE_UP : CScrollRegion::SCROLLRELATIVE_DOWN);
+		m_LucentFiltersRendering = true;
 		// The filter renderer measures its complete layout before beginning scrolling.
 		RenderServerbrowserFilters(View, &s_Scroll);
+		m_LucentFiltersRendering = false;
 	}
 	else if(Mode == EPanel::FRIENDS)
 		RenderServerbrowserFriends(View);
@@ -134,7 +82,6 @@ void CMenus::RenderLucentPanel(CUIRect View)
 			Props.m_StopAtEnd = true;
 			Ui()->DoLabel(&Row, pText, Size, TEXTALIGN_ML, Props);
 		};
-		Label(pServer->m_aMap, 30, 18);
 		Label(pServer->m_aName, 26, 12);
 		Ui()->DoToolTip(&pServer->m_aName, &Row, pServer->m_aName);
 		Label(pServer->m_aAddress, 20, 10);

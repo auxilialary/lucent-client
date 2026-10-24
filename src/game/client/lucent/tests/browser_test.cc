@@ -32,54 +32,52 @@ int main()
 	for(int i = 0; i < 7; ++i)
 		State.Tab(false);
 	CHECK(State.m_Focus == 0);
+	using Primary = CLucentBrowserState::EPrimary;
+	using Scene = CLucentBrowserState::EScene;
+	using Overlay = CLucentBrowserState::EOverlay;
+	State.Toggle(P::FRIENDS);
+	State.Toggle(P::DETAILS);
 	State.Toggle(P::FILTERS);
-	State.Update(.016f, true);
-	CHECK(State.m_Open > 0 && State.m_Open < 1);
-	CHECK(State.PanelWidth(600) < 258);
-	for(int i = 0; i < 100; ++i)
-		State.Update(.016f, true);
-	CHECK(State.m_Open == 1);
-	for(float Width : {320.f, 600.f, 1066.f, 2400.f})
-		CHECK(State.PanelWidth(Width) <= Width * .43f);
-	State.Escape();
-	State.Update(.016f, true);
-	const float Closing = State.m_Open;
-	CHECK(State.VisiblePanel() == P::FILTERS);
-	State.Toggle(P::FILTERS);
-	State.Update(.016f, true);
-	CHECK(State.m_Open > Closing);
-	State.Update(.016f, false);
-	State.Toggle(P::PLAYERS);
-	CHECK(State.m_Open == 1);
+	State.Update(0, false);
+	CHECK(State.m_Primary.m_Visible == Primary::FRIENDS);
+	CHECK(State.m_Scene.m_Visible == Scene::DETAILS);
+	CHECK(State.m_Overlay.m_Visible == Overlay::FILTERS);
 	CHECK(State.Escape());
-	State.Update(.016f, false);
-	CHECK(State.m_Open == 0);
-	CHECK(State.VisiblePanel() == P::NONE);
-	// The panel completes in 280 ms across display refresh rates. Switching
-	// content must preserve the surface and reverse closing without a snap.
+	CHECK(State.m_Overlay.m_Target == Overlay::NONE && State.m_Scene.m_Target == Scene::DETAILS);
+	CHECK(State.Escape());
+	CHECK(State.m_Scene.m_Target == Scene::PREVIEW && State.m_Primary.m_Target == Primary::FRIENDS);
+	CHECK(State.Escape());
+	CHECK(!State.Escape());
 	for(int Fps : {30, 60, 144, 240})
 	{
 		CLucentBrowserState Motion;
+		Motion.Toggle(P::FRIENDS);
 		Motion.Toggle(P::DETAILS);
-		for(int Frame = 0; Frame < int(std::ceil(.28f * Fps)); ++Frame)
-			Motion.Update(1.f / Fps, true);
-		CHECK(Motion.m_Open > .9999f);
-		Motion.Toggle(P::PLAYERS);
-		CHECK(Motion.m_Open > .9999f && Motion.m_Content == 1);
-		CHECK(Motion.VisiblePanel() == P::DETAILS);
-		Motion.Update(.1f, true);
-		CHECK(Motion.m_Content > 0 && Motion.m_Content < 1);
-		Motion.Escape();
-		Motion.Update(.1f, true);
-		const float Partial = Motion.m_Open;
 		Motion.Toggle(P::FILTERS);
-		Motion.Update(1.f / Fps, true);
-		CHECK(Motion.m_Open > Partial);
-		Motion.Update(0, false);
-		CHECK(Motion.m_Open == 1 && Motion.m_Content == 1);
+		for(int i = 0; i < Fps; ++i)
+			Motion.Update(1.f / Fps, true);
+		CHECK(Motion.m_Primary.m_Visible == Primary::FRIENDS && Motion.m_Primary.m_Alpha == 1);
+		CHECK(Motion.m_Scene.m_Visible == Scene::DETAILS && Motion.m_Scene.m_Alpha == 1);
+		CHECK(Motion.Expansion() == 1);
+		Motion.Toggle(P::PLAYERS);
+		Motion.Update(.05f, true);
+		const float Alpha = Motion.m_Scene.m_Alpha;
+		Motion.Toggle(P::DETAILS);
+		Motion.Update(0, true);
+		CHECK(Motion.m_Scene.m_Alpha == Alpha && Motion.m_Scene.m_Visible == Scene::DETAILS);
 		Motion.Escape();
+		Motion.Update(.05f, true);
+		const float Height = Motion.Expansion();
+		Motion.Toggle(P::FILTERS);
+		Motion.Update(0, true);
+		CHECK(Motion.Expansion() == Height);
+		Motion.Toggle(P::DIRECT_CONNECT);
 		Motion.Update(0, false);
-		CHECK(Motion.m_Open == 0 && Motion.VisiblePanel() == P::NONE);
+		CHECK(Motion.m_Overlay.m_Visible == Overlay::DIRECT_CONNECT && Motion.Expansion() == 1);
+		Motion.Servers();
+		Motion.Update(0, false);
+		CHECK(Motion.m_Primary.m_Visible == Primary::SERVERS && Motion.Expansion() == 0);
+		CHECK(Motion.m_Scene.m_Target == Scene::DETAILS);
 	}
 	// Retargeting preserves geometry, including reversal and changed UI scale.
 	CLucentBrowserIndicator Indicator;
@@ -93,22 +91,6 @@ int main()
 	CHECK(Indicator.X() == 20 && Indicator.Width() == 40);
 	Indicator.Update(80, 120, 0, false);
 	CHECK(Indicator.X() == 80 && Indicator.Width() == 120);
-	for(int Fps : {60, 144, 240})
-	{
-		CLucentBrowserState Switch;
-		Switch.Toggle(P::DETAILS);
-		Switch.Update(0, false);
-		Switch.Toggle(P::PLAYERS);
-		Switch.Update(.05f, true);
-		const float Alpha = Switch.m_Content;
-		Switch.Toggle(P::DETAILS);
-		Switch.Update(0, true);
-		CHECK(Switch.m_Content == Alpha && Switch.VisiblePanel() == P::DETAILS);
-		Switch.Toggle(P::PLAYERS);
-		for(int i = 0; i < Fps; ++i)
-			Switch.Update(1.f / Fps, true);
-		CHECK(Switch.VisiblePanel() == P::PLAYERS && Switch.m_Open == 1 && Switch.m_Content == 1);
-	}
 	State.Select("one:8303", true);
 	CHECK(State.m_SelectionPulse == 1);
 	State.Update(.1f, true);
@@ -119,16 +101,15 @@ int main()
 	CHECK(State.m_SelectionPulse == 1);
 	State.Select("two:8303", false);
 	CHECK(State.m_SelectionPulse == 0);
-	for(P Panel : {P::FILTERS, P::DETAILS, P::PLAYERS, P::FRIENDS, P::COMMUNITIES, P::DIRECT_CONNECT})
-	{
-		CLucentBrowserState Surface;
-		Surface.Toggle(Panel);
-		Surface.Update(0, false);
-		CHECK(Surface.VisiblePanel() == Panel && Surface.m_Content == 1);
-		CHECK(Surface.Escape());
-		Surface.Update(0, false);
-		CHECK(Surface.VisiblePanel() == P::NONE);
-	}
+	State.Toggle(P::COMMUNITIES);
+	State.Update(0, false);
+	CHECK(State.m_Primary.m_Visible == Primary::COMMUNITIES);
+	State.Toggle(P::FILTERS);
+	State.Update(0, false);
+	CHECK(State.m_Primary.m_Visible == Primary::COMMUNITIES);
+	State.Servers();
+	State.Update(0, false);
+	CHECK(State.m_Primary.m_Visible == Primary::SERVERS && State.m_Overlay.m_Visible == Overlay::NONE);
 	for(int Fps : {60, 144, 240})
 	{
 		CLucentBrowserIndicator Nav;

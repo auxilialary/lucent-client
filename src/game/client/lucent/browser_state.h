@@ -40,9 +40,50 @@ public:
 	float Width() const { return m_Width; }
 };
 
+// Fade through zero before exchanging content. Retargeting retains rendered opacity.
+template<typename T>
+struct CLucentBrowserContent
+{
+	T m_Target{}, m_Visible{};
+	float m_Alpha = 1;
+	void Update(float Dt, bool Animate, float Duration)
+	{
+		if(!Animate)
+		{
+			m_Visible = m_Target;
+			m_Alpha = 1;
+			return;
+		}
+		const float Step = std::max(0.f, Dt) * 2 / Duration;
+		m_Alpha = std::clamp(m_Alpha + (m_Target == m_Visible ? Step : -Step), 0.f, 1.f);
+		if(m_Alpha == 0)
+			m_Visible = m_Target;
+	}
+	float Opacity() const { return m_Alpha * m_Alpha * (3 - 2 * m_Alpha); }
+};
+
 class CLucentBrowserState
 {
 public:
+	enum class EPrimary
+	{
+		SERVERS,
+		FRIENDS,
+		COMMUNITIES
+	};
+	enum class EScene
+	{
+		PREVIEW,
+		DETAILS,
+		PLAYERS
+	};
+	enum class EOverlay
+	{
+		NONE,
+		FILTERS,
+		DIRECT_CONNECT
+	};
+	// Render/action identifiers, never a shared navigation state.
 	enum class EPanel
 	{
 		NONE,
@@ -53,13 +94,17 @@ public:
 		COMMUNITIES,
 		DIRECT_CONNECT
 	};
+	CLucentBrowserContent<EPrimary> m_Primary;
+	CLucentBrowserContent<EScene> m_Scene;
+	CLucentBrowserContent<EOverlay> m_Overlay;
 	CLucentBrowserIndicator m_Navigation, m_DetailNavigation;
-	EPanel m_Panel = EPanel::NONE;
-	EPanel m_VisiblePanel = EPanel::NONE;
-	EPanel VisiblePanel() const { return m_VisiblePanel; }
+	float m_Expansion = 0;
+	float m_ScenePosition = 0;
 	std::string m_LastSelection;
 	float m_SelectionPulse = 0;
 	bool m_DirectFocusPending = false;
+	int m_Focus = 0;
+	void Tab(bool Reverse) { m_Focus = (m_Focus + (Reverse ? 6 : 1)) % 7; }
 	void Select(std::string_view Address, bool Animate)
 	{
 		if(Address != m_LastSelection)
@@ -70,55 +115,79 @@ public:
 		if(!Animate)
 			m_SelectionPulse = 0;
 	}
-	int m_Focus = 0; // list, search, filters, details, players, address, connect
-	void Tab(bool Reverse) { m_Focus = (m_Focus + (Reverse ? 6 : 1)) % 7; }
-	float m_Open = 0;
-	float m_Content = 1;
-	float m_OpenTime = 0;
-	float m_ContentTime = .14f;
-	void Toggle(EPanel Panel)
+	void Servers()
 	{
-		m_Panel = m_Panel == Panel ? EPanel::NONE : Panel;
-		if(m_Panel != EPanel::NONE)
+		m_Primary.m_Target = EPrimary::SERVERS;
+		m_Overlay.m_Target = EOverlay::NONE;
+	}
+	void Toggle(EPanel Action)
+	{
+		switch(Action)
 		{
-			if(m_VisiblePanel == EPanel::NONE)
-			{
-				m_VisiblePanel = m_Panel;
-				m_ContentTime = 0;
-				m_Content = 0;
-			}
+		case EPanel::FRIENDS:
+		case EPanel::COMMUNITIES:
+		{
+			const auto Next = Action == EPanel::FRIENDS ? EPrimary::FRIENDS : EPrimary::COMMUNITIES;
+			m_Primary.m_Target = m_Primary.m_Target == Next ? EPrimary::SERVERS : Next;
+			m_Overlay.m_Target = EOverlay::NONE;
+			break;
+		}
+		case EPanel::DETAILS:
+		case EPanel::PLAYERS:
+		{
+			const auto Next = Action == EPanel::DETAILS ? EScene::DETAILS : EScene::PLAYERS;
+			m_Scene.m_Target = m_Scene.m_Target == Next ? EScene::PREVIEW : Next;
+			break;
+		}
+		case EPanel::FILTERS:
+		case EPanel::DIRECT_CONNECT:
+		{
+			const auto Next = Action == EPanel::FILTERS ? EOverlay::FILTERS : EOverlay::DIRECT_CONNECT;
+			m_Overlay.m_Target = m_Overlay.m_Target == Next ? EOverlay::NONE : Next;
+			break;
+		}
+		case EPanel::NONE: break;
 		}
 	}
 	bool Escape()
 	{
-		if(m_Panel == EPanel::NONE)
+		if(m_Overlay.m_Target != EOverlay::NONE)
+			m_Overlay.m_Target = EOverlay::NONE;
+		else if(m_Scene.m_Target != EScene::PREVIEW)
+			m_Scene.m_Target = EScene::PREVIEW;
+		else if(m_Primary.m_Target != EPrimary::SERVERS)
+			m_Primary.m_Target = EPrimary::SERVERS;
+		else
 			return false;
-		m_Panel = EPanel::NONE;
 		return true;
+	}
+	bool HasLocalState() const
+	{
+		return m_Overlay.m_Target != EOverlay::NONE || m_Scene.m_Target != EScene::PREVIEW || m_Primary.m_Target != EPrimary::SERVERS;
 	}
 	void Update(float Dt, bool Animate)
 	{
-		const bool Open = m_Panel != EPanel::NONE;
 		const float Step = std::clamp(Dt, 0.f, .1f);
-		m_SelectionPulse = Animate ? std::max(0.f, m_SelectionPulse - Step / .42f) : 0;
-		m_OpenTime = Animate ? std::clamp(m_OpenTime + (Open ? Step : -Step), 0.f, .28f) : (Open ? .28f : 0.f);
-		// Fade the outgoing body before changing identity; reversing intent keeps
-		// the current opacity and the container continues on its own clock.
-		const bool Switching = Open && m_VisiblePanel != m_Panel;
-		m_ContentTime = Animate ? std::clamp(m_ContentTime + (Switching ? -Step : Step), 0.f, .14f) : .14f;
-		if(Switching && (!Animate || m_ContentTime == 0))
-			m_VisiblePanel = m_Panel;
-		const auto Ease = [](float Time) {
-			const float T = Time / .28f;
-			return 1.f - (1.f - T) * (1.f - T) * (1.f - T);
+		m_Primary.Update(Step, Animate, .30f);
+		m_Scene.Update(Step, Animate, .36f);
+		if(m_Overlay.m_Visible == EOverlay::NONE && m_Overlay.m_Target != EOverlay::NONE)
+			m_Overlay.m_Visible = m_Overlay.m_Target;
+		if(m_Overlay.m_Target != EOverlay::NONE)
+			m_Overlay.Update(Step, Animate, .32f);
+		const auto Move = [&](float Value, bool Target, float Duration) {
+			return Animate ? std::clamp(Value + (Target ? Step : -Step) / Duration, 0.f, 1.f) : float(Target);
 		};
-		m_Open = Ease(m_OpenTime);
-		const float ContentT = m_ContentTime / .14f;
-		m_Content = ContentT * ContentT * (3 - 2 * ContentT);
-		if(m_Open == 0)
-			m_VisiblePanel = EPanel::NONE;
+		m_Expansion = Move(m_Expansion, m_Overlay.m_Target != EOverlay::NONE, .32f);
+		if(m_Expansion == 0 && m_Overlay.m_Target == EOverlay::NONE)
+		{
+			m_Overlay.m_Visible = EOverlay::NONE;
+			m_Overlay.m_Alpha = 1;
+		}
+		m_ScenePosition = Move(m_ScenePosition, m_Scene.m_Target != EScene::PREVIEW, .36f);
+		m_SelectionPulse = Animate ? std::max(0.f, m_SelectionPulse - Step / .42f) : 0;
 	}
-	float PanelWidth(float Width) const { return std::min(290.f, Width * .43f) * m_Open; }
+	float Expansion() const { return m_Expansion * m_Expansion * (3 - 2 * m_Expansion); }
+	float ScenePosition() const { return m_ScenePosition * m_ScenePosition * (3 - 2 * m_ScenePosition); }
 	template<typename T>
 	static int FindSelection(int Count, std::string_view Address, T GetAddress)
 	{

@@ -42,8 +42,10 @@ class CMenus : public CComponent
 	bool m_LucentLegacyBrowser = false;
 	CLineInputBuffered<256> m_LucentDirectAddress;
 	bool m_LucentPanelRendering = false;
+	bool m_LucentFiltersRendering = false;
+	int m_LucentFilterWheel = 0;
 	void RenderLucentServerList(CUIRect View, bool &Activated);
-	void RenderLucentPanel(CUIRect View);
+	void RenderLucentContext(CUIRect View, CLucentBrowserState::EPanel Mode);
 	bool LucentBrowserButton(const void *pId, const char *pText, CUIRect Rect, bool Selected = false);
 	static ColorRGBA ms_GuiColor;
 	static ColorRGBA ms_ColorTabbarInactiveOutgame;
