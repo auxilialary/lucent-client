@@ -1028,9 +1028,11 @@ void CMenus::RenderServerbrowserCommunitiesFilter(CUIRect View)
 {
 	CUIRect Tab;
 	View.HSplitTop(19.0f, &Tab, &View);
-	Tab.Draw(ColorRGBA(0.0f, 0.0f, 0.0f, 0.3f), IGraphics::CORNER_T, 4.0f);
+	if(!Ui()->LucentStyle())
+		Tab.Draw(ColorRGBA(0.0f, 0.0f, 0.0f, 0.3f), IGraphics::CORNER_T, 4.0f);
 	Ui()->DoLabel(&Tab, Localize("Communities"), 12.0f, TEXTALIGN_MC);
-	View.Draw(ColorRGBA(0.0f, 0.0f, 0.0f, 0.15f), IGraphics::CORNER_B, 4.0f);
+	if(!Ui()->LucentStyle())
+		View.Draw(ColorRGBA(0.0f, 0.0f, 0.0f, 0.15f), IGraphics::CORNER_B, 4.0f);
 
 	const int MaxEntries = ServerBrowser()->Communities().size();
 	if(MaxEntries == 0)
@@ -1335,7 +1337,7 @@ void CMenus::RenderServerbrowserInfoScoreboard(CUIRect View, const CServerInfo *
 		Name = Item.m_Rect;
 
 		const ColorRGBA Color = PlayerBackgroundColor(CurrentClient.m_FriendState == IFriends::FRIEND_PLAYER, CurrentClient.m_FriendState == IFriends::FRIEND_CLAN, CurrentClient.m_Afk, false, false);
-		Name.Draw(Color, IGraphics::CORNER_ALL, 4.0f);
+		Name.Draw(Ui()->LucentStyle() ? ColorRGBA(1, .82f, .91f, .035f) : Color, Ui()->LucentStyle() ? 0 : IGraphics::CORNER_ALL, Ui()->LucentStyle() ? 0 : 4.0f);
 		Name.VSplitLeft(1.0f, nullptr, &Name);
 		Name.VSplitLeft(34.0f, &Score, &Name);
 		Name.VSplitLeft(18.0f, &Skin, &Name);
@@ -1510,8 +1512,8 @@ void CMenus::RenderServerbrowserFriends(CUIRect View)
 	// friends list
 	static CScrollRegion s_ScrollRegion;
 	CScrollRegionParams ScrollParams;
-	ScrollParams.m_ScrollbarThickness = 16.0f;
-	ScrollParams.m_ScrollbarMargin = 5.0f;
+	ScrollParams.m_ScrollbarThickness = Ui()->LucentStyle() ? 8.0f : 16.0f;
+	ScrollParams.m_ScrollbarMargin = Ui()->LucentStyle() ? 1.0f : 5.0f;
 	ScrollParams.m_ScrollUnit = 80.0f;
 	ScrollParams.m_ForceShowScrollbar = true;
 	s_ScrollRegion.Begin(&List, &ScrollParams);
@@ -1523,12 +1525,12 @@ void CMenus::RenderServerbrowserFriends(CUIRect View)
 		CUIRect Header, GroupIcon, GroupLabel;
 		List.HSplitTop(ms_ListheaderHeight, &Header, &List);
 		s_ScrollRegion.AddRect(Header);
-		Header.Draw(ColorRGBA(1.0f, 1.0f, 1.0f, Ui()->HotItem() == &s_aListExtended[FriendType] ? 0.4f : 0.25f), IGraphics::CORNER_ALL, 5.0f);
+		Header.Draw(Ui()->LucentStyle() ? ColorRGBA(1, .82f, .91f, Ui()->HotItem() == &s_aListExtended[FriendType] ? .06f : 0.f) : ColorRGBA(1.0f, 1.0f, 1.0f, Ui()->HotItem() == &s_aListExtended[FriendType] ? 0.4f : 0.25f), Ui()->LucentStyle() ? 0 : IGraphics::CORNER_ALL, Ui()->LucentStyle() ? 0 : 5.0f);
 		Header.VSplitLeft(Header.h, &GroupIcon, &GroupLabel);
 		GroupIcon.Margin(2.0f, &GroupIcon);
 		TextRender()->SetFontPreset(EFontPreset::ICON_FONT);
 		TextRender()->TextColor(Ui()->HotItem() == &s_aListExtended[FriendType] ? TextRender()->DefaultTextColor() : ColorRGBA(0.6f, 0.6f, 0.6f, 1.0f));
-		Ui()->DoLabel(&GroupIcon, s_aListExtended[FriendType] ? FontIcon::SQUARE_MINUS : FontIcon::SQUARE_PLUS, GroupIcon.h * CUi::ms_FontmodHeight, TEXTALIGN_MC);
+		Ui()->DoLabel(&GroupIcon, s_aListExtended[FriendType] ? (Ui()->LucentStyle() ? FontIcon::CHEVRON_DOWN : FontIcon::SQUARE_MINUS) : (Ui()->LucentStyle() ? FontIcon::CHEVRON_RIGHT : FontIcon::SQUARE_PLUS), GroupIcon.h * CUi::ms_FontmodHeight, TEXTALIGN_MC);
 		TextRender()->TextColor(TextRender()->DefaultTextColor());
 		TextRender()->SetFontPreset(EFontPreset::DEFAULT_FONT);
 		switch(FriendType)
@@ -1582,7 +1584,7 @@ void CMenus::RenderServerbrowserFriends(CUIRect View)
 				bool InSelectedServer = m_SelectedIndex >= 0 && Friend.ServerInfo() && Friend.ServerInfo()->m_ServerIndex == ServerBrowser()->SortedGet(m_SelectedIndex)->m_ServerIndex;
 
 				const ColorRGBA Color = PlayerBackgroundColor(FriendType == FRIEND_PLAYER_ON, FriendType == FRIEND_CLAN_ON, FriendType == FRIEND_OFF ? true : Friend.IsAfk(), InSelectedServer, Inside);
-				Rect.Draw(Color, IGraphics::CORNER_ALL, 5.0f);
+				Rect.Draw(Ui()->LucentStyle() ? ColorRGBA(1, .82f, .91f, InSelectedServer ? .09f : Inside ? .05f : 0.f) : Color, Ui()->LucentStyle() ? 0 : IGraphics::CORNER_ALL, 5.0f);
 				Rect.Margin(2.0f, &Rect);
 
 				CUIRect RemoveButton, NameLabel, ClanLabel, InfoLabel;

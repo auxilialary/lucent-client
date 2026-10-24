@@ -70,7 +70,14 @@ namespace LucentUi
 	inline bool Button(CUi *pUi, ITextRender *pTextRender, const void *pId, const char *pText, CUIRect Rect, bool Selected = false, bool Enabled = true)
 	{
 		const bool Hover = Enabled && pUi->MouseHovered(&Rect);
-		Surface(Rect, Selected || pUi->CheckActiveItem(pId), Hover, IGraphics::CORNER_ALL, Highlight(pId, Selected || Hover || pUi->CheckActiveItem(pId)));
+		const float Light = Highlight(pId, Selected || Hover || pUi->CheckActiveItem(pId));
+		if(Light > .001f)
+			Rect.Draw(Accent(Light * (Selected ? .13f : .045f)), 0, 0);
+		if(Selected)
+		{
+			CUIRect Underline = {Rect.x + 5, Rect.y + Rect.h - 1, std::max(0.f, Rect.w - 10), .6f};
+			Underline.Draw(Accent(.7f), 0, 0);
+		}
 		pTextRender->TextColor(Accent(Enabled ? 1.f : .35f));
 		const float Size = std::min(11.f, 11.f * std::max(1.f, Rect.w - 6) / std::max(1.f, pTextRender->TextWidth(11, pText)));
 		pUi->DoLabel(&Rect, pText, Size, TEXTALIGN_MC);

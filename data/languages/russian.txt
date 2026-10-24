@@ -2798,3 +2798,12 @@ South America
 
 China
 == Китай
+
+Search maps or players
+== Найти карту или игрока...
+
+Refresh
+== Обновить
+
+Connect
+== Подключиться

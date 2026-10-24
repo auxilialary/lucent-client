@@ -46,6 +46,7 @@ void CTooltips::DoToolTip(const CTooltip &Tooltip)
 	}
 
 	StoredTooltip.m_OnScreen = true;
+	StoredTooltip.m_LucentStyle = Ui()->LucentStyle();
 
 	if(Ui()->HotItem() == StoredTooltip.m_pId)
 	{
@@ -148,7 +149,17 @@ void CTooltips::OnRender()
 			Rect.y = std::clamp(Ui()->MouseY() - Rect.h / 2.0f, Margin, pScreen->h - Rect.h - Margin);
 		}
 
-		Rect.Draw(ColorRGBA(0.2f, 0.2f, 0.2f, 0.8f * AlphaFactor), IGraphics::CORNER_ALL, Padding);
+		if(Tooltip.m_LucentStyle)
+		{
+			// Header hints always sit below the complete header, away from search.
+			Rect.x = std::clamp(Tooltip.m_Rect.x + Tooltip.m_Rect.w - Rect.w, Margin, pScreen->w - Rect.w - Margin);
+			Rect.y = Tooltip.m_Rect.y + Tooltip.m_Rect.h + Margin;
+			if(Rect.y + Rect.h > pScreen->h - Margin)
+				Rect.y = Tooltip.m_Rect.y - Rect.h - Margin;
+			Rect.y = std::clamp(Rect.y, Margin, pScreen->h - Rect.h - Margin);
+		}
+
+		Rect.Draw(Tooltip.m_LucentStyle ? ColorRGBA(.078f, .067f, .098f, .98f * AlphaFactor) : ColorRGBA(0.2f, 0.2f, 0.2f, 0.8f * AlphaFactor), IGraphics::CORNER_ALL, Padding);
 		Rect.Margin(Padding, &Rect);
 
 		CTextCursor Cursor;

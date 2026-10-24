@@ -13,7 +13,7 @@ void CMenus::RenderLucentPanel(CUIRect View)
 	using EPanel = CLucentBrowserState::EPanel;
 	const auto Mode = m_LucentBrowser.VisiblePanel();
 	const CUIRect PanelBounds = View;
-	View.Draw(ColorRGBA(.025f, .021f, .035f, .32f), IGraphics::CORNER_ALL, 3);
+	View.Draw(ColorRGBA(.035f, .031f, .051f, .42f * m_LucentBrowser.m_Open), 0, 0);
 	CUIRect Edge = {View.x, View.y + 8, .5f, View.h - 16};
 	Edge.Draw(ColorRGBA(1, .8f, .9f, .12f), 0, 0);
 	View.Margin(10, &View);
@@ -36,10 +36,21 @@ void CMenus::RenderLucentPanel(CUIRect View)
 		m_LucentBrowser.Escape();
 		return;
 	}
+	if(Mode == EPanel::DETAILS || Mode == EPanel::PLAYERS)
+	{
+		CUIRect Tabs, Details, Players;
+		View.HSplitTop(24, &Tabs, &View);
+		Tabs.VSplitMid(&Details, &Players);
+		static int s_Details, s_Players;
+		if(LucentBrowserButton(&s_Details, "Server details", Details, Mode == EPanel::DETAILS) && Mode != EPanel::DETAILS)
+			m_LucentBrowser.Toggle(EPanel::DETAILS);
+		if(LucentBrowserButton(&s_Players, "Players", Players, Mode == EPanel::PLAYERS) && Mode != EPanel::PLAYERS)
+			m_LucentBrowser.Toggle(EPanel::PLAYERS);
+	}
 	View.HSplitTop(5, nullptr, &View);
 	// Restrained content slide, geometry shared by drawing and hitboxes.
-	View.x += (1 - m_LucentBrowser.m_Content) * 5;
-	View.w -= (1 - m_LucentBrowser.m_Content) * 5;
+	View.x += (1 - m_LucentBrowser.m_Content) * 8;
+	View.w -= (1 - m_LucentBrowser.m_Content) * 8;
 	if(Mode == EPanel::FILTERS)
 	{
 		static CScrollRegion s_Scroll;
@@ -89,10 +100,11 @@ void CMenus::RenderLucentPanel(CUIRect View)
 			Props.m_StopAtEnd = true;
 			Ui()->DoLabel(&Row, pText, Size, TEXTALIGN_ML, Props);
 		};
+		Label(pServer->m_aMap, 30, 18);
 		Label(pServer->m_aName, 26, 12);
 		Ui()->DoToolTip(&pServer->m_aName, &Row, pServer->m_aName);
 		Label(pServer->m_aAddress, 20, 10);
-		Label(pServer->m_aMap, 24, 14);
+
 		char aMeta[128];
 		const char *apRegions[] = {"Unknown region", "Africa", "Asia", "Australia", "Europe", "North America", "South America", "China"};
 		str_format(aMeta, sizeof(aMeta), "%s   /   %d/%d %s", Localize(apRegions[std::clamp(pServer->m_Location, 0, 7)]), pServer->m_NumPlayers, pServer->m_MaxPlayers, Localize("players"));

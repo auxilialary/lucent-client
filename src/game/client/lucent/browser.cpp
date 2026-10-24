@@ -54,17 +54,21 @@ void CMenus::RenderLucentBrowser(CUIRect Screen)
 		RenderServerbrowser(Screen);
 		return;
 	}
-	Screen.Margin(20, &Screen);
+	// VEIL uses one continuous surface: one header, a working list and open atmosphere.
+	Screen.Margin(18, &Screen);
 	CUIRect Top, Nav, Tools, Footer, Status, List;
-	Screen.HSplitTop(30, &Top, &Screen);
-	Screen.HSplitTop(29, &Nav, &Screen);
-	Tools = Nav;
+	Screen.HSplitTop(32, &Top, &Screen);
+	Screen.HSplitTop(22, nullptr, &Screen);
 	Screen.HSplitBottom(26, &Screen, &Footer);
-	CUIRect Brand, Search, Refresh;
-	Top.VSplitLeft(std::min(180.f, Top.w * .35f), &Brand, &Top);
-	Ui()->DoLabel(&Brand, "L U C E N T", 12, TEXTALIGN_ML);
-	Top.VSplitRight(65, &Search, &Refresh);
-	Search.Margin(3, &Search);
+	CUIRect Brand, Search;
+	const float Compact = std::clamp(Top.w / 900.f, .65f, 1.f);
+	Top.VSplitLeft(80 * Compact, &Brand, &Top);
+	TextRender()->TextColor(LucentUi::Accent(1));
+	Ui()->DoLabel(&Brand, "LUCENT", 12, TEXTALIGN_ML);
+	TextRender()->TextColor(TextRender()->DefaultTextColor());
+	Top.VSplitRight(100, &Top, &Tools);
+	Top.VSplitRight(std::clamp(Top.w * .34f, 105.f, 205.f), &Nav, &Search);
+	Search.Margin(4, &Search);
 	static CLineInput s_Search(g_Config.m_BrFilterString, sizeof(g_Config.m_BrFilterString));
 	if(s_Search.IsActive())
 		m_LucentBrowser.m_Focus = 1;
@@ -84,7 +88,7 @@ void CMenus::RenderLucentBrowser(CUIRect Screen)
 		m_LucentBrowser.m_Focus = 0;
 	}
 
-	s_Search.SetEmptyText(Localize("Search maps, servers, players"));
+	s_Search.SetEmptyText(Localize("Search maps or players"));
 	if(Ui()->Enabled() && !Ui()->IsPopupOpen() && Input()->ModifierIsPressed() && Input()->KeyPress(KEY_F))
 	{
 		Ui()->SetActiveItem(&s_Search);
@@ -98,13 +102,10 @@ void CMenus::RenderLucentBrowser(CUIRect Screen)
 	TextRender()->SetFontPreset(EFontPreset::DEFAULT_FONT);
 	if(Ui()->DoClearableEditBox(&s_Search, &Search, 12))
 		Client()->ServerBrowserUpdate();
-	static int s_Refresh;
-	if(LucentBrowserButton(&s_Refresh, "Refresh", Refresh) || (Ui()->Enabled() && !Ui()->IsPopupOpen() && (Input()->KeyPress(KEY_F5) || (Input()->ModifierIsPressed() && Input()->KeyPress(KEY_R)))))
-		RefreshBrowserTab(true);
 	static int s_aNav[5];
 	const char *apNav[] = {"All servers", "Favorites", "Friends", "Communities", "LAN"};
-	const float aWidths[] = {85, 75, 65, 95, 45, 65, 55};
-	const float NavScale = std::min(1.f, (Nav.w - 174) / 365);
+	const float aWidths[] = {85, 75, 65, 95, 45};
+	const float NavScale = std::min(1.f, Nav.w / 365);
 	for(int i = 0; i < 5; ++i)
 	{
 		CUIRect Tab;
@@ -130,72 +131,83 @@ void CMenus::RenderLucentBrowser(CUIRect Screen)
 			m_LucentBrowser.Toggle(CLucentBrowserState::EPanel::COMMUNITIES);
 		}
 	}
-	// Small contextual actions share the primary row, with full localized tooltips.
-	Tools = Nav;
-	static int s_aTools[7];
-	const char *apIcons[] = {FontIcon::LIST_UL, FontIcon::INFO, FontIcon::USER, FontIcon::CLAPPERBOARD, FontIcon::PEN_TO_SQUARE, FontIcon::GEAR, FontIcon::HOUSE};
-	const char *apHints[] = {"Filters", "Server details", "Players", "Demos", "Editor", "Settings", "Main menu"};
-	const CLucentBrowserState::EPanel aPanels[] = {CLucentBrowserState::EPanel::FILTERS, CLucentBrowserState::EPanel::DETAILS, CLucentBrowserState::EPanel::PLAYERS};
-	for(int i = 0; i < 7; ++i)
+	static int s_aTools[4];
+	const char *apIcons[] = {FontIcon::LIST_UL, FontIcon::ARROWS_ROTATE, FontIcon::CHEVRON_RIGHT, FontIcon::HOUSE};
+	const char *apHints[] = {"Filters", "Refresh", "Direct connect", "Main menu"};
+	for(int i = 0; i < 4; ++i)
 	{
 		CUIRect Button;
-		Tools.VSplitLeft(24, &Button, &Tools);
+		Tools.VSplitLeft(25, &Button, &Tools);
 		Button.Margin(2, &Button);
-		if(LucentUi::IconButton(Ui(), TextRender(), &s_aTools[i], apIcons[i], Localize(apHints[i]), Button, i < 3 && m_LucentBrowser.m_Panel == aPanels[i]) || (i < 3 && Activate && m_LucentBrowser.m_Focus == i + 2))
+		const bool Click = LucentUi::IconButton(Ui(), TextRender(), &s_aTools[i], apIcons[i], Localize(apHints[i]), Button, i == 0 && m_LucentBrowser.m_Panel == CLucentBrowserState::EPanel::FILTERS);
+		if(i == 0 && (Click || (Activate && m_LucentBrowser.m_Focus == 2)))
+			m_LucentBrowser.Toggle(CLucentBrowserState::EPanel::FILTERS);
+		if(i == 1 && (Click || (Keyboard && (Input()->KeyPress(KEY_F5) || (Input()->ModifierIsPressed() && Input()->KeyPress(KEY_R))))))
+			RefreshBrowserTab(true);
+		if(i == 2 && (Click || (Activate && m_LucentBrowser.m_Focus >= 5)))
 		{
-			if(i < 3)
-				m_LucentBrowser.Toggle(aPanels[i]);
-			if(i == 3)
-				SetMenuPage(PAGE_DEMOS);
-			if(i == 4)
-				g_Config.m_ClEditor = 1;
-			if(i == 5)
-				SetMenuPage(PAGE_SETTINGS);
-			if(i == 6)
-				SetShowStart(true);
+			static SPopupMenuId s_Popup;
+			Ui()->SetActiveItem(&m_LucentDirectAddress);
+			Ui()->DoPopupMenu(&s_Popup, std::max(Screen.x, Button.x + Button.w - 255), Button.y + Button.h + 6, 255, 105, this, PopupLucentConnect, {IGraphics::CORNER_ALL, LucentUi::Accent(.18f), ColorRGBA(.025f, .021f, .035f, 1)});
 		}
+		if(i == 3 && Click)
+			SetShowStart(true);
 	}
-	CUIRect Rule = {Screen.x, Screen.y, Screen.w, .5f};
-	Rule.Draw(ColorRGBA(1, .85f, .93f, .1f), 0, 0);
-	Screen.HSplitTop(5, nullptr, &Screen);
-	List = Screen;
-	const float PanelWidth = m_LucentBrowser.PanelWidth(Screen.w);
-	if(PanelWidth > .5f)
+	// The list keeps a stable width when context changes; panels use the open right side.
+	CUIRect Atmosphere;
+	Screen.VSplitLeft(Screen.w * .60f, &List, &Atmosphere);
+	Atmosphere.VSplitLeft(18, nullptr, &Atmosphere);
+	if(m_LucentBrowser.m_Open > .001f && m_LucentBrowser.VisiblePanel() != CLucentBrowserState::EPanel::NONE)
 	{
+		m_LucentPanelRendering = true;
+		const bool Enabled = Ui()->Enabled();
+		if(m_LucentBrowser.m_Panel == CLucentBrowserState::EPanel::NONE)
+			Ui()->SetEnabled(false);
 		CUIRect Panel;
-		Screen.VSplitRight(PanelWidth, &List, &Panel);
-		List.VSplitRight(12 * m_LucentBrowser.m_Open, &List, nullptr);
-		// Render only at a usable width. Drawing and input share the animated rectangle.
-		if(Panel.w > 150 && m_LucentBrowser.VisiblePanel() != CLucentBrowserState::EPanel::NONE)
-		{
-			m_LucentPanelRendering = true;
-			const bool Enabled = Ui()->Enabled();
-			if(m_LucentBrowser.m_Panel == CLucentBrowserState::EPanel::NONE)
-				Ui()->SetEnabled(false);
-			RenderLucentPanel(Panel);
-			Ui()->SetEnabled(Enabled);
-			m_LucentPanelRendering = false;
-		}
+		Atmosphere.VSplitRight(std::min(250.f, Atmosphere.w), nullptr, &Panel);
+		RenderLucentPanel(Panel);
+		Ui()->SetEnabled(Enabled);
+		m_LucentPanelRendering = false;
+	}
+	else if(pSelected)
+	{
+		CUIRect Anchor;
+		Atmosphere.HSplitBottom(std::min(120.f, Atmosphere.h * .4f), nullptr, &Anchor);
+		CUIRect Title, Meta, Action;
+		Anchor.HSplitTop(28, &Title, &Anchor);
+		SLabelProperties Props;
+		Props.m_MaxWidth = Title.w;
+		Props.m_StopAtEnd = true;
+		Ui()->DoLabel(&Title, pSelected->m_aMap, 18, TEXTALIGN_ML, Props);
+		Anchor.HSplitTop(22, &Meta, &Anchor);
+		char aMeta[128];
+		str_format(aMeta, sizeof(aMeta), "%s · %d/%d %s", pSelected->m_aCommunityCountry, pSelected->m_NumPlayers, pSelected->m_MaxPlayers, Localize("players"));
+		TextRender()->TextColor(ColorRGBA(.71f, .67f, .71f, 1));
+		Ui()->DoLabel(&Meta, aMeta, 10, TEXTALIGN_ML, Props);
+		TextRender()->TextColor(TextRender()->DefaultTextColor());
+		Anchor.HSplitTop(24, &Action, &Anchor);
+		CUIRect ConnectButton, Details, Players;
+		Action.VSplitLeft(Action.w / 3, &ConnectButton, &Action);
+		Action.VSplitMid(&Details, &Players);
+		static int s_Connect, s_Details, s_Players;
+		if(LucentBrowserButton(&s_Connect, "Connect", ConnectButton, true))
+			Connect(pSelected->m_aAddress);
+		if(LucentBrowserButton(&s_Details, "Server details", Details) || (Activate && m_LucentBrowser.m_Focus == 3))
+			m_LucentBrowser.Toggle(CLucentBrowserState::EPanel::DETAILS);
+		if(LucentBrowserButton(&s_Players, "Players", Players) || (Activate && m_LucentBrowser.m_Focus == 4))
+			m_LucentBrowser.Toggle(CLucentBrowserState::EPanel::PLAYERS);
 	}
 	bool Activated = false;
 	RenderLucentServerList(List, Activated);
-	CUIRect QuickConnect;
-	Footer.VSplitRight(105, &Status, &QuickConnect);
+	Status = Footer;
 	char aStatus[192];
-	str_format(aStatus, sizeof(aStatus), "%d / %d %s   /   %d %s   %s", ServerBrowser()->NumSortedServers(), ServerBrowser()->NumServers(), Localize("servers"), ServerBrowser()->NumSortedPlayers(), Localize("players"), ServerBrowser()->IsRefreshing() || ServerBrowser()->IsGettingServerlist() ? Localize("Refreshing...") : "");
+	str_format(aStatus, sizeof(aStatus), "%d %s · %d %s   %s", ServerBrowser()->NumSortedServers(), Localize("servers"), ServerBrowser()->NumSortedPlayers(), Localize("players"), ServerBrowser()->IsRefreshing() || ServerBrowser()->IsGettingServerlist() ? Localize("Refreshing...") : "");
 	TextRender()->TextColor(ColorRGBA(.63f, .62f, .69f, 1));
 	SLabelProperties StatusProps;
 	StatusProps.m_MaxWidth = Status.w;
 	StatusProps.m_StopAtEnd = true;
 	Ui()->DoLabel(&Status, aStatus, 10, TEXTALIGN_ML, StatusProps);
 	TextRender()->TextColor(TextRender()->DefaultTextColor());
-	static int s_QuickConnect;
-	if(LucentBrowserButton(&s_QuickConnect, "Direct connect", QuickConnect) || (Activate && m_LucentBrowser.m_Focus >= 5))
-	{
-		static SPopupMenuId s_Popup;
-		Ui()->SetActiveItem(&m_LucentDirectAddress);
-		Ui()->DoPopupMenu(&s_Popup, QuickConnect.x - 150, QuickConnect.y - 110, 255, 105, this, PopupLucentConnect, {IGraphics::CORNER_ALL, LucentUi::Accent(.18f), ColorRGBA(.025f, .021f, .035f, 1)});
-	}
 	if(Activated && g_Config.m_UiServerAddress[0])
 		Connect(g_Config.m_UiServerAddress);
 	if(Ui()->Enabled() && !Ui()->IsPopupOpen() && m_LucentBrowser.m_Panel != CLucentBrowserState::EPanel::NONE && Ui()->ConsumeHotkey(CUi::HOTKEY_ESCAPE))
@@ -205,25 +217,25 @@ void CMenus::RenderLucentBrowser(CUIRect Screen)
 void CMenus::RenderLucentServerList(CUIRect View, bool &Activated)
 {
 	static CListBox s_List;
-	s_List.SetColors(ColorRGBA(1, .8f, .9f, .13f), ColorRGBA(1, .9f, .95f, 0));
+	s_List.SetColors(ColorRGBA(1, .8f, .9f, .075f), ColorRGBA(1, .9f, .95f, 0));
 	s_List.SetScrollbarWidth(10);
 	s_List.SetScrollbarMargin(2);
 	CUIRect Header;
 	View.HSplitTop(19, &Header, &View);
 	Header.VSplitRight(s_List.ScrollbarWidthMax(), &Header, nullptr);
-	// Fixed metadata columns, flexible map and identity columns.
-	const float ColumnScale = std::min(1.f, Header.w / 400);
-	const float Fixed = (30 + 43 + 50 + 42 + 70) * ColumnScale;
-	const float MapWidth = std::max(0.f, (Header.w - Fixed) * .58f);
-	const float NameWidth = std::max(0.f, Header.w - Fixed - MapWidth);
-	const float aWidths[] = {30 * ColumnScale, MapWidth, NameWidth, 70 * ColumnScale, 43 * ColumnScale, 50 * ColumnScale, 42 * ColumnScale};
-	const char *apTitles[] = {"", "Map", "Community", "Type", "Region", "Players", "Ping"};
-	const int aSort[] = {IServerBrowser::SORT_FAVORITES, IServerBrowser::SORT_MAP, IServerBrowser::SORT_NAME, IServerBrowser::SORT_GAMETYPE, -1, IServerBrowser::SORT_NUMPLAYERS, IServerBrowser::SORT_PING};
+	const float ColumnScale = std::min(1.f, Header.w / 350);
+	const float Fixed = (24 + 64 + 46 + 32) * ColumnScale;
+	const float MapWidth = std::max(0.f, Header.w - Fixed);
+	const float aWidths[] = {24 * ColumnScale, MapWidth, 0, 0, 32 * ColumnScale, 64 * ColumnScale, 46 * ColumnScale};
+	const char *apTitles[] = {"", "Map", "", "", "", "Players", "Ping"};
+	const int aSort[] = {IServerBrowser::SORT_FAVORITES, IServerBrowser::SORT_MAP, -1, -1, -1, IServerBrowser::SORT_NUMPLAYERS, IServerBrowser::SORT_PING};
 	static int s_aSortIds[7];
 	CUIRect aCols[7];
 	for(int c = 0; c < 7; ++c)
 	{
 		Header.VSplitLeft(aWidths[c], &aCols[c], &Header);
+		if(aWidths[c] <= 0)
+			continue;
 		if(LucentBrowserButton(&s_aSortIds[c], apTitles[c], aCols[c], g_Config.m_BrSort == aSort[c]) && aSort[c] >= 0)
 		{
 			CLucentBrowserState::Sort(aSort[c], g_Config.m_BrSort, g_Config.m_BrSortOrder, aSort[c] == IServerBrowser::SORT_PING || aSort[c] == IServerBrowser::SORT_NUMPLAYERS);
@@ -262,16 +274,21 @@ void CMenus::RenderLucentServerList(CUIRect View, bool &Activated)
 		s_List.ScrollToSelected();
 		m_ServerBrowserShouldRevealSelection = false;
 	}
-	s_List.DoStart(15.5f, Count, 1, 3, Selected, &View, false);
+	s_List.DoStart(17.f, Count, 1, 3, Selected, &View, false);
 	const char *apRegions[] = {"--", "AFR", "ASI", "AUS", "EUR", "NA", "SA", "CHN"};
 	for(int i = 0; i < Count; ++i)
 	{
 		const auto *pInfo = ServerBrowser()->SortedGet(i);
-		const CListboxItem Item = s_List.DoNextItem(&vIds[i], i == Selected, 2);
+		const CListboxItem Item = s_List.DoNextItem(&vIds[i], i == Selected, 0);
 		const float Hover = Item.m_Visible && Ui()->MouseHovered(&Item.m_Rect) ? 1.f : 0.f;
 		m_vLucentRowHover[i] += (Hover - m_vLucentRowHover[i]) * (g_Config.m_ClLucentLogoAnimation ? 1 - std::exp(-Client()->RenderFrameTime() * 18) : 1);
 		if(!Item.m_Visible)
 			continue;
+		if(i == Selected)
+		{
+			CUIRect Marker = {Item.m_Rect.x, Item.m_Rect.y + 3, 1, Item.m_Rect.h - 6};
+			Marker.Draw(LucentUi::Accent(.85f), 0, 0);
+		}
 		Item.m_Rect.Draw(ColorRGBA(1, .9f, .95f, .045f * m_vLucentRowHover[i]), IGraphics::CORNER_ALL, 2);
 		if(!vpElements[i])
 			vpElements[i] = Ui()->GetNewUIElement(14);
@@ -284,6 +301,8 @@ void CMenus::RenderLucentServerList(CUIRect View, bool &Activated)
 		const char *apText[] = {pInfo->m_Favorite != TRISTATE::NONE ? FontIcon::STAR : "", pInfo->m_aMap, pInfo->m_aCommunityId, pInfo->m_aGameType, pInfo->m_aCommunityCountry[0] ? pInfo->m_aCommunityCountry : apRegions[std::clamp(pInfo->m_Location, 0, 7)], aPlayers, aPing};
 		for(int c = 0; c < 7; ++c)
 		{
+			if(aWidths[c] <= 0)
+				continue;
 			CUIRect Cell = {aCols[c].x + 4, Item.m_Rect.y, std::max(0.f, aCols[c].w - 8), Item.m_Rect.h};
 			SLabelProperties Props;
 			Props.m_MaxWidth = Cell.w;
@@ -294,6 +313,17 @@ void CMenus::RenderLucentServerList(CUIRect View, bool &Activated)
 			{
 				TextRender()->SetFontPreset(EFontPreset::ICON_FONT);
 				TextRender()->TextColor(ColorRGBA(.95f, .79f, .87f, 1));
+			}
+			if(c == 1 && Cell.w > 120)
+			{
+				CUIRect Identity;
+				Cell.VSplitRight(Cell.w * .36f, &Cell, &Identity);
+				SLabelProperties IdentityProps = Props;
+				IdentityProps.m_MaxWidth = Identity.w;
+				TextRender()->TextColor(ColorRGBA(.54f, .50f, .55f, 1));
+				Ui()->DoLabel(&Identity, pInfo->m_aName, 8, TEXTALIGN_ML, IdentityProps);
+				TextRender()->TextColor(ColorRGBA(.94f, .92f, .95f, 1));
+				Props.m_MaxWidth = Cell.w;
 			}
 			Ui()->DoLabelStreamed(*vpElements[i]->Rect(c), &Cell, apText[c], c == 1 ? 11.f : 9.f, c >= 4 ? TEXTALIGN_MR : TEXTALIGN_ML, Props);
 			if(c == 0)

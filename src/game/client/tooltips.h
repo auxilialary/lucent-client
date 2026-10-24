@@ -21,6 +21,7 @@ public:
 	float m_WidthHint;
 	float m_FontSize;
 	bool m_Truncated;
+	bool m_LucentStyle = false;
 	bool m_OnScreen; // used to know if the tooltip should be rendered.
 };
 
