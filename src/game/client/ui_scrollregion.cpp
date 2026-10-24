@@ -1,3 +1,4 @@
+#include <game/client/lucent/ui.h>
 /* (c) Magnus Auvinen. See licence.txt in the root of the distribution for more information. */
 /* If you are missing that file, acquire a complete release at teeworlds.com.                */
 #include "ui_scrollregion.h"
@@ -36,6 +37,13 @@ void CScrollRegion::Begin(CUIRect *pClipRect, const CScrollRegionParams *pParams
 {
 	if(pParams)
 		m_Params = *pParams;
+	if(Ui()->LucentStyle())
+	{
+		m_Params.m_RailBgColor = LucentUi::Accent(.045f);
+		m_Params.m_SliderColor = LucentUi::Accent(.24f);
+		m_Params.m_SliderColorHover = LucentUi::Accent(.48f);
+		m_Params.m_SliderColorGrabbed = LucentUi::Accent(.65f);
+	}
 	m_ContentAreaRect = *pClipRect;
 
 	if(ContentSize >= 0.0f)

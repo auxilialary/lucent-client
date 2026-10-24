@@ -1,3 +1,5 @@
+#include "ui.h"
+
 #include <base/time.h>
 
 #include <engine/engine.h>
@@ -15,19 +17,12 @@
 
 bool CMenus::LucentBrowserButton(const void *pId, const char *pText, CUIRect Rect, bool Selected)
 {
-	const bool Hover = Ui()->MouseInside(&Rect);
-	if(Selected || Hover)
-		Rect.Draw(ColorRGBA(1, .85f, .93f, Selected ? .12f : .055f), IGraphics::CORNER_ALL, 3);
-	TextRender()->TextColor(Selected ? ColorRGBA(1, .86f, .93f, 1) : ColorRGBA(.8f, .79f, .84f, 1));
-	const char *pLabel = Localize(pText);
-	const float Size = std::min(11.f, 11.f * std::max(1.f, Rect.w - 6) / std::max(1.f, TextRender()->TextWidth(11, pLabel)));
-	Ui()->DoLabel(&Rect, pLabel, Size, TEXTALIGN_MC);
-	TextRender()->TextColor(TextRender()->DefaultTextColor());
-	return Ui()->DoButtonLogic(pId, Selected, &Rect, BUTTONFLAG_LEFT);
+	return LucentUi::Button(Ui(), TextRender(), pId, Localize(pText), Rect, Selected);
 }
 
 void CMenus::RenderLucentBrowser(CUIRect Screen)
 {
+	LucentUi::CScope Style(Ui());
 	Screen = *Ui()->Screen();
 	UpdateCommunityCache(false);
 	if(g_Config.m_UiPage == PAGE_LAN && m_ForceRefreshLanPage)

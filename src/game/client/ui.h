@@ -340,7 +340,11 @@ public:
 
 class CUi
 {
+	bool m_LucentStyle = false;
+
 public:
+	bool LucentStyle() const { return m_LucentStyle; }
+	void SetLucentStyle(bool Enabled) { m_LucentStyle = Enabled; }
 	/**
 	 * These enum values are returned by popup menu functions to specify the behavior.
 	 */

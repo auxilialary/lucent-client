@@ -2755,6 +2755,7 @@ if(CLIENT)
     lineinput.h
     lucent/browser.cpp
     lucent/browser_panels.cpp
+    lucent/ui.h
     lucent/browser_state.h
     lucent/config_variables.h
     lucent/lucent_logo.cpp

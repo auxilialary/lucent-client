@@ -1,3 +1,4 @@
+#include <game/client/lucent/ui.h>
 /* (c) Magnus Auvinen. See licence.txt in the root of the distribution for more information. */
 /* If you are missing that file, acquire a complete release at teeworlds.com.                */
 
@@ -289,7 +290,10 @@ int CMenus::DoButton_CheckBox_Common(const void *pId, const char *pText, const c
 	Label.VSplitLeft(5.0f, nullptr, &Label);
 
 	Box.Margin(2.0f, &Box);
-	Box.Draw(m_LucentPanelRendering ? ColorRGBA(1, .85f, .93f, .09f * Ui()->ButtonColorMul(pId)) : ColorRGBA(1, 1, 1, 0.25f * Ui()->ButtonColorMul(pId)), IGraphics::CORNER_ALL, 3.0f);
+	if(m_LucentPanelRendering)
+		LucentUi::Surface(Box, *pBoxText != 0, Ui()->MouseHovered(pRect));
+	else
+		Box.Draw(ColorRGBA(1, 1, 1, .25f * Ui()->ButtonColorMul(pId)), IGraphics::CORNER_ALL, 3);
 
 	const bool Checkable = *pBoxText == 'X';
 	if(Checkable)
