@@ -168,7 +168,7 @@ void CMenus::RenderLucentBrowser(CUIRect Screen)
 	{
 		m_LucentPanelRendering = true;
 		const bool Enabled = Ui()->Enabled();
-		if(m_LucentBrowser.m_Panel == CLucentBrowserState::EPanel::NONE)
+		if(m_LucentBrowser.m_Panel == CLucentBrowserState::EPanel::NONE || m_LucentBrowser.m_Content < .15f)
 			Ui()->SetEnabled(false);
 		CUIRect Panel;
 		Atmosphere.VSplitRight(std::min(250.f, Atmosphere.w), nullptr, &Panel);
@@ -179,30 +179,41 @@ void CMenus::RenderLucentBrowser(CUIRect Screen)
 	else if(pSelected)
 	{
 		CUIRect Anchor;
-		Atmosphere.HSplitBottom(std::min(120.f, Atmosphere.h * .4f), nullptr, &Anchor);
+		Atmosphere.HSplitBottom(std::min(142.f, Atmosphere.h * .42f), nullptr, &Anchor);
 		CUIRect Title, Meta, Action;
-		Anchor.HSplitTop(28, &Title, &Anchor);
+		Anchor.HSplitTop(38, &Title, &Anchor);
 		SLabelProperties Props;
 		Props.m_MaxWidth = Title.w;
 		Props.m_StopAtEnd = true;
-		Ui()->DoLabel(&Title, pSelected->m_aMap, 18, TEXTALIGN_ML, Props);
+		Ui()->DoLabel(&Title, pSelected->m_aMap, 28, TEXTALIGN_ML, Props);
 		Anchor.HSplitTop(22, &Meta, &Anchor);
 		char aMeta[128];
 		str_format(aMeta, sizeof(aMeta), "%s · %d/%d %s", pSelected->m_aCommunityCountry, pSelected->m_NumPlayers, pSelected->m_MaxPlayers, Localize("players"));
 		TextRender()->TextColor(ColorRGBA(.71f, .67f, .71f, 1));
-		Ui()->DoLabel(&Meta, aMeta, 10, TEXTALIGN_ML, Props);
+		Ui()->DoLabel(&Meta, aMeta, 14, TEXTALIGN_ML, Props);
 		TextRender()->TextColor(TextRender()->DefaultTextColor());
-		Anchor.HSplitTop(24, &Action, &Anchor);
+		Anchor.HSplitTop(10, nullptr, &Anchor);
+		Anchor.HSplitTop(28, &Action, &Anchor);
 		CUIRect ConnectButton, Details, Players;
-		Action.VSplitLeft(Action.w / 3, &ConnectButton, &Action);
-		Action.VSplitMid(&Details, &Players);
+		Action.VSplitLeft(std::min(120.f, Action.w * .5f), &ConnectButton, nullptr);
+		Anchor.HSplitTop(7, nullptr, &Anchor);
+		Anchor.HSplitTop(22, &Action, &Anchor);
+		Action.VSplitLeft(Action.w * .64f, &Details, &Players);
 		static int s_Connect, s_Details, s_Players;
 		if(LucentBrowserButton(&s_Connect, "Connect", ConnectButton, true))
 			Connect(pSelected->m_aAddress);
-		if(LucentBrowserButton(&s_Details, "Server details", Details) || (Activate && m_LucentBrowser.m_Focus == 3))
+		if(LucentUi::TextButton(Ui(), TextRender(), &s_Details, Localize("Server details"), Details, false, 10, TEXTALIGN_ML) || (Activate && m_LucentBrowser.m_Focus == 3))
 			m_LucentBrowser.Toggle(CLucentBrowserState::EPanel::DETAILS);
-		if(LucentBrowserButton(&s_Players, "Players", Players) || (Activate && m_LucentBrowser.m_Focus == 4))
+		if(LucentUi::TextButton(Ui(), TextRender(), &s_Players, Localize("Players"), Players, false, 10, TEXTALIGN_ML) || (Activate && m_LucentBrowser.m_Focus == 4))
 			m_LucentBrowser.Toggle(CLucentBrowserState::EPanel::PLAYERS);
+	}
+	else
+	{
+		CUIRect Hint;
+		Atmosphere.HSplitBottom(52, nullptr, &Hint);
+		TextRender()->TextColor(ColorRGBA(.65f, .61f, .68f, 1));
+		Ui()->DoLabel(&Hint, Localize("Select a server to explore its map"), 12, TEXTALIGN_ML);
+		TextRender()->TextColor(TextRender()->DefaultTextColor());
 	}
 	bool Activated = false;
 	RenderLucentServerList(List, Activated);

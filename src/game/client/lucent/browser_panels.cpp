@@ -12,10 +12,22 @@ void CMenus::RenderLucentPanel(CUIRect View)
 {
 	using EPanel = CLucentBrowserState::EPanel;
 	const auto Mode = m_LucentBrowser.VisiblePanel();
+	// Translate the entire surface, content and hitboxes together.
+	View.x += (1 - m_LucentBrowser.m_Open) * 12;
 	const CUIRect PanelBounds = View;
-	View.Draw(ColorRGBA(.035f, .031f, .051f, .42f * m_LucentBrowser.m_Open), 0, 0);
-	CUIRect Edge = {View.x, View.y + 8, .5f, View.h - 16};
-	Edge.Draw(ColorRGBA(1, .8f, .9f, .12f), 0, 0);
+	const ColorRGBA Clear(.025f, .021f, .035f, 0);
+	const ColorRGBA Scrim(.025f, .021f, .035f, .97f * m_LucentBrowser.m_Open);
+	CUIRect Feather = {View.x - 36, View.y, 36, View.h};
+	Feather.Draw4(Clear, Scrim, Clear, Scrim, 0, 0);
+	View.Draw(Scrim, 0, 0);
+	// Fade all legacy-rendered content uniformly, including skins and inputs.
+	// RAII keeps early-return paths (empty selection and players) consistent.
+	struct CContentFade
+	{
+		CUIRect m_Rect;
+		float m_Alpha;
+		~CContentFade() { m_Rect.Draw(ColorRGBA(.025f, .021f, .035f, m_Alpha), 0, 0); }
+	} ContentFade{View, 1 - m_LucentBrowser.m_Open * m_LucentBrowser.m_Content};
 	View.Margin(10, &View);
 	CUIRect Title, Close;
 	View.HSplitTop(24, &Title, &View);
@@ -49,8 +61,8 @@ void CMenus::RenderLucentPanel(CUIRect View)
 	}
 	View.HSplitTop(5, nullptr, &View);
 	// Restrained content slide, geometry shared by drawing and hitboxes.
-	View.x += (1 - m_LucentBrowser.m_Content) * 8;
-	View.w -= (1 - m_LucentBrowser.m_Content) * 8;
+	View.x += (1 - m_LucentBrowser.m_Content) * 12;
+	View.w -= (1 - m_LucentBrowser.m_Content) * 12;
 	if(Mode == EPanel::FILTERS)
 	{
 		static CScrollRegion s_Scroll;

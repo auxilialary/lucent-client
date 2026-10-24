@@ -152,8 +152,7 @@ void CLucentMapPreview::Update(const CServerInfo *pServer, double Now, bool Anim
 	}
 	if(m_Selection.Key().empty())
 	{
-		if(!Animate || Now - m_FadeStart >= .42)
-			Change(-1, Now, Animate);
+		Change(-1, Now, Animate);
 		return;
 	}
 	if(!m_Selection.Ready(Now) || m_pDecode || m_pRequest || (Animate && Now - m_FadeStart < .42))
@@ -215,7 +214,9 @@ void CLucentMapPreview::Render(IGraphics *pGraphics, const CUIRect &Screen, doub
 			for(int x = 0; x < Steps; ++x)
 			{
 				const auto Mask = [&](float u, float v) {
-					const float A = .85f * std::clamp(std::min({u, v, 1 - u, 1 - v}) * 7.f, 0.f, 1.f);
+					const float Edge = std::clamp(std::min({u, v, 1 - u, 1 - v}) * 6.f, 0.f, 1.f);
+					const float Feather = Edge * Edge * (3 - 2 * Edge);
+					const float A = .9f * Feather;
 					// Compensate alpha-over so equally framed images keep constant
 					// brightness and the outgoing image vanishes without a final jump.
 					return LucentPreview::FadeAlpha(A, Fade, Previous, m_Current >= 0);
@@ -236,9 +237,16 @@ void CLucentMapPreview::Render(IGraphics *pGraphics, const CUIRect &Screen, doub
 	// Preserve the artwork in open space, with a stronger scrim behind map names.
 	pGraphics->TextureClear();
 	pGraphics->QuadsBegin();
-	pGraphics->SetColor4(ColorRGBA(.018f, .015f, .027f, .76f), ColorRGBA(.018f, .015f, .027f, .16f), ColorRGBA(.018f, .015f, .027f, .76f), ColorRGBA(.018f, .015f, .027f, .16f));
-	IGraphics::CQuadItem Scrim(Screen.x, Screen.y, Screen.w, Screen.h);
-	pGraphics->QuadsDrawTL(&Scrim, 1);
+	// Keep the table dark, release the scrim across its boundary, and let
+	// recognizable artwork breathe in the right-hand scene.
+	const auto ScrimBand = [&](float Left, float Right, float A, float B) {
+		pGraphics->SetColor4(ColorRGBA(.018f, .015f, .027f, A), ColorRGBA(.018f, .015f, .027f, B), ColorRGBA(.018f, .015f, .027f, A), ColorRGBA(.018f, .015f, .027f, B));
+		IGraphics::CQuadItem Band(Screen.x + Screen.w * Left, Screen.y, Screen.w * (Right - Left), Screen.h);
+		pGraphics->QuadsDrawTL(&Band, 1);
+	};
+	ScrimBand(0, .52f, .86f, .86f);
+	ScrimBand(.52f, .72f, .86f, .10f);
+	ScrimBand(.72f, 1, .10f, .06f);
 	pGraphics->QuadsEnd();
 }
 void CLucentMapPreview::Shutdown(IGraphics *pGraphics)

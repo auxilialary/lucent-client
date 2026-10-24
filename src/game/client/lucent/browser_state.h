@@ -25,6 +25,8 @@ public:
 	void Tab(bool Reverse) { m_Focus = (m_Focus + (Reverse ? 6 : 1)) % 7; }
 	float m_Open = 0;
 	float m_Content = 1;
+	float m_OpenTime = 0;
+	float m_ContentTime = .28f;
 	void Toggle(EPanel Panel)
 	{
 		m_Panel = m_Panel == Panel ? EPanel::NONE : Panel;
@@ -32,6 +34,7 @@ public:
 		{
 			m_VisiblePanel = m_Panel;
 			m_Content = 0;
+			m_ContentTime = 0;
 		}
 	}
 	bool Escape()
@@ -43,12 +46,16 @@ public:
 	}
 	void Update(float Dt, bool Animate)
 	{
-		const float Target = m_Panel == EPanel::NONE ? 0.f : 1.f;
-		const float Response = Animate ? 1.f - std::exp(-std::clamp(Dt, 0.f, .1f) * 15.f) : 1.f;
-		m_Open += (Target - m_Open) * Response;
-		if(std::abs(Target - m_Open) < .001f)
-			m_Open = Target;
-		m_Content += (1.f - m_Content) * Response;
+		const bool Open = m_Panel != EPanel::NONE;
+		const float Step = std::clamp(Dt, 0.f, .1f);
+		m_OpenTime = Animate ? std::clamp(m_OpenTime + (Open ? Step : -Step), 0.f, .28f) : (Open ? .28f : 0.f);
+		m_ContentTime = Animate ? std::min(.28f, m_ContentTime + Step) : .28f;
+		const auto Ease = [](float Time) {
+			const float T = Time / .28f;
+			return 1.f - (1.f - T) * (1.f - T) * (1.f - T);
+		};
+		m_Open = Ease(m_OpenTime);
+		m_Content = Ease(m_ContentTime);
 		if(m_Open == 0)
 			m_VisiblePanel = EPanel::NONE;
 	}
