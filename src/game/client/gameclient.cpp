@@ -4534,3 +4534,17 @@ void CGameClient::StoreSave(const char *pTeamMembers, const char *pGeneratedCode
 	CsvWrite(File, std::size(SAVES_HEADER), apColumns);
 	io_close(File);
 }
+
+void CGameClient::OnNavigationFrame(bool Begin, bool Editor)
+{
+	const int Screen = Client()->State() == IClient::STATE_OFFLINE ? (Editor ? -2 : m_Menus.NavigationScreen()) : -3;
+	m_Menus.NavigationFrame(Begin, Screen);
+}
+bool CGameClient::NavigationBlocked() const
+{
+	return m_Menus.NavigationBlocked();
+}
+void CGameClient::OnNavigationCursor(vec2 Position)
+{
+	m_Menus.NavigationCursor(Position);
+}

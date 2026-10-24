@@ -26,56 +26,60 @@ void CLucentMenu::CancelTransition()
 
 void CLucentMenu::RenderStartMenu(CUIRect MainView)
 {
-	const bool WasActive = m_RadialTransition.Active();
-	if(WasActive && Ui()->ConsumeHotkey(CUi::HOTKEY_ESCAPE))
-	{
-		CancelTransition();
-		Ui()->SetActiveItem(nullptr);
-		Ui()->SetHotItem(nullptr);
-		Ui()->ClearHotkeys();
-		Input()->Clear();
-		RenderMainMenu(MainView);
-		return;
-	}
-	m_RadialTransition.Update(static_cast<double>(time_get()) / time_freq(), g_Config.m_ClLucentLogoAnimation != 0);
-	if(WasActive && m_SceneSize != Graphics()->ScreenSize())
-		m_RadialTransition.Update(0, false);
-	const bool UiEnabled = Ui()->Enabled();
-	if(!WasActive && !m_RadialTransition.Completed())
-		RenderMainMenu(MainView);
+	RenderMainMenu(MainView);
+}
 
-	if(m_RadialTransition.Active() && !m_SourceScene.IsValid())
+void CLucentMenu::BeginNavigationFrame(int Screen)
+{
+	m_RadialTransition.BeginFrame(Screen);
+	m_UiWasEnabled = Ui()->Enabled();
+	if(Screen == -3)
+		CancelTransition();
+	if(m_RadialTransition.Active())
 	{
-		// Copy the complete source at its exact click-frame animation state.
-		// The destination stays live, with its normal buffered text renderer.
-		m_SceneSize = Graphics()->ScreenSize();
-		m_SourceScene = Graphics()->CreateSceneTexture();
-		if(!m_SourceScene.IsValid())
+		const CUIRect Rect = *Ui()->Screen();
+		if(m_SceneSize != Graphics()->ScreenSize() || m_UiSize != vec2(Rect.w, Rect.h))
 			m_RadialTransition.Update(0, false);
-	}
-	if(m_RadialTransition.Active() || m_RadialTransition.Completed())
-	{
+		else
+			m_RadialTransition.Update(double(time_get()) / time_freq(), g_Config.m_ClLucentLogoAnimation != 0);
 		Ui()->SetEnabled(false);
 		Ui()->SetActiveItem(nullptr);
 		Ui()->SetHotItem(nullptr);
 		Ui()->ClearHotkeys();
-		Input()->Clear(); // Also blocks the browser's direct keyboard shortcuts.
-		GameClient()->m_Menus.RenderLucentBrowser(MainView);
-		if(m_RadialTransition.Completed())
-		{
-			// Live browser in the completion frame; no cached destination or delay.
-			ReleaseScenes();
-			m_RadialTransition.Reset();
-			GameClient()->m_Menus.SetShowStart(false);
-		}
-		else
-			RenderRadialComposition();
-		Ui()->SetActiveItem(nullptr);
-		Ui()->SetHotItem(nullptr);
-		Ui()->ClearHotkeys();
+		Input()->Clear();
 	}
-	Ui()->SetEnabled(UiEnabled);
-	m_BlockInput = false;
+}
+
+void CLucentMenu::EndNavigationFrame(int Screen)
+{
+	if(m_RadialTransition.Active())
+		RenderRadialComposition();
+	else if(m_RadialTransition.Completed())
+	{
+		ReleaseScenes();
+		m_RadialTransition.Reset();
+	}
+	else if(m_RadialTransition.CaptureNeeded(Screen, g_Config.m_ClLucentLogoAnimation != 0))
+	{
+		// Navigation changes state while drawing the source. Capture once, after
+		// its complete render; the destination is rendered live next frame.
+		m_SourceScene = Graphics()->CreateSceneTexture();
+		if(m_SourceScene.IsValid())
+		{
+			const CUIRect Rect = *Ui()->Screen();
+			m_SceneSize = Graphics()->ScreenSize();
+			m_UiSize = vec2(Rect.w, Rect.h);
+			const vec2 Origin = vec2(Rect.x, Rect.y) + m_NavigationCursor * m_UiSize;
+			m_RadialTransition.Start(double(time_get()) / time_freq(), Origin, true);
+			if(auto *pActive = CLineInput::GetActiveInput())
+				pActive->Deactivate();
+			Ui()->SetActiveItem(nullptr);
+			Ui()->SetHotItem(nullptr);
+			Ui()->ClearHotkeys();
+			Input()->Clear();
+		}
+	}
+	Ui()->SetEnabled(m_UiWasEnabled);
 }
 
 void CLucentMenu::RenderRadialComposition()

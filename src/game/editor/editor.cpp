@@ -4849,6 +4849,14 @@ void CEditor::OnUpdate()
 		Ui()->OnCursorMove(CursorRel.x, CursorRel.y);
 	}
 
+	if(Kernel()->RequestInterface<IGameClient>()->NavigationBlocked())
+	{
+		Input()->Clear();
+		Ui()->ClearHotkeys();
+		HandleWriterFinishJobs();
+		return;
+	}
+
 	// handle key presses
 	Input()->ConsumeEvents([&](const IInput::CEvent &Event) {
 		OnInput(Event);
@@ -4865,6 +4873,8 @@ void CEditor::OnUpdate()
 
 void CEditor::OnInput(const IInput::CEvent &Event)
 {
+	if(Kernel()->RequestInterface<IGameClient>()->NavigationBlocked() && !(Event.m_Flags & IInput::FLAG_RELEASE))
+		return;
 	if(m_Dialog == DIALOG_NONE && CLineInput::GetActiveInput() == nullptr && Event.m_Key == KEY_F1)
 	{
 		if((Event.m_Flags & IInput::FLAG_PRESS) != 0 && (Event.m_Flags & IInput::FLAG_REPEAT) == 0)
@@ -4886,6 +4896,15 @@ void CEditor::OnInput(const IInput::CEvent &Event)
 
 void CEditor::OnRender()
 {
+	const bool UiWasEnabled = Ui()->Enabled();
+	if(Kernel()->RequestInterface<IGameClient>()->NavigationBlocked())
+	{
+		Ui()->SetEnabled(false);
+		Ui()->ClearHotkeys();
+		Ui()->SetActiveItem(nullptr);
+		Input()->Clear();
+	}
+
 	Ui()->SetMouseSlow(false);
 
 	// toggle gui
@@ -4933,6 +4952,8 @@ void CEditor::OnRender()
 #if defined(CONF_DEBUG)
 	Map()->CheckIntegrity();
 #endif
+	Kernel()->RequestInterface<IGameClient>()->OnNavigationCursor(vec2(Ui()->MouseX() / Ui()->Screen()->w, Ui()->MouseY() / Ui()->Screen()->h));
+	Ui()->SetEnabled(UiWasEnabled);
 }
 
 void CEditor::OnActivate()

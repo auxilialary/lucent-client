@@ -23,8 +23,8 @@
 #include <game/client/components/menus_start.h>
 #include <game/client/components/skins7.h>
 #include <game/client/lineinput.h>
-#include <game/client/lucent/lucent_startup.h>
 #include <game/client/lucent/browser_state.h>
+#include <game/client/lucent/lucent_startup.h>
 #include <game/client/lucent/map_preview.h>
 #include <game/client/ui.h>
 #include <game/voting.h>
@@ -40,6 +40,7 @@ class CMenus : public CComponent
 	CLucentMapPreview m_LucentPreview;
 	double m_LucentBrowserTime = 0;
 	bool m_LucentLegacyBrowser = false;
+	CLineInputBuffered<256> m_LucentDirectAddress;
 	bool m_LucentPanelRendering = false;
 	std::vector<float> m_vLucentRowHover;
 	void RenderLucentServerList(CUIRect View, bool &Activated);
@@ -673,6 +674,16 @@ protected:
 public:
 	void RenderBackground();
 	void RenderLucentBrowser(CUIRect Screen);
+	void NavigationFrame(bool Begin, int Screen)
+	{
+		if(Begin)
+			m_MenusStart.BeginNavigationFrame(Screen);
+		else
+			m_MenusStart.EndNavigationFrame(Screen);
+	}
+	bool NavigationBlocked() const { return m_MenusStart.NavigationBlocked(); }
+	void NavigationCursor(vec2 Position) { m_MenusStart.NavigationCursor(Position); }
+	int NavigationScreen() const { return m_ShowStart ? -1 : (m_MenuPage >= PAGE_INTERNET && m_MenuPage <= PAGE_FAVORITE_COMMUNITY_5 ? PAGE_INTERNET : m_MenuPage); }
 
 	CMenus();
 	int Sizeof() const override { return sizeof(*this); }

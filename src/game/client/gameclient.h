@@ -608,6 +608,9 @@ public:
 	// hooks
 	void OnConnected() override;
 	void OnRender() override;
+	void OnNavigationFrame(bool Begin, bool Editor) override;
+	bool NavigationBlocked() const override;
+	void OnNavigationCursor(vec2 Position) override;
 	void OnUpdate() override;
 	void OnDummyDisconnect() override;
 	virtual void OnRelease();

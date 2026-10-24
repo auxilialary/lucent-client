@@ -193,6 +193,7 @@ void CMenus::RenderLucentBrowser(CUIRect Screen)
 	if(LucentBrowserButton(&s_QuickConnect, "Direct connect", QuickConnect) || (Activate && m_LucentBrowser.m_Focus >= 5))
 	{
 		static SPopupMenuId s_Popup;
+		Ui()->SetActiveItem(&m_LucentDirectAddress);
 		Ui()->DoPopupMenu(&s_Popup, QuickConnect.x - 150, QuickConnect.y - 110, 255, 105, this, PopupLucentConnect, {IGraphics::CORNER_ALL, LucentUi::Accent(.18f), ColorRGBA(.025f, .021f, .035f, 1)});
 	}
 	if(Activated && g_Config.m_UiServerAddress[0])
@@ -334,7 +335,7 @@ CUi::EPopupMenuFunctionResult CMenus::PopupLucentConnect(void *pContext, CUIRect
 	View.HSplitTop(20, &Title, &View);
 	pMenus->Ui()->DoLabel(&Title, Localize("Direct connect"), 12, TEXTALIGN_ML);
 	View.HSplitTop(24, &Address, &View);
-	static CLineInputBuffered<256> s_Address;
+	auto &s_Address = pMenus->m_LucentDirectAddress;
 	s_Address.SetEmptyText(Localize("Server address"));
 	pMenus->Ui()->DoClearableEditBox(&s_Address, &Address, 11);
 	View.HSplitTop(6, nullptr, &View);

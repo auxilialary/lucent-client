@@ -37,13 +37,6 @@ void CScrollRegion::Begin(CUIRect *pClipRect, const CScrollRegionParams *pParams
 {
 	if(pParams)
 		m_Params = *pParams;
-	if(Ui()->LucentStyle())
-	{
-		m_Params.m_RailBgColor = LucentUi::Accent(.045f);
-		m_Params.m_SliderColor = LucentUi::Accent(.24f);
-		m_Params.m_SliderColorHover = LucentUi::Accent(.48f);
-		m_Params.m_SliderColorGrabbed = LucentUi::Accent(.65f);
-	}
 	m_ContentAreaRect = *pClipRect;
 
 	if(ContentSize >= 0.0f)
@@ -240,7 +233,7 @@ void CScrollRegion::DrawBackground(const CUIRect &ScrollbarBg)
 		if(m_Params.m_RailBgColor.a > 0.0f)
 		{
 			float Rounding = m_Params.m_ScrollHorizontal ? m_RailRect.h / 2.0f : m_RailRect.w / 2.0f;
-			m_RailRect.Draw(m_Params.m_RailBgColor, IGraphics::CORNER_ALL, Rounding);
+			m_RailRect.Draw(Ui()->LucentStyle() ? LucentUi::Accent(.045f) : m_Params.m_RailBgColor, IGraphics::CORNER_ALL, Rounding);
 		}
 	}
 	if(m_Params.m_ClipBgColor.a > 0.0f)
@@ -361,5 +354,8 @@ void CScrollRegion::DoSlider()
 	m_ContentScrollOffset = -m_ScrollPos;
 
 	const float Rounding = m_Params.m_ScrollHorizontal ? Slider.h / 2.0f : Slider.w / 2.0f;
-	Slider.Draw(m_Params.SliderColor(Ui()->CheckActiveItem(pId), Ui()->HotItem() == pId), IGraphics::CORNER_ALL, Rounding);
+	Slider.Draw(Ui()->LucentStyle() ? LucentUi::Accent(Ui()->CheckActiveItem(pId) ? .65f : Ui()->HotItem() == pId ? .48f :
+															.24f) :
+					  m_Params.SliderColor(Ui()->CheckActiveItem(pId), Ui()->HotItem() == pId),
+		IGraphics::CORNER_ALL, Rounding);
 }

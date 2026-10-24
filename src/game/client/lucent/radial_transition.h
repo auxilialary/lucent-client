@@ -32,12 +32,18 @@ public:
 
 private:
 	EState m_State = EState::IDLE;
+	int m_FrameScreen = -3;
 	vec2 m_Origin = vec2(0, 0);
 	double m_Start = 0;
 	float m_Progress = 0;
 
 public:
 	void Reset() { *this = CRadialTransition(); }
+	void BeginFrame(int Screen) { m_FrameScreen = Screen; }
+	bool CaptureNeeded(int Destination, bool Animate) const
+	{
+		return Animate && m_State == EState::IDLE && m_FrameScreen != -3 && Destination != -3 && Destination != m_FrameScreen;
+	}
 	bool Start(double Now, vec2 Origin, bool Animate)
 	{
 		if(m_State != EState::IDLE)

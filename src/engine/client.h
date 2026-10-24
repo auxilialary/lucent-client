@@ -410,6 +410,9 @@ public:
 	virtual void OnEnterGame() = 0;
 	virtual void OnShutdown() = 0;
 	virtual void OnRender() = 0;
+	virtual void OnNavigationFrame(bool Begin, bool Editor) = 0;
+	virtual bool NavigationBlocked() const = 0;
+	virtual void OnNavigationCursor(vec2 Position) = 0;
 	virtual void OnUpdate() = 0;
 	virtual void OnStateChange(int NewState, int OldState) = 0;
 	virtual void OnConnected() = 0;

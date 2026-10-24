@@ -111,5 +111,32 @@ int main()
 		const float Color = Destination * Coverage + Source * (1 - Coverage);
 		CHECK(Color >= Source && Color <= Destination);
 	}
-	std::puts("Radial transition checks passed");
+	// All screen pairs use the same outward reveal, including return and editor.
+	for(int Source : {-1, 8, 16, 17, -2})
+		for(int Destination : {-1, 8, 16, 17, -2})
+		{
+			Transition.Reset();
+			Transition.BeginFrame(Source);
+			CHECK(!Transition.CaptureNeeded(Destination, false));
+			CHECK(Transition.CaptureNeeded(Destination, true) == (Source != Destination));
+			if(Source == Destination)
+				continue;
+			const vec2 EscapeOrigin(73, 219);
+			CHECK(Transition.Start(0, EscapeOrigin, true));
+			CHECK(!Transition.CaptureNeeded(Source, true));
+			CHECK(!Transition.Start(.01, Size / 2, true));
+			CHECK(Transition.Origin() == EscapeOrigin);
+			Transition.Update(.1, true);
+			const float Early = Transition.Radius(TopLeft, Size, 24);
+			Transition.Update(.5, true);
+			CHECK(Transition.Radius(TopLeft, Size, 24) > Early);
+			Transition.Update(1, true);
+			CHECK(Transition.Completed());
+		}
+	Transition.Reset();
+	Transition.BeginFrame(-3); // Gameplay/loading must not own menu scene textures.
+	CHECK(!Transition.CaptureNeeded(-1, true));
+	Transition.BeginFrame(-1);
+	CHECK(!Transition.CaptureNeeded(-3, true));
+	std::puts("Radial transition checks passed (screen pairs, repeat blocking, Escape origin)");
 }

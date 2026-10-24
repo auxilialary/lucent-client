@@ -1173,6 +1173,7 @@ void CMenus::Render()
 		break;
 	}
 
+	GameClient()->OnNavigationCursor(vec2(Ui()->MouseX() / Ui()->Screen()->w, Ui()->MouseY() / Ui()->Screen()->h));
 	Ui()->RenderPopupMenus();
 
 	// Prevent UI elements from being hovered while a key reader is active
@@ -2339,6 +2340,8 @@ bool CMenus::OnCursorMove(float x, float y, IInput::ECursorType CursorType)
 
 bool CMenus::OnInput(const IInput::CEvent &Event)
 {
+	if(m_MenusStart.NavigationBlocked())
+		return true;
 	// Escape key is always handled to activate/deactivate menu
 	if((Event.m_Flags & IInput::FLAG_PRESS && Event.m_Key == KEY_ESCAPE) || IsActive())
 	{
@@ -2594,6 +2597,8 @@ const CMenus::CMenuImage *CMenus::FindMenuImage(const char *pName)
 
 void CMenus::SetMenuPage(int NewPage)
 {
+	if(m_MenusStart.NavigationBlocked())
+		return;
 	const int OldPage = m_MenuPage;
 	m_MenuPage = NewPage;
 	if(NewPage >= PAGE_INTERNET && NewPage <= PAGE_FAVORITE_COMMUNITY_5)
@@ -2668,8 +2673,8 @@ void CMenus::ForceRefreshLanPage()
 
 void CMenus::SetShowStart(bool ShowStart)
 {
-	if(ShowStart)
-		m_MenusStart.CancelTransition();
+	if(m_MenusStart.NavigationBlocked())
+		return;
 	m_ShowStart = ShowStart;
 }
 

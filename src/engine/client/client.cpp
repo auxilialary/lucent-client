@@ -1,7 +1,6 @@
 /* (c) Magnus Auvinen. See licence.txt in the root of the distribution for more information. */
 /* If you are missing that file, acquire a complete release at teeworlds.com.                */
 
-#include <game/client/lucent/lucent_startup.h>
 #include "client.h"
 
 #include "demoedit.h"
@@ -66,6 +65,7 @@
 #include <generated/protocol7.h>
 #include <generated/protocolglue.h>
 
+#include <game/client/lucent/lucent_startup.h>
 #include <game/localization.h>
 #include <game/version.h>
 
@@ -1248,6 +1248,7 @@ const char *CClient::ErrorString() const
 
 void CClient::Render()
 {
+	GameClient()->OnNavigationFrame(true, m_EditorActive);
 	if(m_EditorActive)
 	{
 		m_pEditor->OnRender();
@@ -1257,6 +1258,7 @@ void CClient::Render()
 		GameClient()->OnRender();
 	}
 
+	GameClient()->OnNavigationFrame(false, g_Config.m_ClEditor != 0);
 	RenderDebug();
 	RenderGraphs();
 }
@@ -3449,7 +3451,7 @@ void CClient::Run()
 		if(CtrlShiftKey(KEY_G, LastG))
 			g_Config.m_DbgGraphs ^= 1;
 
-		if(CtrlShiftKey(KEY_E, LastE))
+		if(!GameClient()->NavigationBlocked() && CtrlShiftKey(KEY_E, LastE))
 		{
 			if(g_Config.m_ClEditor)
 				m_pEditor->OnClose();

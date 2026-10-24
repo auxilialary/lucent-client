@@ -70,8 +70,7 @@ void CLucentMenu::RenderMainMenu(CUIRect MainView)
 	GameClient()->m_MenuBackground.ChangePosition(CMenuBackground::POS_START);
 	// Cover the full viewport, including the vanilla menu margin.
 	Ui()->Screen()->Draw(ColorRGBA(0.018f, 0.015f, 0.027f, 1.0f), 0, 0);
-	const bool Frozen = m_RadialTransition.Active();
-	const double Now = Frozen ? m_LastFrame : static_cast<double>(time_get()) / time_freq();
+	const double Now = static_cast<double>(time_get()) / time_freq();
 	const bool Animate = g_Config.m_ClLucentLogoAnimation != 0;
 	const bool Focused = Kernel()->RequestInterface<IEngineGraphics>()->WindowActive() != 0 && !GameClient()->m_GameConsole.IsActive();
 	if(m_LastFrame < 0 || Now - m_LastFrame > 1.0)
@@ -129,10 +128,9 @@ void CLucentMenu::RenderMainMenu(CUIRect MainView)
 	CUIRect aExtra[5];
 	for(int i = 0; i < 5; ++i)
 		aExtra[i] = {CenterX - 90, More.y + More.h + 8 + i * 28, 180, 26};
-	const vec2 Mouse = Frozen ? m_RadialTransition.Origin() : vec2(Ui()->MouseX(), Ui()->MouseY());
+	const vec2 Mouse = vec2(Ui()->MouseX(), Ui()->MouseY());
 	bool Open = m_Interaction.IsOpen();
 	bool Enter = false;
-	if(!Frozen)
 	{
 		if(distance(Mouse, m_LastMouse) > 1.0f)
 		{
@@ -248,7 +246,6 @@ void CLucentMenu::RenderMainMenu(CUIRect MainView)
 	// Lines form first; both lines and chips retract smoothly towards the orbit.
 	for(int i = 0; i < 6; ++i)
 	{
-		if(!Frozen)
 		{
 			const bool Hot = Open && (Ui()->MouseInside(&aRects[i]) || m_Focus == i || (i == 3 && m_ServerControls.IsOpen()));
 			if(Hot && !m_aWasHot[i])
@@ -285,13 +282,7 @@ void CLucentMenu::RenderMainMenu(CUIRect MainView)
 	{
 		const int Page = g_Config.m_UiPage;
 		GameClient()->m_Menus.SetMenuPage(Page >= CMenus::PAGE_INTERNET && Page <= CMenus::PAGE_FAVORITE_COMMUNITY_5 ? Page : CMenus::PAGE_INTERNET);
-		// Preserve the layout snapshot throughout the frozen radial transition.
-		m_RadialTransition.Start(Now, Mouse, Animate);
-		Ui()->SetActiveItem(nullptr);
-		Ui()->SetHotItem(nullptr);
-		Ui()->ClearHotkeys();
-		m_BlockInput = true;
-		Ui()->SetEnabled(false);
+		GameClient()->m_Menus.SetShowStart(false);
 	}
 	if(aClick[1] || CheckHotKey(KEY_D))
 		NewPage = CMenus::PAGE_DEMOS;
@@ -299,7 +290,6 @@ void CLucentMenu::RenderMainMenu(CUIRect MainView)
 	{
 		m_ServerControls.Reset();
 		g_Config.m_ClEditor = 1;
-		Input()->MouseModeRelative();
 	}
 	if(CheckHotKey(KEY_J) && Running)
 	{
@@ -345,8 +335,7 @@ void CLucentMenu::RenderMainMenu(CUIRect MainView)
 		m_Secondary.Close();
 		Ui()->SetActiveItem(nullptr);
 	}
-	if(!Frozen)
-		m_ServerControls.Update(0, Animate, Open || m_Progress > 0, Focused);
+	m_ServerControls.Update(0, Animate, Open || m_Progress > 0, Focused);
 	if((aClick[4] && !ServerBranch) || CheckHotKey(KEY_S))
 		NewPage = CMenus::PAGE_SETTINGS;
 	if((aClick[5] && !ServerBranch) || CheckHotKey(KEY_Q))

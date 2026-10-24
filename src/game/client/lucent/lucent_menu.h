@@ -30,6 +30,9 @@ class CLucentMenu : public CComponentInterfaces
 	IGraphics::CTextureHandle m_SourceScene;
 	vec2 m_SceneSize = vec2(0, 0);
 	bool m_BlockInput = false;
+	bool m_UiWasEnabled = true;
+	vec2 m_NavigationCursor = vec2(0, 0);
+	vec2 m_UiSize = vec2(0, 0);
 	void RenderMainMenu(CUIRect MainView);
 	void RenderRadialComposition();
 	void ReleaseScenes();
@@ -38,6 +41,10 @@ class CLucentMenu : public CComponentInterfaces
 
 public:
 	void RenderStartMenu(CUIRect MainView);
+	void BeginNavigationFrame(int Screen);
+	void EndNavigationFrame(int Screen);
+	bool NavigationBlocked() const { return m_RadialTransition.Active(); }
+	void NavigationCursor(vec2 Position) { m_NavigationCursor = Position; }
 	void CancelTransition();
 	void ResetLogo(ITextRender *pTextRender)
 	{
