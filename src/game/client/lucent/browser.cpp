@@ -37,8 +37,9 @@ void CMenus::RenderLucentBrowser(CUIRect Screen)
 	m_LucentBrowser.Update(Dt, Animate);
 	m_SelectedIndex = CLucentBrowserState::FindSelection(ServerBrowser()->NumSortedServers(), g_Config.m_UiServerAddress, [this](int i) { return ServerBrowser()->SortedGet(i)->m_aAddress; });
 	const CServerInfo *pSelected = ServerBrowser()->SortedGet(m_SelectedIndex);
+	m_LucentBrowser.Select(pSelected ? pSelected->m_aAddress : "", Animate);
 	m_LucentPreview.Update(pSelected, Now, Animate, Http(), Engine(), Graphics());
-	m_LucentPreview.Render(Graphics(), Screen, Now, Animate);
+	m_LucentPreview.Render(Graphics(), Screen, Now, Animate, m_LucentBrowser.m_SelectionPulse);
 	Ui()->MapScreen();
 	if(m_LucentLegacyBrowser)
 	{
@@ -73,7 +74,7 @@ void CMenus::RenderLucentBrowser(CUIRect Screen)
 	static CLineInput s_Search(g_Config.m_BrFilterString, sizeof(g_Config.m_BrFilterString));
 	if(s_Search.IsActive())
 		m_LucentBrowser.m_Focus = 1;
-	if(!Ui()->IsPopupOpen())
+	if(m_LucentBrowser.m_Panel != CLucentBrowserState::EPanel::DIRECT_CONNECT)
 		m_LucentDirectAddress.Deactivate();
 	const bool Keyboard = Ui()->Enabled() && !Ui()->IsPopupOpen();
 	if(Keyboard && Ui()->ConsumeHotkey(CUi::HOTKEY_TAB))
@@ -83,7 +84,7 @@ void CMenus::RenderLucentBrowser(CUIRect Screen)
 			pActive->Deactivate();
 		Ui()->SetActiveItem(m_LucentBrowser.m_Focus == 1 ? &s_Search : nullptr);
 	}
-	const bool Activate = Keyboard && m_LucentBrowser.m_Focus != 0 && Ui()->ConsumeHotkey(CUi::HOTKEY_ENTER);
+	const bool Activate = Keyboard && m_LucentBrowser.m_Panel != CLucentBrowserState::EPanel::DIRECT_CONNECT && m_LucentBrowser.m_Focus != 0 && Ui()->ConsumeHotkey(CUi::HOTKEY_ENTER);
 	if(Activate && m_LucentBrowser.m_Focus == 1)
 	{
 		s_Search.Deactivate();
@@ -115,12 +116,16 @@ void CMenus::RenderLucentBrowser(CUIRect Screen)
 		NavWidth += aWidths[i];
 	}
 	const float NavScale = std::min(1.f, Nav.w / NavWidth);
+	CUIRect ActiveTab = {};
+	const bool ContextNav = m_LucentBrowser.m_Panel == CLucentBrowserState::EPanel::FRIENDS || m_LucentBrowser.m_Panel == CLucentBrowserState::EPanel::COMMUNITIES;
 	for(int i = 0; i < 5; ++i)
 	{
 		CUIRect Tab;
 		Nav.VSplitLeft(aWidths[i] * NavScale, &Tab, &Nav);
-		const bool Selected = (i == 0 && m_MenuPage == PAGE_INTERNET) || (i == 1 && m_MenuPage == PAGE_FAVORITES) || (i == 2 && m_LucentBrowser.m_Panel == CLucentBrowserState::EPanel::FRIENDS) || (i == 3 && m_LucentBrowser.m_Panel == CLucentBrowserState::EPanel::COMMUNITIES) || (i == 4 && m_MenuPage == PAGE_LAN);
-		if(!LucentUi::TextButton(Ui(), TextRender(), &s_aNav[i], Localize(apNav[i]), Tab, Selected, 11 * NavScale))
+		const bool Selected = (i == 0 && !ContextNav && m_MenuPage == PAGE_INTERNET) || (i == 1 && !ContextNav && m_MenuPage == PAGE_FAVORITES) || (i == 2 && m_LucentBrowser.m_Panel == CLucentBrowserState::EPanel::FRIENDS) || (i == 3 && m_LucentBrowser.m_Panel == CLucentBrowserState::EPanel::COMMUNITIES) || (i == 4 && !ContextNav && m_MenuPage == PAGE_LAN);
+		if(Selected)
+			ActiveTab = Tab;
+		if(!LucentUi::TextButton(Ui(), TextRender(), &s_aNav[i], Localize(apNav[i]), Tab, Selected, 11 * NavScale, TEXTALIGN_MC, false))
 			continue;
 		if(i == 0 || i == 1 || i == 4)
 		{
@@ -140,6 +145,9 @@ void CMenus::RenderLucentBrowser(CUIRect Screen)
 			m_LucentBrowser.Toggle(CLucentBrowserState::EPanel::COMMUNITIES);
 		}
 	}
+	m_LucentBrowser.m_Navigation.Update(ActiveTab.x + 8 * NavScale, std::max(0.f, ActiveTab.w - 16 * NavScale), Dt, Animate);
+	CUIRect Indicator = {m_LucentBrowser.m_Navigation.X(), ActiveTab.y + ActiveTab.h - 2, m_LucentBrowser.m_Navigation.Width(), 1};
+	Indicator.Draw(LucentUi::Accent(.7f), 0, 0);
 	static int s_aTools[4];
 	const char *apIcons[] = {FontIcon::LIST_UL, FontIcon::ARROWS_ROTATE, FontIcon::CHEVRON_RIGHT, FontIcon::HOUSE};
 	const char *apHints[] = {"Filters", "Refresh", "Direct connect", "Main menu"};
@@ -155,12 +163,12 @@ void CMenus::RenderLucentBrowser(CUIRect Screen)
 			RefreshBrowserTab(true);
 		if(i == 2 && (Click || (Activate && m_LucentBrowser.m_Focus >= 5)))
 		{
-			static SPopupMenuId s_Popup;
 			if(m_LucentDirectAddress.IsEmpty())
 				m_LucentDirectAddress.Set(g_Config.m_UiServerAddress);
 			m_LucentDirectAddress.SelectAll();
-			Ui()->SetActiveItem(&m_LucentDirectAddress);
-			Ui()->DoPopupMenu(&s_Popup, std::max(Screen.x, Button.x + Button.w - 255), Button.y + Button.h + 6, 255, 105, this, PopupLucentConnect, {IGraphics::CORNER_ALL, LucentUi::Accent(0), ColorRGBA(.025f, .021f, .035f, 1)});
+			m_LucentBrowser.Toggle(CLucentBrowserState::EPanel::DIRECT_CONNECT);
+			m_LucentBrowser.m_DirectFocusPending = m_LucentBrowser.m_Panel == CLucentBrowserState::EPanel::DIRECT_CONNECT;
+			Ui()->SetActiveItem(nullptr);
 		}
 		if(i == 3 && Click)
 			SetShowStart(true);
@@ -173,7 +181,7 @@ void CMenus::RenderLucentBrowser(CUIRect Screen)
 	{
 		m_LucentPanelRendering = true;
 		const bool Enabled = Ui()->Enabled();
-		if(m_LucentBrowser.m_Panel == CLucentBrowserState::EPanel::NONE || m_LucentBrowser.m_Content < .15f)
+		if(m_LucentBrowser.m_Panel == CLucentBrowserState::EPanel::NONE)
 			Ui()->SetEnabled(false);
 		CUIRect Panel;
 		Atmosphere.VSplitRight(std::min(250.f, Atmosphere.w), nullptr, &Panel);
@@ -296,8 +304,6 @@ void CMenus::RenderLucentServerList(CUIRect View, bool &Activated)
 	auto &vIds = m_vServerbrowserElementIds[ServerBrowser()->GetCurrentType()];
 	if(vIds.size() < size_t(Count))
 		vIds.resize(Count);
-	if(m_vLucentRowHover.size() < size_t(Count))
-		m_vLucentRowHover.resize(Count, 0);
 	s_List.SetActive(!Ui()->IsPopupOpen() && m_LucentBrowser.m_Focus == 0 && CLineInput::GetActiveInput() == nullptr);
 	if(m_ServerBrowserShouldRevealSelection)
 	{
@@ -310,18 +316,23 @@ void CMenus::RenderLucentServerList(CUIRect View, bool &Activated)
 	{
 		const auto *pInfo = ServerBrowser()->SortedGet(i);
 		const CListboxItem Item = s_List.DoNextItem(&vIds[i], i == Selected, 0);
-		const float Hover = Item.m_Visible && Ui()->MouseHovered(&Item.m_Rect) ? 1.f : 0.f;
-		m_vLucentRowHover[i] += (Hover - m_vLucentRowHover[i]) * (g_Config.m_ClLucentLogoAnimation ? 1 - std::exp(-Client()->RenderFrameTime() * 18) : 1);
 		if(!Item.m_Visible)
 			continue;
-		const float Selection = LucentUi::Highlight(&vIds[i], i == Selected);
+		const float Hover = LucentUi::Highlight(pInfo, Item.m_Visible && Ui()->Enabled() && !Ui()->IsPopupOpen() && Ui()->MouseHovered(&Item.m_Rect));
+		const float Selection = LucentUi::Highlight(pInfo->m_aAddress, i == Selected);
 		if(Selection > .001f)
 		{
 			Item.m_Rect.Draw(LucentUi::Accent(.065f * Selection), 0, 0);
 			CUIRect Marker = {Item.m_Rect.x, Item.m_Rect.y + 3, 1, Item.m_Rect.h - 6};
 			Marker.Draw(LucentUi::Accent(.85f * Selection), 0, 0);
+			if(i == Selected && m_LucentBrowser.m_SelectionPulse > 0)
+			{
+				CUIRect Echo = {Item.m_Rect.x + Item.m_Rect.w - 18, Item.m_Rect.y + 3, 18, Item.m_Rect.h - 6};
+				const float Pulse = std::sin(m_LucentBrowser.m_SelectionPulse * 3.14159265f);
+				Echo.Draw4(LucentUi::Accent(0), LucentUi::Accent(.09f * Pulse), LucentUi::Accent(0), LucentUi::Accent(.09f * Pulse), 0, 0);
+			}
 		}
-		Item.m_Rect.Draw(ColorRGBA(1, .9f, .95f, .045f * m_vLucentRowHover[i]), IGraphics::CORNER_ALL, 2);
+		Item.m_Rect.Draw(ColorRGBA(1, .9f, .95f, .045f * Hover), IGraphics::CORNER_ALL, 2);
 		if(!vpElements[i])
 			vpElements[i] = Ui()->GetNewUIElement(14);
 		char aPlayers[32], aPing[16];
@@ -346,7 +357,7 @@ void CMenus::RenderLucentServerList(CUIRect View, bool &Activated)
 			Props.m_MaxWidth = Cell.w;
 			Props.m_StopAtEnd = true;
 			Props.m_EnableWidthCheck = false;
-			TextRender()->TextColor(c == 1 ? ColorRGBA(.94f, .92f, .95f, 1) : ColorRGBA(.58f, .57f, .64f, 1));
+			TextRender()->TextColor(c == 1 ? ColorRGBA(.94f, .92f, .95f, 1) : ColorRGBA(.58f + .14f * Hover, .57f + .12f * Hover, .64f + .12f * Hover, 1));
 			if(c == 0)
 			{
 				TextRender()->SetFontPreset(EFontPreset::ICON_FONT);
@@ -380,27 +391,4 @@ void CMenus::RenderLucentServerList(CUIRect View, bool &Activated)
 		if(LucentBrowserButton(&s_Reset, "Reset filter", Reset))
 			ResetServerbrowserFilters();
 	}
-}
-
-CUi::EPopupMenuFunctionResult CMenus::PopupLucentConnect(void *pContext, CUIRect View, bool Active)
-{
-	auto *pMenus = static_cast<CMenus *>(pContext);
-	LucentUi::CScope Style(pMenus->Ui());
-	View.Margin(3, &View);
-	CUIRect Title, Address, Action;
-	View.HSplitTop(20, &Title, &View);
-	pMenus->Ui()->DoLabel(&Title, Localize("Direct connect"), 12, TEXTALIGN_ML);
-	View.HSplitTop(24, &Address, &View);
-	auto &s_Address = pMenus->m_LucentDirectAddress;
-	s_Address.SetEmptyText(Localize("Server address"));
-	pMenus->Ui()->DoClearableEditBox(&s_Address, &Address, 11);
-	View.HSplitTop(6, nullptr, &View);
-	View.HSplitTop(22, &Action, &View);
-	static int s_Connect;
-	if((pMenus->LucentBrowserButton(&s_Connect, "Connect", Action, true) || (Active && pMenus->Ui()->ConsumeHotkey(CUi::HOTKEY_ENTER))) && s_Address.GetString()[0])
-	{
-		pMenus->Connect(s_Address.GetString());
-		return CUi::POPUP_CLOSE_CURRENT;
-	}
-	return CUi::POPUP_KEEP_OPEN;
 }

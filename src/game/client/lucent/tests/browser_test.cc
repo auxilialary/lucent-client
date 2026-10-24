@@ -65,7 +65,8 @@ int main()
 			Motion.Update(1.f / Fps, true);
 		CHECK(Motion.m_Open > .9999f);
 		Motion.Toggle(P::PLAYERS);
-		CHECK(Motion.m_Open > .9999f && Motion.m_Content == 0);
+		CHECK(Motion.m_Open > .9999f && Motion.m_Content == 1);
+		CHECK(Motion.VisiblePanel() == P::DETAILS);
 		Motion.Update(.1f, true);
 		CHECK(Motion.m_Content > 0 && Motion.m_Content < 1);
 		Motion.Escape();
@@ -79,6 +80,62 @@ int main()
 		Motion.Escape();
 		Motion.Update(0, false);
 		CHECK(Motion.m_Open == 0 && Motion.VisiblePanel() == P::NONE);
+	}
+	// Retargeting preserves geometry, including reversal and changed UI scale.
+	CLucentBrowserIndicator Indicator;
+	Indicator.Update(10, 50, 0, true);
+	Indicator.Update(100, 90, .1f, true);
+	const float Mid = Indicator.X();
+	CHECK(Mid > 10 && Mid < 100);
+	Indicator.Update(20, 40, 0, true);
+	CHECK(Indicator.X() == Mid);
+	Indicator.Update(20, 40, .22f, true);
+	CHECK(Indicator.X() == 20 && Indicator.Width() == 40);
+	Indicator.Update(80, 120, 0, false);
+	CHECK(Indicator.X() == 80 && Indicator.Width() == 120);
+	for(int Fps : {60, 144, 240})
+	{
+		CLucentBrowserState Switch;
+		Switch.Toggle(P::DETAILS);
+		Switch.Update(0, false);
+		Switch.Toggle(P::PLAYERS);
+		Switch.Update(.05f, true);
+		const float Alpha = Switch.m_Content;
+		Switch.Toggle(P::DETAILS);
+		Switch.Update(0, true);
+		CHECK(Switch.m_Content == Alpha && Switch.VisiblePanel() == P::DETAILS);
+		Switch.Toggle(P::PLAYERS);
+		for(int i = 0; i < Fps; ++i)
+			Switch.Update(1.f / Fps, true);
+		CHECK(Switch.VisiblePanel() == P::PLAYERS && Switch.m_Open == 1 && Switch.m_Content == 1);
+	}
+	State.Select("one:8303", true);
+	CHECK(State.m_SelectionPulse == 1);
+	State.Update(.1f, true);
+	const float Pulse = State.m_SelectionPulse;
+	State.Select("one:8303", true);
+	CHECK(State.m_SelectionPulse == Pulse);
+	State.Select("two:8303", true);
+	CHECK(State.m_SelectionPulse == 1);
+	State.Select("two:8303", false);
+	CHECK(State.m_SelectionPulse == 0);
+	for(P Panel : {P::FILTERS, P::DETAILS, P::PLAYERS, P::FRIENDS, P::COMMUNITIES, P::DIRECT_CONNECT})
+	{
+		CLucentBrowserState Surface;
+		Surface.Toggle(Panel);
+		Surface.Update(0, false);
+		CHECK(Surface.VisiblePanel() == Panel && Surface.m_Content == 1);
+		CHECK(Surface.Escape());
+		Surface.Update(0, false);
+		CHECK(Surface.VisiblePanel() == P::NONE);
+	}
+	for(int Fps : {60, 144, 240})
+	{
+		CLucentBrowserIndicator Nav;
+		Nav.Update(0, 30, 0, true);
+		for(int Frame = 0; Frame < int(std::ceil(.22f * Fps)); ++Frame)
+			Nav.Update(100, 80, 1.f / Fps, true);
+		CHECK(std::abs(Nav.X() - 100) < .001f && std::abs(Nav.Width() - 80) < .001f);
 	}
 	int Sort = 3, Order = 0;
 	State.Sort(3, Sort, Order, true);

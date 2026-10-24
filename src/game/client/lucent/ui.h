@@ -17,7 +17,8 @@ namespace LucentUi
 		struct CState
 		{
 			const void *m_pId = nullptr;
-			float m_Value = 0;
+			float m_Value = 0, m_From = 0, m_Elapsed = 0;
+			bool m_Target = false;
 			double m_Time = 0;
 		};
 		static std::array<CState, 256> s_aStates;
@@ -34,9 +35,20 @@ namespace LucentUi
 				pState = &State;
 		}
 		if(pState->m_pId != pId)
-			*pState = {pId, 0, Now - .016};
-		const float Response = g_Config.m_ClLucentLogoAnimation ? 1 - std::exp(-float(std::clamp(Now - pState->m_Time, 0.0, .1)) * 18) : 1;
-		pState->m_Value += (float(Target) - pState->m_Value) * Response;
+		{
+			*pState = {};
+			pState->m_pId = pId;
+			pState->m_Time = Now;
+		}
+		if(Target != pState->m_Target)
+		{
+			pState->m_From = pState->m_Value;
+			pState->m_Target = Target;
+			pState->m_Elapsed = 0;
+		}
+		pState->m_Elapsed = std::min(.18f, pState->m_Elapsed + float(std::max(0.0, Now - pState->m_Time)));
+		const float T = g_Config.m_ClLucentLogoAnimation ? 1 - std::pow(1 - pState->m_Elapsed / .18f, 3.f) : 1;
+		pState->m_Value = pState->m_From + (float(Target) - pState->m_From) * T;
 		pState->m_Time = Now;
 		return pState->m_Value;
 	}
@@ -51,8 +63,7 @@ namespace LucentUi
 			Glow.Margin(-1, &Glow);
 			Glow.Draw(Accent(GlowAlpha * .07f), Corners, RADIUS + 1);
 		}
-		Rect.Draw(Accent(Focus ? .4f : Hover ? .23f :
-						       .12f),
+		Rect.Draw(Accent(.12f + .28f * GlowAlpha),
 			Corners, RADIUS);
 		CUIRect Inner;
 		Rect.Margin(.5f, &Inner);
@@ -66,6 +77,15 @@ namespace LucentUi
 	public:
 		explicit CScope(CUi *pUi) : m_pUi(pUi), m_Previous(pUi->LucentStyle()) { pUi->SetLucentStyle(true); }
 		~CScope() { m_pUi->SetLucentStyle(m_Previous); }
+	};
+	class CInteractionScope
+	{
+		CUi *m_pUi;
+		bool m_Previous;
+
+	public:
+		CInteractionScope(CUi *pUi, bool Enabled) : m_pUi(pUi), m_Previous(pUi->Enabled()) { pUi->SetEnabled(m_Previous && Enabled); }
+		~CInteractionScope() { m_pUi->SetEnabled(m_Previous); }
 	};
 	class COpacityScope
 	{
@@ -87,10 +107,11 @@ namespace LucentUi
 	};
 	inline bool Button(CUi *pUi, ITextRender *pTextRender, const void *pId, const char *pText, CUIRect Rect, bool Selected = false, bool Enabled = true)
 	{
-		const bool Hover = Enabled && pUi->MouseHovered(&Rect);
-		const float Light = Highlight(pId, Selected || Hover || pUi->CheckActiveItem(pId));
+		const bool Interactive = Enabled && pUi->Enabled();
+		const bool Hover = Interactive && pUi->MouseHovered(&Rect);
+		const float Light = Highlight(pId, Enabled && (Selected || Hover || (Interactive && pUi->CheckActiveItem(pId))));
 		if(Light > .001f)
-			Rect.Draw(Accent(Light * (Selected ? .13f : .045f)), 0, 0);
+			Rect.Draw(Accent(Light * (Selected ? .13f : .045f) + (Interactive && pUi->CheckActiveItem(pId) ? .07f : 0.f)), 0, 0);
 		if(Selected)
 		{
 			CUIRect Underline = {Rect.x + 5, Rect.y + Rect.h - 1, std::max(0.f, Rect.w - 10), .6f};
@@ -100,14 +121,14 @@ namespace LucentUi
 		const float Size = std::min(11.f, 11.f * std::max(1.f, Rect.w - 6) / std::max(1.f, pTextRender->TextWidth(11, pText)));
 		pUi->DoLabel(&Rect, pText, Size, TEXTALIGN_MC);
 		pTextRender->TextColor(pTextRender->DefaultTextColor());
-		return Enabled && pUi->DoButtonLogic(pId, Selected, &Rect, BUTTONFLAG_LEFT);
+		return Interactive && pUi->DoButtonLogic(pId, Selected, &Rect, BUTTONFLAG_LEFT);
 	}
 	// Text navigation shares control geometry, without a persistent button surface.
-	inline bool TextButton(CUi *pUi, ITextRender *pTextRender, const void *pId, const char *pText, CUIRect Rect, bool Selected = false, float Size = 11, int Align = TEXTALIGN_MC)
+	inline bool TextButton(CUi *pUi, ITextRender *pTextRender, const void *pId, const char *pText, CUIRect Rect, bool Selected = false, float Size = 11, int Align = TEXTALIGN_MC, bool Underline = true)
 	{
 		const float Light = Highlight(pId, pUi->Enabled() && pUi->MouseHovered(&Rect));
 		const bool Pressed = pUi->CheckActiveItem(pId);
-		if(Selected)
+		if(Selected && Underline)
 		{
 			CUIRect Line = {Rect.x + 4, Rect.y + Rect.h - 2, std::max(0.f, Rect.w - 8), 1};
 			Line.Draw(Accent(Pressed ? .95f : .7f), 0, 0);

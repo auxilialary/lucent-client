@@ -59,6 +59,8 @@ void CLucentMapPreview::Change(int Index, double Now, bool Animate)
 		return;
 	m_Previous = Animate ? m_Current : -1;
 	m_Current = Index;
+	if(Index >= 0)
+		m_aCache[Index].m_RevealStart = Now;
 	m_FadeStart = Now;
 }
 
@@ -191,7 +193,7 @@ void CLucentMapPreview::Update(const CServerInfo *pServer, double Now, bool Anim
 	pHttp->Run(m_pRequest);
 }
 
-void CLucentMapPreview::Render(IGraphics *pGraphics, const CUIRect &Screen, double Now, bool Animate)
+void CLucentMapPreview::Render(IGraphics *pGraphics, const CUIRect &Screen, double Now, bool Animate, float SelectionPulse)
 {
 	Screen.Draw(ColorRGBA(.018f, .015f, .027f, 1), 0, 0);
 	const float T = Animate ? std::clamp(float((Now - m_FadeStart) / .42), 0.f, 1.f) : 1;
@@ -204,7 +206,8 @@ void CLucentMapPreview::Render(IGraphics *pGraphics, const CUIRect &Screen, doub
 		pGraphics->QuadsBegin();
 		pGraphics->SetColor(1, 1, 1, Alpha * .85f);
 		const auto &Entry = m_aCache[Index];
-		const float Scale = LucentPreview::FrameScale(Entry.m_Width, Entry.m_Height, Screen.w, Screen.h);
+		const float Settle = Animate ? std::pow(1.f - std::clamp(float((Now - Entry.m_RevealStart) / 3.5), 0.f, 1.f), 3.f) : 0.f;
+		const float Scale = LucentPreview::FrameScale(Entry.m_Width, Entry.m_Height, Screen.w, Screen.h) * (1.f - .015f * Settle);
 		const float Width = Entry.m_Width * Scale, Height = Entry.m_Height * Scale;
 		const float X = Screen.x + Screen.w * .76f - Width * .5f;
 		const float Y = Screen.y + Screen.h * .47f - Height * .5f;
@@ -246,7 +249,8 @@ void CLucentMapPreview::Render(IGraphics *pGraphics, const CUIRect &Screen, doub
 	};
 	ScrimBand(0, .52f, .86f, .86f);
 	ScrimBand(.52f, .72f, .86f, .10f);
-	ScrimBand(.72f, 1, .10f, .06f);
+	const float Response = 1 - .12f * std::sin(std::clamp(SelectionPulse, 0.f, 1.f) * 3.14159265f);
+	ScrimBand(.72f, 1, .10f * Response, .06f * Response);
 	pGraphics->QuadsEnd();
 }
 void CLucentMapPreview::Shutdown(IGraphics *pGraphics)

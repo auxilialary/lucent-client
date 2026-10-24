@@ -21,6 +21,7 @@ class CLucentMapPreview
 		std::string m_Key;
 		IGraphics::CTextureHandle m_Texture;
 		double m_Used = 0;
+		double m_RevealStart = 0;
 		int m_Width = 1, m_Height = 1;
 	};
 	// Eight aspect-preserving textures, <= 57,600 pixels each: <= 1.76 MiB.
@@ -39,7 +40,7 @@ class CLucentMapPreview
 
 public:
 	void Update(const CServerInfo *pServer, double Now, bool Animate, IHttp *pHttp, IEngine *pEngine, IGraphics *pGraphics);
-	void Render(IGraphics *pGraphics, const CUIRect &Screen, double Now, bool Animate);
+	void Render(IGraphics *pGraphics, const CUIRect &Screen, double Now, bool Animate, float SelectionPulse = 0);
 	void Shutdown(IGraphics *pGraphics);
 };
 #endif

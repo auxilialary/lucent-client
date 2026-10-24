@@ -42,10 +42,8 @@ class CMenus : public CComponent
 	bool m_LucentLegacyBrowser = false;
 	CLineInputBuffered<256> m_LucentDirectAddress;
 	bool m_LucentPanelRendering = false;
-	std::vector<float> m_vLucentRowHover;
 	void RenderLucentServerList(CUIRect View, bool &Activated);
 	void RenderLucentPanel(CUIRect View);
-	static CUi::EPopupMenuFunctionResult PopupLucentConnect(void *pContext, CUIRect View, bool Active);
 	bool LucentBrowserButton(const void *pId, const char *pText, CUIRect Rect, bool Selected = false);
 	static ColorRGBA ms_GuiColor;
 	static ColorRGBA ms_ColorTabbarInactiveOutgame;

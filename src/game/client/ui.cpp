@@ -1021,7 +1021,7 @@ bool CUi::DoEditBox(CLineInput *pLineInput, const CUIRect *pRect, float FontSize
 
 	// Render
 	if(LucentStyle())
-		LucentUi::Surface(*pRect, Active, HotItem() == pLineInput, Corners);
+		LucentUi::Surface(*pRect, Active, HotItem() == pLineInput, Corners, LucentUi::Highlight(pLineInput, Active || (Enabled() && HotItem() == pLineInput)));
 	else
 		pRect->Draw(ms_LightButtonColorFunction.GetColor(Active, HotItem() == pLineInput), Corners, 3.0f);
 	ClipEnable(pRect);

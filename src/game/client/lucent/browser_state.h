@@ -6,6 +6,40 @@
 #include <string>
 #include <string_view>
 
+// Retarget from the rendered position, so rapid tab changes never jump.
+class CLucentBrowserIndicator
+{
+	float m_X = 0, m_Width = 0, m_FromX = 0, m_FromWidth = 0;
+	float m_TargetX = 0, m_TargetWidth = 0, m_Time = 0;
+	bool m_Initialized = false;
+
+public:
+	void Update(float X, float Width, float Dt, bool Animate)
+	{
+		if(!m_Initialized || !Animate)
+		{
+			m_X = m_FromX = m_TargetX = X;
+			m_Width = m_FromWidth = m_TargetWidth = Width;
+			m_Time = .22f;
+			m_Initialized = true;
+		}
+		if(X != m_TargetX || Width != m_TargetWidth)
+		{
+			m_FromX = m_X;
+			m_FromWidth = m_Width;
+			m_TargetX = X;
+			m_TargetWidth = Width;
+			m_Time = 0;
+		}
+		m_Time = std::clamp(m_Time + std::max(0.f, Dt), 0.f, .22f);
+		const float T = 1 - std::pow(1 - m_Time / .22f, 3.f);
+		m_X = m_FromX + (m_TargetX - m_FromX) * T;
+		m_Width = m_FromWidth + (m_TargetWidth - m_FromWidth) * T;
+	}
+	float X() const { return m_X; }
+	float Width() const { return m_Width; }
+};
+
 class CLucentBrowserState
 {
 public:
@@ -16,25 +50,43 @@ public:
 		DETAILS,
 		PLAYERS,
 		FRIENDS,
-		COMMUNITIES
+		COMMUNITIES,
+		DIRECT_CONNECT
 	};
+	CLucentBrowserIndicator m_Navigation, m_DetailNavigation;
 	EPanel m_Panel = EPanel::NONE;
 	EPanel m_VisiblePanel = EPanel::NONE;
 	EPanel VisiblePanel() const { return m_VisiblePanel; }
+	std::string m_LastSelection;
+	float m_SelectionPulse = 0;
+	bool m_DirectFocusPending = false;
+	void Select(std::string_view Address, bool Animate)
+	{
+		if(Address != m_LastSelection)
+		{
+			m_LastSelection.assign(Address);
+			m_SelectionPulse = Animate && !Address.empty() ? 1.f : 0.f;
+		}
+		if(!Animate)
+			m_SelectionPulse = 0;
+	}
 	int m_Focus = 0; // list, search, filters, details, players, address, connect
 	void Tab(bool Reverse) { m_Focus = (m_Focus + (Reverse ? 6 : 1)) % 7; }
 	float m_Open = 0;
 	float m_Content = 1;
 	float m_OpenTime = 0;
-	float m_ContentTime = .28f;
+	float m_ContentTime = .14f;
 	void Toggle(EPanel Panel)
 	{
 		m_Panel = m_Panel == Panel ? EPanel::NONE : Panel;
 		if(m_Panel != EPanel::NONE)
 		{
-			m_VisiblePanel = m_Panel;
-			m_Content = 0;
-			m_ContentTime = 0;
+			if(m_VisiblePanel == EPanel::NONE)
+			{
+				m_VisiblePanel = m_Panel;
+				m_ContentTime = 0;
+				m_Content = 0;
+			}
 		}
 	}
 	bool Escape()
@@ -48,14 +100,21 @@ public:
 	{
 		const bool Open = m_Panel != EPanel::NONE;
 		const float Step = std::clamp(Dt, 0.f, .1f);
+		m_SelectionPulse = Animate ? std::max(0.f, m_SelectionPulse - Step / .42f) : 0;
 		m_OpenTime = Animate ? std::clamp(m_OpenTime + (Open ? Step : -Step), 0.f, .28f) : (Open ? .28f : 0.f);
-		m_ContentTime = Animate ? std::min(.28f, m_ContentTime + Step) : .28f;
+		// Fade the outgoing body before changing identity; reversing intent keeps
+		// the current opacity and the container continues on its own clock.
+		const bool Switching = Open && m_VisiblePanel != m_Panel;
+		m_ContentTime = Animate ? std::clamp(m_ContentTime + (Switching ? -Step : Step), 0.f, .14f) : .14f;
+		if(Switching && (!Animate || m_ContentTime == 0))
+			m_VisiblePanel = m_Panel;
 		const auto Ease = [](float Time) {
 			const float T = Time / .28f;
 			return 1.f - (1.f - T) * (1.f - T) * (1.f - T);
 		};
 		m_Open = Ease(m_OpenTime);
-		m_Content = Ease(m_ContentTime);
+		const float ContentT = m_ContentTime / .14f;
+		m_Content = ContentT * ContentT * (3 - 2 * ContentT);
 		if(m_Open == 0)
 			m_VisiblePanel = EPanel::NONE;
 	}
