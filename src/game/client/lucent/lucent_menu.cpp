@@ -277,6 +277,8 @@ void CLucentMenu::RenderMainMenu(CUIRect MainView)
 	int NewPage = -1;
 	if(aClick[0] || (Enter && m_Focus < 0) || CheckHotKey(KEY_P))
 	{
+		const int Page = g_Config.m_UiPage;
+		GameClient()->m_Menus.SetMenuPage(Page >= CMenus::PAGE_INTERNET && Page <= CMenus::PAGE_FAVORITE_COMMUNITY_5 ? Page : CMenus::PAGE_INTERNET);
 		m_RadialTransition.Start(Now, Mouse, Animate);
 		Ui()->SetActiveItem(nullptr);
 		Ui()->SetHotItem(nullptr);

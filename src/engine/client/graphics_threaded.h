@@ -128,6 +128,7 @@ public:
 		CMD_TEXT_TEXTURE_UPDATE,
 
 		// rendering
+		CMD_CREATE_SCENE_TEXTURE,
 		CMD_CLEAR,
 		CMD_RENDER,
 		CMD_RENDER_TEX3D,
@@ -204,6 +205,14 @@ public:
 		int m_ClipH;
 	};
 
+	struct SCommand_CreateSceneTexture : public SCommand
+	{
+		SCommand_CreateSceneTexture() : SCommand(CMD_CREATE_SCENE_TEXTURE) {}
+		int m_Slot;
+		int m_Width, m_Height;
+		bool *m_pSuccess;
+	};
+
 	struct SCommand_Clear : public SCommand
 	{
 		SCommand_Clear() :
@@ -223,6 +232,7 @@ public:
 	{
 		SCommand_Render() :
 			SCommand(CMD_RENDER) {}
+		vec4 m_SceneMask = vec4(0, 0, 0, 0);
 		SState m_State;
 		EPrimitiveType m_PrimType;
 		unsigned m_PrimCount;
@@ -757,6 +767,7 @@ class CGraphics_Threaded : public IEngineGraphics
 	};
 
 	CCommandBuffer::SState m_State;
+	vec4 m_SceneMask = vec4(0, 0, 0, 0);
 	IGraphicsBackend *m_pBackend;
 	bool m_GLTileBufferingEnabled;
 	bool m_GLQuadBufferingEnabled;
@@ -958,6 +969,8 @@ public:
 	bool CheckImageDivisibility(const char *pContextName, CImageInfo &Image, int DivX, int DivY, bool AllowResize) override;
 	bool IsImageFormatRgba(const char *pContextName, const CImageInfo &Image) override;
 
+	CTextureHandle CreateSceneTexture() override;
+	void RenderSceneTexture(CTextureHandle Texture, vec2 Origin, float Radius, float Feather) override;
 	void TextureSet(CTextureHandle TextureId) override;
 
 	void Clear(float r, float g, float b, bool ForceClearNow = false) override;

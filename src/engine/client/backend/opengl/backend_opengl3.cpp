@@ -140,6 +140,7 @@ bool CCommandProcessorFragment_OpenGL3_3::Cmd_Init(const SCommand_Init *pCommand
 		UseProgram(m_pPrimitiveProgram);
 
 		m_pPrimitiveProgram->m_LocPos = m_pPrimitiveProgram->GetUniformLoc("gPos");
+		m_pPrimitiveProgram->m_LocSceneMask = m_pPrimitiveProgram->GetUniformLoc("gSceneMask");
 		m_pPrimitiveProgram->m_LocTextureSampler = m_pPrimitiveProgram->GetUniformLoc("gTextureSampler");
 	}
 	{
@@ -158,6 +159,7 @@ bool CCommandProcessorFragment_OpenGL3_3::Cmd_Init(const SCommand_Init *pCommand
 		UseProgram(m_pPrimitiveProgramTextured);
 
 		m_pPrimitiveProgramTextured->m_LocPos = m_pPrimitiveProgramTextured->GetUniformLoc("gPos");
+		m_pPrimitiveProgramTextured->m_LocSceneMask = m_pPrimitiveProgramTextured->GetUniformLoc("gSceneMask");
 		m_pPrimitiveProgramTextured->m_LocTextureSampler = m_pPrimitiveProgramTextured->GetUniformLoc("gTextureSampler");
 	}
 
@@ -730,6 +732,25 @@ void CCommandProcessorFragment_OpenGL3_3::Cmd_TextTextures_Create(const CCommand
 	TextureCreate(pCommand->m_SlotOutline, pCommand->m_Width, pCommand->m_Height, GL_RED, GL_RED, TextureFlag::NO_MIPMAPS, pCommand->m_pTextOutlineData);
 }
 
+void CCommandProcessorFragment_OpenGL3_3::Cmd_CreateSceneTexture(const CCommandBuffer::SCommand_CreateSceneTexture *pCommand)
+{
+	if(pCommand->m_Width > m_MaxTexSize || pCommand->m_Height > m_MaxTexSize)
+		return;
+	GLint Binding, Sampler;
+	glGetIntegerv(GL_TEXTURE_BINDING_2D, &Binding);
+	glGetIntegerv(GL_SAMPLER_BINDING, &Sampler);
+	// RGB deliberately discards framebuffer alpha: this is an opaque complete
+	// scene, not premultiplied UI layers. Only the composition supplies alpha.
+	TextureCreate(pCommand->m_Slot, pCommand->m_Width, pCommand->m_Height,
+		GL_RGB, GL_RGB, TextureFlag::NO_MIPMAPS, nullptr);
+	glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, m_ViewportX, m_ViewportY, pCommand->m_Width, pCommand->m_Height);
+	*pCommand->m_pSuccess = glGetError() == GL_NO_ERROR;
+	if(!*pCommand->m_pSuccess)
+		DestroyTexture(pCommand->m_Slot);
+	glBindTexture(GL_TEXTURE_2D, Binding);
+	glBindSampler(0, Sampler);
+}
+
 void CCommandProcessorFragment_OpenGL3_3::Cmd_Clear(const CCommandBuffer::SCommand_Clear *pCommand)
 {
 	// if clip is still active, force disable it for clearing, enable it again afterwards
@@ -795,6 +816,10 @@ void CCommandProcessorFragment_OpenGL3_3::Cmd_Render(const CCommandBuffer::SComm
 		pProgram = m_pPrimitiveProgramTextured;
 	UseProgram(pProgram);
 	SetState(pCommand->m_State, pProgram);
+	vec4 Mask = pCommand->m_SceneMask;
+	Mask.x += m_ViewportX;
+	Mask.y += m_ViewportY;
+	pProgram->SetUniformVec4(pProgram->m_LocSceneMask, 1, &Mask.x);
 
 	UploadStreamBufferData(pCommand->m_PrimType, pCommand->m_pVertices, sizeof(CCommandBuffer::SVertex), pCommand->m_PrimCount);
 
@@ -821,6 +846,13 @@ void CCommandProcessorFragment_OpenGL3_3::Cmd_Render(const CCommandBuffer::SComm
 		dbg_assert_failed("Invalid primitive type: %d", (int)pCommand->m_PrimType);
 	};
 
+	// Buffered cursor/quad-container draws can reuse the primitive program.
+	// Never let scene coverage leak into a later render command.
+	if(Mask.w > 0)
+	{
+		const vec4 Disabled(0, 0, 0, 0);
+		pProgram->SetUniformVec4(pProgram->m_LocSceneMask, 1, &Disabled.x);
+	}
 	m_LastStreamBuffer = (m_LastStreamBuffer + 1 >= MAX_STREAM_BUFFER_COUNT ? 0 : m_LastStreamBuffer + 1);
 }
 

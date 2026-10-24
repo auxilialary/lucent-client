@@ -535,7 +535,7 @@ void CMenus::RenderMenubar(CUIRect Box, IClient::EClientState ClientState)
 		static CButtonContainer s_StartButton;
 		if(DoButton_MenuTab(&s_StartButton, pHomeScreenButtonLabel, false, &Button, IGraphics::CORNER_T, &m_aAnimatorsSmallPage[SMALL_TAB_HOME], pHomeButtonColor, pHomeButtonColor, pHomeButtonColorHover, 10.0f))
 		{
-			m_ShowStart = true;
+			SetShowStart(true);
 		}
 		Ui()->DoToolTip(&s_StartButton, &Button, Localize("Main menu"));
 
@@ -969,6 +969,22 @@ bool CMenus::CanDisplayWarning() const
 	return m_Popup == POPUP_NONE;
 }
 
+void CMenus::RenderLucentBrowser(CUIRect Screen)
+{
+	// The click frame already contains Lucent's opaque source. Start the
+	// destination from the same clear color as CGameClient::OnRender, including
+	// themes with transparent or clipped map layers.
+	const ColorRGBA ClearColor = color_cast<ColorRGBA>(ColorHSLA(g_Config.m_ClOverlayEntities ? g_Config.m_ClBackgroundEntitiesColor : g_Config.m_ClBackgroundColor));
+	Graphics()->Clear(ClearColor.r, ClearColor.g, ClearColor.b);
+	if(!GameClient()->m_MenuBackground.Render())
+		RenderBackground();
+	Ui()->MapScreen();
+	CUIRect TabBar, MainView;
+	Screen.HSplitTop(24.0f, &TabBar, &MainView);
+	RenderServerbrowser(MainView);
+	RenderMenubar(TabBar, IClient::STATE_OFFLINE);
+}
+
 void CMenus::Render()
 {
 	Ui()->MapScreen();
@@ -1030,7 +1046,9 @@ void CMenus::Render()
 	}
 	else
 	{
-		if(!GameClient()->m_MenuBackground.Render())
+		// Lucent owns its complete scene, including the live browser backdrop
+		// during a reveal. Do not advance the background camera twice per frame.
+		if(!(ClientState == IClient::STATE_OFFLINE && m_ShowStart && m_Popup == POPUP_NONE) && !GameClient()->m_MenuBackground.Render())
 		{
 			RenderBackground();
 		}
@@ -1174,7 +1192,7 @@ void CMenus::Render()
 	// Handle this escape hotkey after popup menus
 	if(!m_ShowStart && ClientState == IClient::STATE_OFFLINE && Ui()->ConsumeHotkey(CUi::HOTKEY_ESCAPE))
 	{
-		m_ShowStart = true;
+		SetShowStart(true);
 	}
 }
 
@@ -2339,6 +2357,7 @@ bool CMenus::OnInput(const IInput::CEvent &Event)
 
 void CMenus::OnStateChange(int NewState, int OldState)
 {
+	m_MenusStart.CancelTransition();
 	// reset active item
 	Ui()->SetActiveItem(nullptr);
 
@@ -2656,6 +2675,8 @@ void CMenus::ForceRefreshLanPage()
 
 void CMenus::SetShowStart(bool ShowStart)
 {
+	if(ShowStart)
+		m_MenusStart.CancelTransition();
 	m_ShowStart = ShowStart;
 }
 

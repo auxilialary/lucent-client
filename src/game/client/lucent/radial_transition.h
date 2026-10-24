@@ -17,7 +17,7 @@ public:
 		ACTIVE,
 		COMPLETED
 	};
-	static constexpr double DURATION = 0.52;
+	static constexpr double DURATION = 0.88;
 	struct CMask
 	{
 		vec2 m_Origin;
@@ -67,7 +67,8 @@ public:
 	}
 	float Radius(vec2 TopLeft, vec2 Size, float Feather) const
 	{
-		const float Ease = 1 - std::pow(1 - m_Progress, 3.0f);
+		// Quadratic ease-out keeps the early expansion brisk without a cubic tail.
+		const float Ease = 1 - (1 - m_Progress) * (1 - m_Progress);
 		return Ease * (MaxRadius(TopLeft, Size) + Feather);
 	}
 	float Coverage(vec2 Point, vec2 TopLeft, vec2 Size, float Feather) const

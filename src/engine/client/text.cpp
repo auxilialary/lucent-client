@@ -2137,52 +2137,6 @@ public:
 		}
 	}
 
-	void RenderTextContainerSoftMask(STextContainerIndex TextContainerIndex, const ColorRGBA &TextColor, const ColorRGBA &TextOutlineColor, const std::function<float(vec2)> &Coverage) override
-	{
-		const STextContainer &Container = GetTextContainer(TextContainerIndex);
-		const float UVScale = 1.0f / m_pGlyphMap->TextureDimension();
-		Graphics()->FlushVertices();
-		for(int Pass = 0; Pass < 2; ++Pass)
-		{
-			const ColorRGBA Tint = Pass == 0 ? TextOutlineColor : TextColor;
-			if(Tint.a == 0)
-				continue;
-			Graphics()->TextureSet(m_pGlyphMap->Texture(Pass == 0 ? CGlyphMap::FONT_TEXTURE_OUTLINE : CGlyphMap::FONT_TEXTURE_FILL));
-			Graphics()->QuadsBegin();
-			for(const STextCharQuad &Glyph : Container.m_StringInfo.m_vCharacterQuads)
-			{
-				const auto &A = Glyph.m_aVertices[0];
-				const auto &B = Glyph.m_aVertices[2];
-				const float Width = B.m_X - A.m_X, Height = B.m_Y - A.m_Y;
-				// Subdivide before sampling so even a long label follows the mask,
-				// instead of fading as one rectangle or as individual characters.
-				const int Columns = std::max(1, static_cast<int>(std::ceil(std::abs(Width) / 4)));
-				const int Rows = std::max(1, static_cast<int>(std::ceil(std::abs(Height) / 4)));
-				for(int y = 0; y < Rows; ++y)
-					for(int x = 0; x < Columns; ++x)
-					{
-						const float U0 = static_cast<float>(x) / Columns, U1 = static_cast<float>(x + 1) / Columns;
-						const float V0 = static_cast<float>(y) / Rows, V1 = static_cast<float>(y + 1) / Rows;
-						const vec2 TL(A.m_X + Width * U0, A.m_Y + Height * V0);
-						const vec2 BR(A.m_X + Width * U1, A.m_Y + Height * V1);
-						const auto Color = [&](vec2 Point) {
-							return ColorRGBA(Tint.r * A.m_Color.r / 255.f, Tint.g * A.m_Color.g / 255.f, Tint.b * A.m_Color.b / 255.f, Tint.a * A.m_Color.a / 255.f * Coverage(Point));
-						};
-						const ColorRGBA C0 = Color(TL), C1 = Color(vec2(BR.x, TL.y)), C2 = Color(vec2(TL.x, BR.y)), C3 = Color(BR);
-						if(C0.a == 0 && C1.a == 0 && C2.a == 0 && C3.a == 0)
-							continue;
-						Graphics()->SetColor4(C0, C1, C2, C3);
-						Graphics()->QuadsSetSubset(mix(A.m_U, B.m_U, U0) * UVScale, mix(A.m_V, B.m_V, V0) * UVScale, mix(A.m_U, B.m_U, U1) * UVScale, mix(A.m_V, B.m_V, V1) * UVScale);
-						const IGraphics::CQuadItem Quad(TL, BR - TL);
-						Graphics()->QuadsDrawTL(&Quad, 1);
-					}
-			}
-			Graphics()->QuadsEnd();
-		}
-		Graphics()->SetColor(1, 1, 1, 1);
-		Graphics()->TextureClear();
-	}
-
 	void RenderTextContainer(STextContainerIndex TextContainerIndex, const ColorRGBA &TextColor, const ColorRGBA &TextOutlineColor) override
 	{
 		const STextContainer &TextContainer = GetTextContainer(TextContainerIndex);

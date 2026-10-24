@@ -660,6 +660,7 @@ protected:
 
 public:
 	void RenderBackground();
+	void RenderLucentBrowser(CUIRect Screen);
 
 	CMenus();
 	int Sizeof() const override { return sizeof(*this); }

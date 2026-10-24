@@ -25,28 +25,25 @@ class CLucentMenu : public CComponentInterfaces
 	CLucentSecondaryNavigation m_Secondary;
 	vec2 m_LastMouse = vec2(-1, -1);
 	CRadialTransition m_RadialTransition;
-	STextContainerIndex m_aDestinationText[4];
-	vec2 m_DestinationSize = vec2(0, 0);
-	CButtonContainer m_BackButton, m_BrowserButton;
+	IGraphics::CTextureHandle m_SourceScene;
+	vec2 m_SceneSize = vec2(0, 0);
 	bool m_BlockInput = false;
 	void RenderMainMenu(CUIRect MainView);
-	void RenderRadialDestination(bool Interactive);
+	void RenderRadialComposition();
+	void ReleaseScenes();
 	bool CheckHotKey(int Key) const;
 	bool Button(int Index, const char *pLabel, const CUIRect &Rect, float Alpha, bool Enabled, bool Activate, float Offset = 0);
 
 public:
 	void RenderStartMenu(CUIRect MainView);
+	void CancelTransition();
 	void ResetLogo(ITextRender *pTextRender)
 	{
 		m_Logo.Reset(pTextRender);
 		m_Interaction.Reset();
-		// Resizing invalidates source geometry. Finish navigation directly;
-		// a completed destination keeps ownership while its text is rebuilt.
+		// Complete navigation on resize; cached pixels must never be stretched.
 		m_RadialTransition.Update(0, false);
-		for(auto &Text : m_aDestinationText)
-			if(Text.Valid())
-				pTextRender->DeleteTextContainer(Text);
-		m_DestinationSize = vec2(0, 0);
+		ReleaseScenes();
 		m_BlockInput = false;
 		m_LastFrame = -1;
 	}

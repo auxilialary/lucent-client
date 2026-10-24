@@ -61,6 +61,7 @@ public:
 		m_LastScreenTL = m_LastScreenBR = vec2(-1, -1);
 	}
 
+	int m_LocSceneMask = -1;
 	int m_LocPos;
 	int m_LocTextureSampler;
 

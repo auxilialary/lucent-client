@@ -75,5 +75,41 @@ int main()
 		CHECK(Transition.Completed());
 		CHECK(Transition.Coverage(Offset + Resized, Offset, Resized, 40) == 1);
 	}
+	// Exact deadline, repeat-click ownership, interruption and restart.
+	Transition.Reset();
+	const vec2 Click(215.25f, 386.75f);
+	CHECK(Transition.Start(0, Click, true));
+	Transition.Update(0.52, true);
+	CHECK(Transition.Active());
+	CHECK(!Transition.Start(0.53, vec2(0, 0), true));
+	CHECK(Transition.Origin() == Click);
+	Transition.Update(CRadialTransition::DURATION - 0.0001, true);
+	CHECK(Transition.Active());
+	Transition.Update(CRadialTransition::DURATION, true);
+	CHECK(Transition.Completed());
+	const auto CompleteMask = Transition.Mask(TopLeft, Size, 24);
+	for(const vec2 Corner : {TopLeft, vec2(Size.x, 0), vec2(0, Size.y), Size})
+		CHECK(CompleteMask.Coverage(Corner) > 0.99999f);
+	Transition.Reset(); // Escape / external state change releases ownership.
+	CHECK(!Transition.Active() && !Transition.Completed());
+	CHECK(Transition.Start(5, Click, true));
+	Transition.Update(5.3, true);
+	Transition.Update(0, false); // Resize finishes immediately, without stretching cached scenes.
+	CHECK(Transition.Completed());
+	// Quadratic ease-out still advances meaningfully in the last quarter.
+	Transition.Reset();
+	Transition.Start(0, Click, true);
+	Transition.Update(CRadialTransition::DURATION * 0.75, true);
+	const float Radius75 = Transition.Radius(TopLeft, Size, 24);
+	CHECK(Radius75 < 0.95f * (Transition.MaxRadius(TopLeft, Size) + 24));
+	// Composition is a single convex blend, even at near-zero coverage.
+	for(int Step = 0; Step <= 100; ++Step)
+	{
+		const float X = CompleteMask.m_Radius - 24.0f * Step / 100;
+		const float Coverage = CompleteMask.Coverage(Click + vec2(X, 0));
+		const float Source = 0.2f, Destination = 0.8f;
+		const float Color = Destination * Coverage + Source * (1 - Coverage);
+		CHECK(Color >= Source && Color <= Destination);
+	}
 	std::puts("Radial transition checks passed");
 }

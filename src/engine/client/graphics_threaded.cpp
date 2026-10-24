@@ -48,6 +48,7 @@ static CVideoMode g_aFakeModes[] = {
 void CGraphics_Threaded::FlushVertices(bool KeepVertices)
 {
 	CCommandBuffer::SCommand_Render Cmd;
+	Cmd.m_SceneMask = m_SceneMask;
 	EPrimitiveType PrimType;
 	size_t PrimCount, NumVerts;
 	FlushVerticesImpl(KeepVertices, PrimType, PrimCount, NumVerts, Cmd, sizeof(CCommandBuffer::SVertex));
@@ -406,6 +407,52 @@ static CCommandBuffer::SCommand_Texture_Create LoadTextureCreateCommand(int Text
 		Cmd.m_Flags |= TextureFlag::NO_2D_TEXTURE;
 
 	return Cmd;
+}
+
+void CGraphics_Threaded::RenderSceneTexture(CTextureHandle Texture, vec2 Origin, float Radius, float Feather)
+{
+	FlushVertices();
+	const vec2 Size = m_State.m_ScreenBR - m_State.m_ScreenTL;
+	const float Scale = ScreenSize().y / Size.y;
+	const vec2 PixelOrigin = (Origin - m_State.m_ScreenTL) * Scale;
+	m_SceneMask = vec4(PixelOrigin.x, ScreenSize().y - PixelOrigin.y, Radius * Scale, Feather * Scale);
+	TextureSet(Texture);
+	QuadsBegin();
+	SetColor(1, 1, 1, 1);
+	QuadsSetSubset(0, 1, 1, 0);
+	const CQuadItem Quad(m_State.m_ScreenTL, Size);
+	QuadsDrawTL(&Quad, 1);
+	QuadsEnd();
+	m_SceneMask = vec4(0, 0, 0, 0);
+	QuadsSetSubset(0, 0, 1, 1);
+	TextureClear();
+}
+
+IGraphics::CTextureHandle CGraphics_Threaded::CreateSceneTexture()
+{
+	int Major, Minor, Patch;
+	const char *pName = "";
+	GetDriverVersion(GRAPHICS_DRIVER_AGE_TYPE_MODERN, Major, Minor, Patch, pName, BACKEND_TYPE_AUTO);
+	// The existing Lucent Windows configuration uses desktop OpenGL 3.3.
+	// Other backends navigate immediately rather than showing an invalid scene.
+	if(str_comp(pName, "OpenGL") != 0 || !IsConfigModernAPI() || ScreenSize().x <= 0 || ScreenSize().y <= 0)
+		return {};
+	FlushVertices();
+	CTextureHandle Texture = FindFreeTextureIndex();
+	bool Success = false;
+	CCommandBuffer::SCommand_CreateSceneTexture Cmd;
+	Cmd.m_Slot = Texture.Id();
+	Cmd.m_Width = ScreenSize().x;
+	Cmd.m_Height = ScreenSize().y;
+	Cmd.m_pSuccess = &Success;
+	AddCmd(Cmd);
+	// Only at scene creation, never during animation. Wait for the render
+	// thread's allocation result, without reading any framebuffer pixels.
+	KickCommandBuffer();
+	WaitForIdle();
+	if(!Success)
+		FreeTextureIndex(&Texture);
+	return Texture;
 }
 
 IGraphics::CTextureHandle CGraphics_Threaded::LoadTextureRaw(const CImageInfo &Image, int Flags, const char *pTexName)

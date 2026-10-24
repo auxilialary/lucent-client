@@ -360,6 +360,12 @@ public:
 	virtual CTextureHandle LoadTextureRaw(const CImageInfo &Image, int Flags, const char *pTexName = nullptr) = 0;
 	virtual CTextureHandle LoadTextureRawMove(CImageInfo &Image, int Flags, const char *pTexName = nullptr) = 0;
 	virtual CTextureHandle LoadTexture(const char *pFilename, int StorageType, int Flags = 0) = 0;
+	// Copy the current complete scene on the GPU. Invalid on unsupported backends
+	// or allocation failure; no pixels are transferred to the CPU. OpenGL UVs
+	// have their origin at the bottom left. Caller owns the returned texture.
+	virtual CTextureHandle CreateSceneTexture() = 0;
+	// Draw an opaque scene outside a feathered circle in the current UI space.
+	virtual void RenderSceneTexture(CTextureHandle Texture, vec2 Origin, float Radius, float Feather) = 0;
 	virtual void TextureSet(CTextureHandle Texture) = 0;
 	void TextureClear() { TextureSet(CTextureHandle()); }
 
