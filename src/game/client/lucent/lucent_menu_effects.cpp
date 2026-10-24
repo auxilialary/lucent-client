@@ -132,11 +132,11 @@ namespace
 		}
 	};
 
-	const std::array<CIconGeometry, 14> &Icons()
+	const std::array<CIconGeometry, 15> &Icons()
 	{
 		// Tessellated once, no heap or GPU resource ownership. 20 x 20 viewbox.
 		static const auto s_Icons = [] {
-			std::array<CIconGeometry, 14> G{};
+			std::array<CIconGeometry, 15> G{};
 			G[0].Line({-4, -6.5f}, {6, 0});
 			G[0].Line({6, 0}, {-4, 6.5f});
 			G[0].Line({-4, 6.5f}, {-4, -6.5f});
@@ -211,6 +211,9 @@ namespace
 			G[12].Line({7, -7}, {7, 7});
 			G[12].Line({7, 7}, {2, 7});
 			G[13].RoundBox(-6, -6, 12, 12, 1);
+			G[14].Line({8, 0}, {-7, 0});
+			G[14].Line({-7, 0}, {-2, -5});
+			G[14].Line({-7, 0}, {-2, 5});
 			for(auto &Icon : G)
 				Icon.Join();
 			return G;
@@ -382,7 +385,7 @@ void CLucentMenuEffects::Connection(IGraphics *pGraphics, vec2 Center, float Sca
 	pGraphics->QuadsEnd();
 }
 
-void CLucentMenuEffects::Chip(IGraphics *pGraphics, const CUIRect &Rect, int Icon, float Alpha, float Highlight, double Time)
+void CLucentMenuEffects::Chip(IGraphics *pGraphics, const CUIRect &Rect, int Icon, float Alpha, float Highlight, double Time, int Glyph, float ContentAlpha, float ContentOffset, bool ContentOnly)
 {
 	const bool Secondary = Icon >= 6;
 	const float Strength = Secondary ? 0.75f : 1.0f;
@@ -390,56 +393,63 @@ void CLucentMenuEffects::Chip(IGraphics *pGraphics, const CUIRect &Rect, int Ico
 	const float Border = 0.7f + Highlight * 0.25f;
 	const vec2 Offset(Rect.x, Rect.y);
 	const vec2 Center(Rect.x + Rect.w / 2, Rect.y + Rect.h / 2);
-	const vec2 Origin(Rect.x + std::min(18.0f, Rect.w * 0.14f), Rect.y + Rect.h / 2);
+	const vec2 Origin(Rect.x + ContentOffset + std::min(18.0f, Rect.w * 0.14f), Rect.y + Rect.h / 2);
 	pGraphics->TextureClear();
 	pGraphics->QuadsBegin();
-	static std::array<CContour, 13> s_Contours;
-	auto &Contour = s_Contours[std::clamp(Icon, 0, 12)];
-	Contour.Update(Rect.w, Rect.h);
-	const float Head = static_cast<float>(std::fmod(Time / 1.8, 1.0));
-	const ColorRGBA Fill(0.065f + (Icon == 0 ? 0.012f : 0) + Highlight * 0.016f, 0.056f, 0.078f + Highlight * 0.013f, Icon == 6 ? Alpha * Highlight * 0.45f : Alpha);
-	for(int i = 0; i < CContour::SEGMENTS; ++i)
+	if(!ContentOnly)
 	{
-		const vec2 NA = Contour.m_aNormals[i], NB = Contour.m_aNormals[i + 1];
-		const vec2 A = Offset + Contour.m_aPoints[i], B = Offset + Contour.m_aPoints[i + 1];
-		const vec2 IA = A - NA * (Pixel * 0.5f), IB = B - NB * (Pixel * 0.5f);
-		pGraphics->SetColor(Fill);
-		IGraphics::CFreeformItem Body(Center, IA, Center, IB);
-		pGraphics->QuadsDrawFreeform(&Body, 1);
-		pGraphics->SetColor4(Fill, Fill, ColorRGBA(Fill.r, Fill.g, Fill.b, 0), ColorRGBA(Fill.r, Fill.g, Fill.b, 0));
-		IGraphics::CFreeformItem Edge(IA, IB, A + NA * (Pixel * 0.5f), B + NB * (Pixel * 0.5f));
-		pGraphics->QuadsDrawFreeform(&Edge, 1);
-	}
-	for(int i = 0; i < CContour::SEGMENTS; ++i)
-	{
-		const vec2 NA = Contour.m_aNormals[i], NB = Contour.m_aNormals[i + 1];
-		const vec2 A = Offset + Contour.m_aPoints[i] - NA * (Border * 0.5f);
-		const vec2 B = Offset + Contour.m_aPoints[i + 1] - NB * (Border * 0.5f);
-		if(Highlight > 0.001f)
-			for(int Layer = 3; Layer > 0; --Layer)
-				Ribbon(pGraphics, A, B, NA, NB, Border * 0.5f + Layer * 1.4f, ColorRGBA(1, 0.66f, 0.83f, Alpha * Highlight * 0.018f * Strength));
-		Ribbon(pGraphics, A, B, NA, NB, Border * 0.5f, ColorRGBA(1, 0.81f + Highlight * 0.09f, 0.91f + Highlight * 0.05f, Alpha * ((Icon == 6 ? 0.0f : Icon == 0 ? 0.23f : 0.14f) + Highlight * 0.62f) * Strength));
-		if(Highlight > 0.001f)
+		static std::array<CContour, 13> s_Contours;
+		auto &Contour = s_Contours[std::clamp(Icon, 0, 12)];
+		Contour.Update(Rect.w, Rect.h);
+		const float Head = static_cast<float>(std::fmod(Time / 1.8, 1.0));
+		const ColorRGBA Fill(0.065f + (Icon == 0 ? 0.012f : 0) + Highlight * 0.016f, 0.056f, 0.078f + Highlight * 0.013f, Icon == 6 ? Alpha * Highlight * 0.45f : Alpha);
+		for(int i = 0; i < CContour::SEGMENTS; ++i)
 		{
-			const auto LightAt = [Head, Highlight, Alpha](float T) {
-				const float Tail = std::fmod(Head - T + 1, 1.0f);
-				const float Light = Tail < 0.22f ? std::pow(std::sin(TAU * 0.5f * Tail / 0.22f), 2.0f) : 0;
-				return ColorRGBA(1, 0.88f, 0.95f, Light * Highlight * Alpha * 0.85f);
-			};
-			// Sample straight spans too, and interpolate endpoint alpha to avoid
-			// stepping at the moving highlight's head and between corner segments.
-			const int Steps = std::max(1, static_cast<int>(std::ceil(distance(A, B) / (2 * Pixel))));
-			for(int Step = 0; Step < Steps; ++Step)
+			const vec2 NA = Contour.m_aNormals[i], NB = Contour.m_aNormals[i + 1];
+			const vec2 A = Offset + Contour.m_aPoints[i], B = Offset + Contour.m_aPoints[i + 1];
+			const vec2 IA = A - NA * (Pixel * 0.5f), IB = B - NB * (Pixel * 0.5f);
+			pGraphics->SetColor(Fill);
+			IGraphics::CFreeformItem Body(Center, IA, Center, IB);
+			pGraphics->QuadsDrawFreeform(&Body, 1);
+			pGraphics->SetColor4(Fill, Fill, ColorRGBA(Fill.r, Fill.g, Fill.b, 0), ColorRGBA(Fill.r, Fill.g, Fill.b, 0));
+			IGraphics::CFreeformItem Edge(IA, IB, A + NA * (Pixel * 0.5f), B + NB * (Pixel * 0.5f));
+			pGraphics->QuadsDrawFreeform(&Edge, 1);
+		}
+		for(int i = 0; i < CContour::SEGMENTS; ++i)
+		{
+			const vec2 NA = Contour.m_aNormals[i], NB = Contour.m_aNormals[i + 1];
+			const vec2 A = Offset + Contour.m_aPoints[i] - NA * (Border * 0.5f);
+			const vec2 B = Offset + Contour.m_aPoints[i + 1] - NB * (Border * 0.5f);
+			if(Highlight > 0.001f)
+				for(int Layer = 3; Layer > 0; --Layer)
+					Ribbon(pGraphics, A, B, NA, NB, Border * 0.5f + Layer * 1.4f, ColorRGBA(1, 0.66f, 0.83f, Alpha * Highlight * 0.018f * Strength));
+			Ribbon(pGraphics, A, B, NA, NB, Border * 0.5f, ColorRGBA(1, 0.81f + Highlight * 0.09f, 0.91f + Highlight * 0.05f, Alpha * ((Icon == 6 ? 0.0f : Icon == 0 ? 0.23f :
+																						   0.14f) +
+																			  Highlight * 0.62f) *
+																		  Strength));
+			if(Highlight > 0.001f)
 			{
-				const float T0 = Step / static_cast<float>(Steps), T1 = (Step + 1) / static_cast<float>(Steps);
-				const ColorRGBA C0 = LightAt(mix(Contour.m_aDistance[i], Contour.m_aDistance[i + 1], T0));
-				const ColorRGBA C1 = LightAt(mix(Contour.m_aDistance[i], Contour.m_aDistance[i + 1], T1));
-				Ribbon(pGraphics, mix(A, B, T0), mix(A, B, T1), mix(NA, NB, T0), mix(NA, NB, T1), 0.65f, C0, &C1);
+				const auto LightAt = [Head, Highlight, Alpha](float T) {
+					const float Tail = std::fmod(Head - T + 1, 1.0f);
+					const float Light = Tail < 0.22f ? std::pow(std::sin(TAU * 0.5f * Tail / 0.22f), 2.0f) : 0;
+					return ColorRGBA(1, 0.88f, 0.95f, Light * Highlight * Alpha * 0.85f);
+				};
+				// Sample straight spans too, and interpolate endpoint alpha to avoid
+				// stepping at the moving highlight's head and between corner segments.
+				const int Steps = std::max(1, static_cast<int>(std::ceil(distance(A, B) / (2 * Pixel))));
+				for(int Step = 0; Step < Steps; ++Step)
+				{
+					const float T0 = Step / static_cast<float>(Steps), T1 = (Step + 1) / static_cast<float>(Steps);
+					const ColorRGBA C0 = LightAt(mix(Contour.m_aDistance[i], Contour.m_aDistance[i + 1], T0));
+					const ColorRGBA C1 = LightAt(mix(Contour.m_aDistance[i], Contour.m_aDistance[i + 1], T1));
+					Ribbon(pGraphics, mix(A, B, T0), mix(A, B, T1), mix(NA, NB, T0), mix(NA, NB, T1), 0.65f, C0, &C1);
+				}
 			}
 		}
 	}
+	Alpha *= ContentAlpha;
 	const ColorRGBA Color(0.88f + Highlight * 0.12f, 0.85f + Highlight * 0.1f, 0.92f + Highlight * 0.06f, Alpha * (0.82f + Highlight * 0.18f));
-	const auto &Geometry = Icons()[Icon];
+	const auto &Geometry = Icons()[Glyph < 0 ? Icon : Glyph];
 	const float IconScale = std::min(1.0f, Rect.h / 24.0f);
 	for(int i = 0; i < Geometry.m_Count; ++i)
 		Ribbon(pGraphics, Origin + Geometry.m_aSegments[i].m_A * IconScale, Origin + Geometry.m_aSegments[i].m_B * IconScale, Geometry.m_aSegments[i].m_NA, Geometry.m_aSegments[i].m_NB, 0.85f * IconScale, Color);

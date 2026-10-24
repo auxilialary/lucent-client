@@ -20,112 +20,84 @@ int main()
 	for(int Fps : {30, 60, 144, 240})
 	{
 		CLucentServerControls Controls;
-		Controls.Update(0, true, false, true, true);
-		CHECK(!Controls.IsOpen() && !Controls.Interactive());
-		Controls.Open();
+		CHECK(!Controls.IsOpen() && Controls.Interactive());
+		Controls.Open(); // Entering never needs a running process.
+		Controls.Update(0, true, true, true);
+		CHECK(Controls.IsOpen() && !Controls.Interactive());
 		for(int Frame = 0; Frame < Fps; ++Frame)
-			Controls.Update(1.0f / Fps, true, true, true, true);
-		CHECK(Controls.Interactive() && Controls.Progress() == 1);
-		Controls.Close(); // Escape, outside click, Join, or More.
-		Controls.Update(0.05f, true, true, true, true);
-		CHECK(!Controls.Interactive() && Controls.Progress() < 1 && Controls.Progress() > 0);
-		const float Closing = Controls.Progress();
-		Controls.Toggle();
-		Controls.Update(0, true, true, true, true);
-		CHECK(Controls.Progress() == Closing);
-		Controls.Update(1, true, true, true, true);
-		CHECK(Controls.Progress() == 1);
-		Controls.Update(0.01f, true, true, false, true); // Parent collapse clears intent.
-		CHECK(!Controls.IsOpen() && !Controls.Interactive());
-		Controls.Update(1, true, true, true, true);
+			Controls.Update(1.0f / Fps, true, true, true);
+		CHECK(Controls.Progress() == 1 && Controls.Interactive());
+		Controls.Close(); // Back / Escape does not own the process.
+		CHECK(!Controls.Interactive());
+		Controls.Update(0.05f, true, true, true);
+		const float Before = Controls.Progress();
+		CHECK(Before > 0 && Before < 1);
+		Controls.Open();
+		Controls.Update(0, true, true, true);
+		CHECK(Controls.Progress() == Before);
+		Controls.Update(1, true, true, true);
+		Controls.Update(0, true, false, true); // Entire parent has disappeared.
 		CHECK(!Controls.IsOpen() && Controls.Progress() == 0);
 		Controls.Open();
-		Controls.Update(0, false, true, true, true);
-		CHECK(Controls.Interactive() && Controls.Progress() == 1);
-		Controls.Update(0, true, true, true, false); // Focus / console.
-		CHECK(!Controls.IsOpen() && Controls.Progress() == 0);
-		Controls.Update(0, false, true, true, true);
-		CHECK(!Controls.IsOpen());
+		Controls.Update(0, false, true, true);
+		CHECK(Controls.Progress() == 1 && Controls.Interactive());
+		Controls.Close();
+		Controls.Update(0, false, true, true);
+		CHECK(Controls.Progress() == 0 && Controls.Interactive());
 		Controls.Open();
-		Controls.Update(0, false, true, true, true);
-		Controls.Update(0, true, false, true, true); // Stop or process exit.
-		CHECK(!Controls.IsOpen() && !Controls.Interactive());
-		Controls.Update(1, true, false, true, true);
-		CHECK(Controls.Progress() == 0);
+		Controls.Update(0, true, true, false);
+		CHECK(!Controls.IsOpen() && Controls.Progress() == 0);
 	}
-	// Dispatch uses both process and asynchronous startup state, including
-	// repeated activations while Android is still starting its service.
+	for(int Step = 1; Step < 28; ++Step)
+	{
+		CLucentServerControls Controls;
+		Controls.Open();
+		Controls.Update(Step * 0.01f, true, true, true);
+		const float Before = Controls.Progress();
+		Controls.Close();
+		Controls.Update(0, true, true, true);
+		CHECK(Controls.Progress() == Before && !Controls.Interactive());
+		Controls.Update(0.005f, true, true, true);
+		CHECK(Controls.Progress() < Before);
+	}
 	CHECK(CLucentServerControls::CanStart(false, false));
 	CHECK(!CLucentServerControls::CanStart(false, true));
 	CHECK(!CLucentServerControls::CanStart(true, false));
 	CHECK(!CLucentServerControls::CanStart(true, true));
-	for(float Scale : {0.6f, 1.0f, 1.8f})
-	{
-		const CUIRect Chip = {670 * Scale, 180 * Scale, 164 * Scale, 34 * Scale};
-		const float BaseSettingsY = Chip.y + Chip.h + 21 * Scale;
-		for(int Step = 0; Step <= 100; ++Step)
+	using EAction = CLucentServerControls::EAction;
+	CHECK(CLucentServerControls::Action(0, false, false) == EAction::START);
+	CHECK(CLucentServerControls::Action(1, false, false) == EAction::NONE);
+	CHECK(CLucentServerControls::Action(0, true, false) == EAction::CONNECT);
+	CHECK(CLucentServerControls::Action(1, true, false) == EAction::STOP);
+	CHECK(CLucentServerControls::Action(0, false, true) == EAction::NONE);
+	for(bool Running : {false, true})
+		for(bool Starting : {false, true})
 		{
-			const float Progress = Step / 100.0f;
-			const CUIRect Panel = CLucentServerControls::Bounds(Chip, Progress);
-			CHECK(CLucentServerControls::Row(Chip, 0, Progress).h == Chip.h);
-			CHECK(CLucentServerControls::Row(Chip, 1, Progress).h == Chip.h);
-			const CUIRect Join = CLucentServerControls::VisibleRow(Chip, 0, Progress, Progress);
-			const CUIRect Stop = CLucentServerControls::VisibleRow(Chip, 1, Progress, Progress);
-			CUIRect Settings = {Chip.x, BaseSettingsY, Chip.w, Chip.h};
-			CLucentAnimatedInsertion::Offset(Settings, Panel.h);
-			CHECK(Join.x == Chip.x && Stop.x == Chip.x);
-			CHECK(Join.w == Chip.w && Stop.w == Chip.w);
-			CHECK(Join.y >= Chip.y + Chip.h);
-			CHECK(Stop.y + 0.001f >= Join.y + Join.h);
-			CHECK(Stop.h == 0 || Settings.y >= Stop.y + Stop.h);
-			CHECK(Join.h == 0 || CLucentMenuInteraction::Contains(Panel, vec2(Join.x, Join.y)));
-			CHECK(Stop.h == 0 || Stop.y + Stop.h <= Panel.y + Panel.h + 0.001f);
+			CHECK(CLucentServerControls::Action(2, Running, Starting) == EAction::BACK);
+			CHECK(CLucentServerControls::CanDispatch(EAction::BACK, Running, Starting));
+			CHECK(CLucentServerControls::CanDispatch(EAction::START, Running, Starting) == (!Running && !Starting));
+			CHECK(CLucentServerControls::CanDispatch(EAction::CONNECT, Running, Starting) == Running);
+			CHECK(CLucentServerControls::CanDispatch(EAction::STOP, Running, Starting) == Running);
+			CHECK(!CLucentServerControls::CanDispatch(EAction::NONE, Running, Starting));
 		}
-
-		// The entire inline gap is a safe route from the parent to either child.
-		CLucentMenuInteraction Navigation;
-		const CUIRect Logo = {400 * Scale, 180 * Scale, 200 * Scale, 100 * Scale};
-		const CUIRect Left = {180 * Scale, 180 * Scale, 164 * Scale, 144 * Scale};
-		CHECK(Navigation.Update(0, vec2(500, 230) * Scale, Logo, Left, Chip, false, false));
-		for(int Step = 1; Step <= 36; ++Step)
-		{
-			const float Progress = Step / 36.0f;
-			const CUIRect Group = CLucentServerControls::Bounds(Chip, Progress);
-			const vec2 Mouse(Chip.x + Chip.w / 2, Group.y + Group.h * 0.5f);
-			CUIRect Right = Chip;
-			Right.h += Group.h + 2 * Chip.h;
-			CHECK(Navigation.Update(Step * 0.01, Mouse, Logo, Left, Right,
-				CLucentMenuInteraction::Contains(Group, Mouse), false));
-		}
-		Navigation.Close();
-		CHECK(!Navigation.IsOpen());
-	}
-	// Every point on the timeline can reverse without moving at zero dt.
-	for(int Step = 1; Step < 36; ++Step)
-	{
-		CLucentServerControls Controls;
-		Controls.Open();
-		Controls.Update(Step * 0.01f, true, true, true, true);
-		CHECK(Controls.Reveal(0) >= Controls.Reveal(1));
-		const float Before = Controls.Progress();
-		Controls.Close();
-		Controls.Update(0, true, true, true, true);
-		CHECK(Controls.Progress() == Before);
-		Controls.Update(0.005f, true, true, true, true);
-		CHECK(Controls.Progress() < Before);
-		Controls.Open();
-		const float Reversed = Controls.Progress();
-		Controls.Update(0, true, true, true, true);
-		CHECK(Controls.Progress() == Reversed);
-		Controls.Update(1, true, true, true, true);
-		CHECK(Controls.Progress() == 1 && Controls.Reveal(1) == 1);
-		Controls.Update(0.01f, true, false, true, true);
-		CHECK(Controls.Progress() > 0 && Controls.Progress() < 1);
-		CHECK(!Controls.Interactive());
-		Controls.Update(1, true, false, true, true);
-		CHECK(Controls.Progress() == 0);
-	}
-	std::puts("Server controls lifecycle, reversal, geometry and duplicate-start guards passed");
+	// Failure/exit cannot redirect Connect or Stop into Start; retry remains available.
+	CHECK(!CLucentServerControls::CanDispatch(CLucentServerControls::Action(0, true, false), false, false));
+	CHECK(CLucentServerControls::CanDispatch(CLucentServerControls::Action(0, false, false), false, false));
+	CLucentServerControls Lifecycle;
+	Lifecycle.Open();
+	Lifecycle.Update(0, false, true, true);
+	// Failed start, successful retry, process exit and re-entry read fresh state.
+	CHECK(Lifecycle.IsOpen() && CLucentServerControls::Action(0, false, false) == EAction::START);
+	CHECK(Lifecycle.IsOpen() && CLucentServerControls::Action(0, true, false) == EAction::CONNECT);
+	CHECK(Lifecycle.IsOpen() && CLucentServerControls::Action(0, false, false) == EAction::START);
+	Lifecycle.Update(0.05f, true, true, true); // Parent still visible while retracting.
+	CHECK(Lifecycle.IsOpen());
+	Lifecycle.Update(0, false, false, true);
+	CHECK(!Lifecycle.IsOpen());
+	Lifecycle.Open();
+	Lifecycle.Update(0, false, true, true);
+	CHECK(Lifecycle.IsOpen() && CLucentServerControls::Action(1, true, false) == EAction::STOP);
+	std::puts("Branch reversal, parent reset, instant mode and duplicate-start guards passed");
 	CLucentSecondaryNavigation Secondary;
 	Secondary.Update(0, true, true, true, true);
 	Secondary.Toggle();

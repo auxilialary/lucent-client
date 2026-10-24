@@ -35,22 +35,33 @@ bool CLucentMenu::Button(int Index, const char *pLabel, const CUIRect &Rect, flo
 	const bool Focus = m_Focus == Index;
 	CUIRect Visual = Rect;
 	const float Highlight = m_aHighlight[Index];
-	Visual.x += Offset + (Index >= 12 ? 0.0f : Index < 3 ? -2.5f : 2.5f) * Highlight;
+	Visual.x += Offset + (Index < 3 ? -2.5f : 2.5f) * Highlight;
 	const bool Accent = Index == 0;
 	const double PulseTime = g_Config.m_ClLucentLogoAnimation && Index < 6 && m_aPulseStart[Index] > 0 ? m_LastFrame - m_aPulseStart[Index] : m_EffectTime;
-	CLucentMenuEffects::Chip(Graphics(), Visual, Index, Alpha, Highlight, PulseTime);
-	CUIRect Label = Visual;
-	const float Inset = std::min(34.0f, Rect.w * 0.27f);
-	Label.x += Inset;
-	Label.w -= Inset + 10;
-	SLabelProperties Props;
-	// Width is fitted before rendering; keep the label on one line.
-	Props.m_MaxWidth = -1;
-	const ColorRGBA PreviousColor = TextRender()->GetTextColor();
-	TextRender()->TextColor(ColorRGBA(mix(Accent ? 0.96f : 0.88f, 1.0f, Highlight), mix(Accent ? 0.85f : 0.87f, 0.82f, Highlight), mix(0.92f, 0.9f, Highlight), Alpha));
-	const float FontSize = std::min(14.0f, 14.0f * (Label.w - 2) / std::max(1.0f, TextRender()->TextWidth(14.0f, pLabel)));
-	Ui()->DoLabel(&Label, pLabel, FontSize, TEXTALIGN_ML, Props);
-	TextRender()->TextColor(PreviousColor);
+	const float Branch = Index >= 3 && Index < 6 ? m_ServerControls.Progress() : 0;
+	const bool Running = GameClient()->m_LocalServer.IsServerRunning();
+	const char *apServerLabels[] = {Running ? "Подключиться" : "Запустить сервер", Running ? "Остановить сервер" : "Подключиться", "Назад"};
+	const int aServerIcons[] = {Running ? 12 : 3, Running ? 13 : 12, 14};
+	const auto Content = [&](const char *pText, float Opacity, float Shift, int Glyph, bool ContentOnly) {
+		CLucentMenuEffects::Chip(Graphics(), Visual, Index, Alpha, Highlight, PulseTime, Glyph, Opacity, Shift, ContentOnly);
+		CUIRect Label = Visual;
+		const float Inset = std::min(34.0f, Rect.w * 0.27f);
+		Label.x += Inset + Shift;
+		Label.w -= Inset + 10;
+		SLabelProperties Props;
+		Props.m_MaxWidth = -1;
+		const ColorRGBA PreviousColor = TextRender()->GetTextColor();
+		TextRender()->TextColor(ColorRGBA(mix(Accent ? 0.96f : 0.88f, 1.0f, Highlight), mix(Accent ? 0.85f : 0.87f, 0.82f, Highlight), mix(0.92f, 0.9f, Highlight), Alpha * Opacity));
+		const float FontSize = std::min(14.0f, 14.0f * (Label.w - 2) / std::max(1.0f, TextRender()->TextWidth(14.0f, pText)));
+		Ui()->DoLabel(&Label, pText, FontSize, TEXTALIGN_ML, Props);
+		TextRender()->TextColor(PreviousColor);
+	};
+	Content(pLabel, 1 - Branch, -8 * Branch, Index, false);
+	if(Index >= 3 && Index < 6 && Branch > 0)
+	{
+		const bool Disabled = !Running && (Index == 4 || (Index == 3 && GameClient()->m_LocalServer.IsStarting()));
+		Content(apServerLabels[Index - 3], Branch * (Disabled ? 0.4f : 1.0f), 8 * (1 - Branch), aServerIcons[Index - 3], true);
+	}
 	return !m_BlockInput && Enabled && (Ui()->DoButtonLogic(&m_aButtons[Index], 0, &Visual, BUTTONFLAG_LEFT) || (Focus && Activate));
 }
 
@@ -97,14 +108,8 @@ void CLucentMenu::RenderMainMenu(CUIRect MainView)
 		const float X = i < 3 ? Logo.x - Gap - Width : Logo.x + Logo.w + Gap;
 		aRects[i] = {std::clamp(X + aShiftX[i], MainView.x + 12, MainView.x + MainView.w - Width - 12), CenterY + (i % 3 - 1) * Pitch - Height / 2 + aShiftY[i], Width, Height};
 	}
-	const bool Running = GameClient()->m_LocalServer.IsServerRunning() || GameClient()->m_LocalServer.IsStarting();
-	if(!Frozen)
-		m_ServerControls.Update(Dt, Animate, Running, m_Interaction.IsOpen(), Focused);
-	const float ServerLayout = m_ServerControls.Progress();
-	const float aServerReveal[] = {m_ServerControls.Reveal(0), m_ServerControls.Reveal(1)};
-	const float ServerOffset = CLucentServerControls::Height(aRects[3], ServerLayout);
-	for(int i = 4; i < 6; ++i)
-		CLucentAnimatedInsertion::Offset(aRects[i], ServerOffset);
+	const bool Running = GameClient()->m_LocalServer.IsServerRunning();
+	const bool Starting = GameClient()->m_LocalServer.IsStarting();
 	// Use the actual group extents, including each row's asymmetric offset.
 	const auto Bounds = [&aRects](int First) {
 		CUIRect Result = aRects[First];
@@ -125,7 +130,6 @@ void CLucentMenu::RenderMainMenu(CUIRect MainView)
 	for(int i = 0; i < 5; ++i)
 		aExtra[i] = {CenterX - 90, More.y + More.h + 8 + i * 28, 180, 26};
 	const vec2 Mouse = Frozen ? m_RadialTransition.Origin() : vec2(Ui()->MouseX(), Ui()->MouseY());
-	const CUIRect ServerPanel = CLucentServerControls::Bounds(aRects[3], ServerLayout);
 	bool Open = m_Interaction.IsOpen();
 	bool Enter = false;
 	if(!Frozen)
@@ -135,15 +139,16 @@ void CLucentMenu::RenderMainMenu(CUIRect MainView)
 			m_Focus = -1;
 			m_LastMouse = Mouse;
 		}
-		bool Keyboard = false;
-		int aOrder[14] = {0, 1, 2, 3};
-		int Count = 4;
+		bool Keyboard = Focused && CheckHotKey(KEY_R);
+		if(Keyboard)
+			m_Focus = 3;
+		int aOrder[12] = {0, 1, 2};
+		int Count = 3;
 		if(m_ServerControls.Interactive())
-			for(int Row = 0; Row < 2; ++Row)
-				if(CLucentServerControls::VisibleRow(aRects[3], Row, ServerLayout, aServerReveal[Row]).h > aRects[3].h * 0.5f)
-					aOrder[Count++] = 12 + Row;
-		for(int i = 4; i < 7; ++i)
-			aOrder[Count++] = i;
+			for(int i = 3; i < 6; ++i)
+				if(!m_ServerControls.IsOpen() || CLucentServerControls::Action(i - 3, Running, Starting) != CLucentServerControls::EAction::NONE)
+					aOrder[Count++] = i;
+		aOrder[Count++] = 6;
 		if(m_Secondary.IsOpen())
 			for(int i = 7; i < 12; ++i)
 				aOrder[Count++] = i;
@@ -183,6 +188,7 @@ void CLucentMenu::RenderMainMenu(CUIRect MainView)
 			if(m_ServerControls.IsOpen())
 			{
 				m_ServerControls.Close();
+				Ui()->SetActiveItem(nullptr);
 				m_Focus = 3;
 			}
 			else if(m_Secondary.IsOpen())
@@ -204,12 +210,6 @@ void CLucentMenu::RenderMainMenu(CUIRect MainView)
 			for(const auto &Rect : aRects)
 				OverControl |= CLucentMenuInteraction::Contains(Rect, Mouse);
 			OverControl |= CLucentMenuInteraction::Contains(More, Mouse);
-			if(m_ServerControls.IsOpen())
-			{
-				CUIRect Corridor = ServerPanel;
-				// Includes the gap from the parent through both child slots.
-				OverControl |= CLucentMenuInteraction::Contains(Corridor, Mouse);
-			}
 			if(m_Secondary.Progress(0) > 0)
 			{
 				// A continuous corridor includes the gaps below More and between rows.
@@ -229,25 +229,19 @@ void CLucentMenu::RenderMainMenu(CUIRect MainView)
 		const float Target = Open ? 1.0f : 0.0f;
 		m_Progress = Animate ? std::clamp(m_Progress + (Open ? Dt : -Dt) / 0.35f, 0.0f, 1.0f) : Target;
 		m_Secondary.Update(Dt, Animate, Open, m_Progress > 0, Focused);
-		if(m_ServerControls.IsOpen() && Ui()->MouseButtonClicked(0) &&
-			!CLucentMenuInteraction::Contains(aRects[3], Mouse) && !CLucentMenuInteraction::Contains(CLucentServerControls::HitArea(ServerPanel), Mouse))
-			m_ServerControls.Close();
-		m_ServerControls.Update(0, Animate, Running, Open, Focused);
-		if(!m_ServerControls.IsOpen() && m_Focus >= 12)
-			m_Focus = Open ? 3 : -1;
+		m_ServerControls.Update(Dt, Animate, Open || m_Progress > 0, Focused);
 		if(!Open && m_Focus >= 7 && m_Focus < 12)
 			m_Focus = -1;
 		m_LogoEnergy = mix(m_LogoEnergy, Ui()->MouseInside(&Logo) ? 1.0f : 0.0f, Response);
 		const vec2 Cursor = Mouse - vec2(CenterX, CenterY);
 		const vec2 Parallax(std::clamp(Cursor.x / 160.0f, -1.0f, 1.0f) * 2 * Scale, std::clamp(Cursor.y / 100.0f, -1.0f, 1.0f) * 1.5f * Scale);
 		m_OrbitOffset = mix(m_OrbitOffset, Animate ? Parallax : vec2(0, 0), Response);
-		for(int i = 6; i < 14; ++i)
+		for(int i = 6; i < 12; ++i)
 		{
-			CUIRect Rect = i == 6 ? More : i < 12 ? aExtra[i - 7] :
-								CLucentServerControls::VisibleRow(aRects[3], i - 12, ServerLayout, aServerReveal[i - 12]);
+			CUIRect Rect = i == 6 ? More : aExtra[i - 7];
 			if(i >= 7 && i < 12)
 				Rect.y -= 10 * (1 - m_Secondary.Progress(i - 7));
-			const bool Hot = Open && (i == 6 || (i >= 7 && i < 12 && m_Secondary.Interactive(i - 7)) || (i >= 12 && m_ServerControls.Interactive())) && (Ui()->MouseInside(&Rect) || m_Focus == i || (i == 6 && m_Secondary.IsOpen()));
+			const bool Hot = Open && (i == 6 || (i >= 7 && i < 12 && m_Secondary.Interactive(i - 7))) && (Ui()->MouseInside(&Rect) || m_Focus == i || (i == 6 && m_Secondary.IsOpen()));
 			m_aHighlight[i] = mix(m_aHighlight[i], Hot ? 1.0f : 0.0f, Response);
 		}
 	}
@@ -275,14 +269,16 @@ void CLucentMenu::RenderMainMenu(CUIRect MainView)
 	}
 	m_Logo.Render(Graphics(), TextRender(), CenterX, CenterY - 29 * Scale, LogoWidth, m_EffectTime, m_LogoEnergy, m_OrbitOffset, aOrbitReaction);
 	bool aClick[6] = {};
-	const char *apLabels[] = {Localize("Play", "Start menu"), Localize("Demos"), Localize("Editor"), Localize("Run server"), Localize("Settings"), Localize("Quit")};
+	const char *apLabels[] = {Localize("Play", "Start menu"), Localize("Demos"), Localize("Editor"), "Локальный сервер", Localize("Settings"), Localize("Quit")};
 	for(int i = 0; i < 6; ++i)
 	{
 		const float T = Animate ? std::clamp((m_Progress * 0.35f - 0.065f - (i % 3) * 0.02f) / 0.245f, 0.0f, 1.0f) : m_Progress;
 		const float Ease = 1 - std::pow(1 - T, 3.0f);
 		const float Offset = (i < 3 ? 1 : -1) * 32 * (1 - Ease);
 		// Button applies the same reveal/highlight displacement to input and drawing.
-		aClick[i] = Button(i, apLabels[i], aRects[i], Ease, Open, Enter, Offset);
+		const bool Server = m_ServerControls.IsOpen();
+		const bool Enabled = Open && (i < 3 || (m_ServerControls.Interactive() && (!Server || CLucentServerControls::Action(i - 3, Running, Starting) != CLucentServerControls::EAction::NONE)));
+		aClick[i] = Button(i, apLabels[i], aRects[i], Ease, Enabled, Enter, Offset);
 	}
 	int NewPage = -1;
 	if(aClick[0] || (Enter && m_Focus < 0) || CheckHotKey(KEY_P))
@@ -310,36 +306,50 @@ void CLucentMenu::RenderMainMenu(CUIRect MainView)
 		m_ServerControls.Close();
 		GameClient()->m_LocalServer.Connect();
 	}
-	if(aClick[3] || CheckHotKey(KEY_R))
+	const bool ServerBranch = m_ServerControls.IsOpen();
+	if(!ServerBranch && aClick[3])
 	{
-		// Recheck at dispatch: a fast second activation must never start another
-		// process or turn a harmless chip click into an accidental stop.
-		if(!CLucentServerControls::CanStart(GameClient()->m_LocalServer.IsServerRunning(), GameClient()->m_LocalServer.IsStarting()))
-			m_ServerControls.Toggle();
-		else if(GameClient()->m_LocalServer.RunServer({}))
-			m_ServerControls.Open();
+		m_ServerControls.Open();
+		Ui()->SetActiveItem(nullptr);
 		m_Secondary.Close();
-		m_ServerControls.Update(0, Animate, GameClient()->m_LocalServer.IsServerRunning() || GameClient()->m_LocalServer.IsStarting(), Open, Focused);
 	}
-	Ui()->ClipEnable(&ServerPanel);
-	for(int Row = 0; Row < 2; ++Row)
+	if(ServerBranch)
 	{
-		const CUIRect Rect = CLucentServerControls::Row(aRects[3], Row, aServerReveal[Row]);
-		const CUIRect Visible = CLucentServerControls::VisibleRow(aRects[3], Row, ServerLayout, aServerReveal[Row]);
-		if(!Button(12 + Row, Row == 0 ? Localize("Join") : Localize("Stop server"), Rect, Activation * aServerReveal[Row], Open && m_ServerControls.Interactive() && Visible.h > Rect.h * 0.5f, Enter))
-			continue;
-		m_ServerControls.Close();
-		m_Focus = 3;
-		if(Row == 0)
-			GameClient()->m_LocalServer.Connect();
-		else
-			GameClient()->m_LocalServer.KillServer();
+		for(int Slot = 0; Slot < 3; ++Slot)
+		{
+			if(!aClick[3 + Slot])
+				continue;
+			using EAction = CLucentServerControls::EAction;
+			const EAction Action = CLucentServerControls::Action(Slot, Running, Starting);
+			// Validate the displayed action against the process again; never reinterpret
+			// a Connect click as Start if the process exited during this frame.
+			if(!CLucentServerControls::CanDispatch(Action, GameClient()->m_LocalServer.IsServerRunning(), GameClient()->m_LocalServer.IsStarting()))
+				continue;
+			if(Action == EAction::START)
+				GameClient()->m_LocalServer.RunServer({});
+			else if(Action == EAction::CONNECT)
+				GameClient()->m_LocalServer.Connect();
+			else if(Action == EAction::STOP)
+				GameClient()->m_LocalServer.KillServer();
+			else if(Action == EAction::BACK)
+			{
+				m_ServerControls.Close();
+				m_Focus = 3;
+			}
+			Ui()->SetActiveItem(nullptr);
+		}
+	}
+	if(Focused && CheckHotKey(KEY_R))
+	{
+		m_ServerControls.Open();
+		m_Secondary.Close();
 		Ui()->SetActiveItem(nullptr);
 	}
-	Ui()->ClipDisable();
-	if(aClick[4] || CheckHotKey(KEY_S))
+	if(!Frozen)
+		m_ServerControls.Update(0, Animate, Open || m_Progress > 0, Focused);
+	if((aClick[4] && !ServerBranch) || CheckHotKey(KEY_S))
 		NewPage = CMenus::PAGE_SETTINGS;
-	if(aClick[5] || CheckHotKey(KEY_Q))
+	if((aClick[5] && !ServerBranch) || CheckHotKey(KEY_Q))
 	{
 		m_ServerControls.Reset();
 		if(GameClient()->Editor()->HasUnsavedData() || (GameClient()->CurrentRaceTime() / 60 >= g_Config.m_ClConfirmQuitTime && g_Config.m_ClConfirmQuitTime >= 0))
@@ -448,7 +458,7 @@ void CLucentMenu::RenderMainMenu(CUIRect MainView)
 		}
 		else if(State == IUpdater::FAIL)
 		{
-			str_copy(aBuf, Localize("Update failed! Check log…"));
+			str_copy(aBuf, Localize("Update failed! Check logвЂ¦"));
 			TextRender()->TextColor(1.0f, 0.4f, 0.4f, 1.0f);
 		}
 		else if(State == IUpdater::NEED_RESTART)

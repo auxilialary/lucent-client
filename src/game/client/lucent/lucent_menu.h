@@ -12,9 +12,9 @@ class CLucentMenu : public CComponentInterfaces
 {
 	CLucentLogo m_Logo;
 	CLucentMenuInteraction m_Interaction;
-	CButtonContainer m_aButtons[14];
+	CButtonContainer m_aButtons[12];
 	float m_Progress = 0;
-	float m_aHighlight[14] = {};
+	float m_aHighlight[12] = {};
 	double m_aPulseStart[6] = {};
 	bool m_aWasHot[6] = {};
 	double m_LastFrame = -1;
