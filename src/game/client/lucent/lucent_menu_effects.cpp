@@ -29,6 +29,12 @@ namespace
 		return Center + vec2(X * 0.989f + Y * 0.148f, Y * 0.989f - X * 0.148f);
 	}
 
+	float ConnectionPulse(float T, float Age)
+	{
+		const float Tail = Age * 1.25f - T;
+		return Age >= 0 && Tail >= 0 && Tail < 0.24f ? std::pow(std::sin(TAU * 0.5f * Tail / 0.24f), 2.0f) : 0;
+	}
+
 	vec2 Bezier(vec2 A, vec2 B, vec2 C, vec2 D, float T)
 	{
 		const float U = 1 - T;
@@ -223,13 +229,13 @@ namespace
 	{
 		// An astroid has four slender, smoothly tapering rays. Shared vertices
 		// form a white-to-pink fan and a subtle, texture-free coverage halo.
-		constexpr int Segments = 64;
+		constexpr int Segments = 96;
 		for(int i = 0; i < Segments; ++i)
 		{
 			const auto Point = [Pixel](int Index) {
 				const float A = TAU * (Index % Segments) / Segments;
 				const float C = std::cos(A), S = std::sin(A);
-				return vec2(5.6f * C * C * C, 7.5f * S * S * S) * Pixel;
+				return vec2(7.0f * C * C * C * C * C, 9.4f * S * S * S * S * S) * Pixel;
 			};
 			const vec2 A = Point(i), B = Point(i + 1);
 			const ColorRGBA White(1, 1, 1, Brightness);
@@ -322,11 +328,9 @@ void CLucentMenuEffects::Connection(IGraphics *pGraphics, vec2 Center, float Sca
 		const auto ColorAt = [&](float T) {
 			const float U = std::clamp(T / 0.27f, 0.0f, 1.0f);
 			const float Dissolve = U * U * (3 - 2 * U);
-			const float Head = 1 - PulseAge * 1.25f;
-			const float Tail = T - Head;
-			const float Pulse = PulseAge >= 0 && Tail >= 0 && Tail < 0.24f ? std::pow(std::sin(TAU * 0.5f * Tail / 0.24f), 2.0f) : 0;
+			const float Pulse = ConnectionPulse(T, PulseAge);
 			return ColorRGBA(1, 0.88f - T * 0.13f, 0.94f - T * 0.06f,
-				Progress * Dissolve * ((0.13f + Highlight * 0.25f) + Pulse * Highlight * 0.38f));
+				Progress * Dissolve * ((0.13f + Highlight * 0.104f) + Pulse * Highlight * 0.12f));
 		};
 		const float T0 = 1 - i * Reveal / Segments, T1 = 1 - (i + 1) * Reveal / Segments;
 		const vec2 P0 = Bezier(A, B, C, D, T0), P1 = Bezier(A, B, C, D, T1);
@@ -355,7 +359,7 @@ void CLucentMenuEffects::Chip(IGraphics *pGraphics, const CUIRect &Rect, int Ico
 	auto &Contour = s_Contours[std::clamp(Icon, 0, 12)];
 	Contour.Update(Rect.w, Rect.h);
 	const float Head = static_cast<float>(std::fmod(Time / 1.8, 1.0));
-	const ColorRGBA Fill(0.065f + Highlight * 0.016f, 0.056f, 0.078f + Highlight * 0.013f, Alpha);
+	const ColorRGBA Fill(0.065f + (Icon == 0 ? 0.012f : 0) + Highlight * 0.016f, 0.056f, 0.078f + Highlight * 0.013f, Icon == 6 ? Alpha * Highlight * 0.45f : Alpha);
 	for(int i = 0; i < CContour::SEGMENTS; ++i)
 	{
 		const vec2 NA = Contour.m_aNormals[i], NB = Contour.m_aNormals[i + 1];
@@ -376,7 +380,7 @@ void CLucentMenuEffects::Chip(IGraphics *pGraphics, const CUIRect &Rect, int Ico
 		if(Highlight > 0.001f)
 			for(int Layer = 3; Layer > 0; --Layer)
 				Ribbon(pGraphics, A, B, NA, NB, Border * 0.5f + Layer * 1.4f, ColorRGBA(1, 0.66f, 0.83f, Alpha * Highlight * 0.018f * Strength));
-		Ribbon(pGraphics, A, B, NA, NB, Border * 0.5f, ColorRGBA(1, 0.81f + Highlight * 0.09f, 0.91f + Highlight * 0.05f, Alpha * (0.14f + Highlight * 0.62f) * Strength));
+		Ribbon(pGraphics, A, B, NA, NB, Border * 0.5f, ColorRGBA(1, 0.81f + Highlight * 0.09f, 0.91f + Highlight * 0.05f, Alpha * ((Icon == 6 ? 0.0f : Icon == 0 ? 0.23f : 0.14f) + Highlight * 0.62f) * Strength));
 		if(Highlight > 0.001f)
 		{
 			const auto LightAt = [Head, Highlight, Alpha](float T) {

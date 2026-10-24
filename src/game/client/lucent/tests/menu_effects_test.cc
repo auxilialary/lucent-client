@@ -22,6 +22,14 @@ void CUIRect::Draw(ColorRGBA, int, float) const
 
 int main()
 {
+	// One pulse moves from the orbit towards the button and never loops.
+	CHECK(ConnectionPulse(0.1f, -1) == 0);
+	CHECK(ConnectionPulse(0.1f, 0) == 0);
+	CHECK(ConnectionPulse(0.1f, 0.176f) > 0.99f);
+	CHECK(ConnectionPulse(0.8f, 0.176f) == 0);
+	CHECK(ConnectionPulse(0.8f, 0.736f) > 0.99f);
+	CHECK(ConnectionPulse(0.1f, 0.736f) == 0);
+	CHECK(ConnectionPulse(0.8f, 2.536f) == 0);
 	for(const auto &Icon : Icons())
 	{
 		CHECK(Icon.m_Count < static_cast<int>(Icon.m_aSegments.size()));

@@ -14,7 +14,10 @@ class CLucentMenuInteraction
 	double m_LastProgress = -1;
 	double m_OutsideSince = -1;
 	int m_Side = 0;
-	bool m_WasLogo = false;
+	CUIRect m_aLayout[3] = {};
+	bool m_HasLayout = false;
+	int m_PreviousRegion = 0;
+	bool m_Returning = false;
 	bool m_Open = false;
 	bool m_Suppressed = false;
 

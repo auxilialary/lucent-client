@@ -36,7 +36,25 @@ void CLucentMenuInteraction::Close()
 bool CLucentMenuInteraction::Update(double Now, vec2 Mouse, const CUIRect &Logo, const CUIRect &Left, const CUIRect &Right, bool OverControl, bool Keyboard)
 {
 	const bool OverLogo = Contains(Logo, Mouse);
-	const bool Initialized = m_LastTime >= 0;
+	const int Region = OverLogo ? 1 : OverControl ? (Contains(Left, Mouse) ? 2 : Contains(Right, Mouse) ? 3 : 4) : 0;
+	// A resize/UI-scale change invalidates cursor history in the old coordinate
+	// system. Keep the open state and give the new layout its normal grace.
+	const CUIRect aLayout[] = {Logo, Left, Right};
+	bool LayoutChanged = false;
+	for(int i = 0; i < 3; ++i)
+	{
+		const CUIRect &Old = m_aLayout[i], &New = aLayout[i];
+		LayoutChanged |= m_HasLayout && (Old.x != New.x || Old.y != New.y || Old.w != New.w || Old.h != New.h);
+		m_aLayout[i] = New;
+	}
+	m_HasLayout = true;
+	if(LayoutChanged)
+	{
+		m_PreviousRegion = 0;
+		m_Side = 0;
+		m_OutsideSince = Now;
+	}
+	const bool Initialized = m_LastTime >= 0 && !LayoutChanged;
 	const double Dt = Initialized ? Now - m_LastTime : 0;
 	const vec2 Delta = Initialized ? Mouse - m_Previous : vec2(0, 0);
 	if(!OverLogo && !OverControl)
@@ -52,25 +70,31 @@ bool CLucentMenuInteraction::Update(double Now, vec2 Mouse, const CUIRect &Logo,
 	}
 	else if(m_Open)
 	{
-		if(m_WasLogo && Initialized)
+		if(m_PreviousRegion != 0 && Initialized)
 		{
 			m_Origin = m_Previous;
-			m_Side = Mouse.x < Logo.x + Logo.w / 2 ? -1 : 1;
+			m_Returning = m_PreviousRegion != 1;
+			m_Side = m_PreviousRegion == 2 ? -1 : m_PreviousRegion == 3 ? 1 : Mouse.x < Logo.x + Logo.w / 2 ? -1 : 1;
 			m_TransitStart = Now;
 			m_LastProgress = Now;
 		}
-		const CUIRect &Target = m_Side < 0 ? Left : Right;
-		const float Edge = m_Side < 0 ? Target.x + Target.w : Target.x;
-		const float Forward = Delta.x * m_Side;
-		// Speed-dependent reverse tolerance filters subpixel jitter, not deliberate retreat.
 		const float Speed = Dt > 0 ? length(Delta) / static_cast<float>(Dt) : 0;
 		const float ReverseTolerance = std::clamp(Speed * static_cast<float>(std::min(Dt, 0.05)) * 0.04f, 0.05f, 0.5f);
-		const bool Toward = Forward >= -ReverseTolerance;
+		float Forward = Delta.x * m_Side * (m_Returning ? -1 : 1);
+		// Reverse from the last sample without restarting the transit deadline.
+		if(m_Side != 0 && Forward < -ReverseTolerance)
+		{
+			m_Returning = !m_Returning;
+			m_Origin = m_Previous;
+			Forward = -Forward;
+		}
+		const CUIRect &Target = m_Returning ? Logo : m_Side < 0 ? Left : Right;
+		const float Edge = (m_Side < 0) != m_Returning ? Target.x + Target.w : Target.x;
 		if(Forward > 0.001f)
 			m_LastProgress = Now;
-		const bool Corridor = m_Side != 0 && Toward &&
-				      Now - m_TransitStart < 1.8 && Now - m_LastProgress < 0.3 &&
-				      InTriangle(Mouse, m_Origin, vec2(Edge, Target.y), vec2(Edge, Target.y + Target.h));
+		const bool Corridor = m_Side != 0 &&
+			Now - m_TransitStart < 1.8 && Now - m_LastProgress < 0.3 &&
+			InTriangle(Mouse, m_Origin, vec2(Edge, Target.y), vec2(Edge, Target.y + Target.h));
 		if(Corridor)
 			m_OutsideSince = -1;
 		else
@@ -78,12 +102,12 @@ bool CLucentMenuInteraction::Update(double Now, vec2 Mouse, const CUIRect &Logo,
 			m_Side = 0;
 			if(m_OutsideSince < 0)
 				m_OutsideSince = Now;
-			if(Now - m_OutsideSince >= 0.2)
+			if(Now - m_OutsideSince >= 0.25)
 				Close();
 		}
 	}
 	m_Previous = Mouse;
 	m_LastTime = Now;
-	m_WasLogo = OverLogo;
+	m_PreviousRegion = Region;
 	return m_Open;
 }
