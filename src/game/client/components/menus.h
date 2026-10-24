@@ -537,7 +537,7 @@ protected:
 	void RenderServerbrowserServerList(CUIRect View, bool &WasListboxItemActivated);
 	void RenderServerbrowserStatusBox(CUIRect StatusBox, bool WasListboxItemActivated);
 	void PopupConfirmSwitchServer();
-	void RenderServerbrowserFilters(CUIRect View);
+	void RenderServerbrowserFilters(CUIRect View, CScrollRegion *pScroll = nullptr);
 	void ResetServerbrowserFilters();
 	void RenderServerbrowserDDNetFilter(CUIRect View,
 		IFilterList &Filter,

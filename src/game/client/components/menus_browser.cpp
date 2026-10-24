@@ -676,10 +676,52 @@ void CMenus::PopupConfirmSwitchServer()
 	Client()->Connect(m_aNextServer);
 }
 
-void CMenus::RenderServerbrowserFilters(CUIRect View)
+void CMenus::RenderServerbrowserFilters(CUIRect View, CScrollRegion *pScroll)
 {
 	const float RowHeight = 18.0f;
 	const float FontSize = (RowHeight - 4.0f) * CUi::ms_FontmodHeight; // based on DoButton_CheckBox
+
+	// Share the tab state with measurement so only the visible grid contributes.
+	enum EFilterTab
+	{
+		FILTERTAB_COUNTRIES = 0,
+		FILTERTAB_TYPES,
+	};
+	static EFilterTab s_ActiveTab = FILTERTAB_COUNTRIES;
+	const EFilterTab LayoutTab = s_ActiveTab;
+	const bool LayoutFinished = g_Config.m_BrIndicateFinished != 0;
+	float GridHeight = 0.0f;
+	if(pScroll)
+	{
+		if(ServerBrowser()->CommunityCache().CountriesTypesFilterAvailable())
+		{
+			const int Countries = ServerBrowser()->CommunityCache().SelectableCountries().size();
+			const int Types = ServerBrowser()->CommunityCache().SelectableTypes().size();
+			const int Columns = Countries > 8 ? 5 : 4;
+			GridHeight = LayoutTab == FILTERTAB_COUNTRIES ? ((Countries + Columns - 1) / Columns) * 22.0f : ((Types + 2) / 3) * 17.0f;
+		}
+		const bool Ranks = ServerBrowser()->CommunityCache().AnyRanksAvailable();
+		const float ContentHeight = 21.0f + 10.0f + 11 * RowHeight + 15.0f +
+			(Ranks ? RowHeight * (1 + LayoutFinished) : 0.0f) +
+			(ServerBrowser()->CommunityCache().CountriesTypesFilterAvailable() ? 25.0f + GridHeight : 0.0f) + 3.0f + RowHeight;
+		CScrollRegionParams Params;
+		Params.m_ScrollbarThickness = 8.0f;
+		Params.m_ScrollbarMargin = 1.0f;
+		Params.m_ForceShowScrollbar = true;
+		Params.m_ManualScrollInput = true;
+		Params.m_ScrollUnit = 3 * RowHeight;
+		pScroll->Begin(&View, &Params, ContentHeight);
+		View.VSplitRight(4.0f, &View, nullptr);
+		View.h = ContentHeight;
+		pScroll->AddRect(View);
+		CUIRect Exclude, Label;
+		View.HSplitTop(21.0f, &Exclude, &View);
+		Exclude.VSplitLeft(65.0f, &Label, &Exclude);
+		Ui()->DoLabel(&Label, Localize("Exclude"), 11, TEXTALIGN_ML);
+		static CLineInput s_Exclude(g_Config.m_BrExcludeString, sizeof(g_Config.m_BrExcludeString));
+		if(Ui()->DoClearableEditBox(&s_Exclude, &Exclude, 11))
+			Client()->ServerBrowserUpdate();
+	}
 
 	View.Margin(5.0f, &View);
 
@@ -772,7 +814,7 @@ void CMenus::RenderServerbrowserFilters(CUIRect View)
 				ServerBrowser()->Refresh(ServerBrowser()->GetCurrentType());
 		}
 
-		if(g_Config.m_BrIndicateFinished)
+		if(pScroll ? LayoutFinished : g_Config.m_BrIndicateFinished != 0)
 		{
 			View.HSplitTop(RowHeight, &Button, &View);
 			if(DoButton_CheckBox(&g_Config.m_BrFilterUnfinishedMap, Localize("Unfinished map"), g_Config.m_BrFilterUnfinishedMap, &Button))
@@ -793,16 +835,9 @@ void CMenus::RenderServerbrowserFilters(CUIRect View)
 		CUIRect TabContents, CountriesTab, TypesTab;
 		View.HSplitTop(6.0f, nullptr, &View);
 		View.HSplitTop(19.0f, &Button, &View);
-		View.HSplitTop(std::min(4.0f * 22.0f, View.h), &TabContents, &View);
+		View.HSplitTop(pScroll ? GridHeight : std::min(4.0f * 22.0f, View.h), &TabContents, &View);
 		Button.VSplitMid(&CountriesTab, &TypesTab);
 		TabContents.Draw(ColorActive, IGraphics::CORNER_B, 4.0f);
-
-		enum EFilterTab
-		{
-			FILTERTAB_COUNTRIES = 0,
-			FILTERTAB_TYPES,
-		};
-		static EFilterTab s_ActiveTab = FILTERTAB_COUNTRIES;
 
 		static CButtonContainer s_CountriesButton;
 		if(DoButton_MenuTab(&s_CountriesButton, Localize("Countries"), s_ActiveTab == FILTERTAB_COUNTRIES, &CountriesTab, IGraphics::CORNER_TL, nullptr, &ColorInactive, &ColorActive, nullptr, 4.0f))
@@ -816,11 +851,11 @@ void CMenus::RenderServerbrowserFilters(CUIRect View)
 			s_ActiveTab = FILTERTAB_TYPES;
 		}
 
-		if(s_ActiveTab == FILTERTAB_COUNTRIES)
+		if((pScroll ? LayoutTab : s_ActiveTab) == FILTERTAB_COUNTRIES)
 		{
 			RenderServerbrowserCountriesFilter(TabContents);
 		}
-		else if(s_ActiveTab == FILTERTAB_TYPES)
+		else if((pScroll ? LayoutTab : s_ActiveTab) == FILTERTAB_TYPES)
 		{
 			RenderServerbrowserTypesFilter(TabContents);
 		}
@@ -831,6 +866,8 @@ void CMenus::RenderServerbrowserFilters(CUIRect View)
 	{
 		ResetServerbrowserFilters();
 	}
+	if(pScroll)
+		pScroll->End();
 }
 
 void CMenus::ResetServerbrowserFilters()
@@ -882,7 +919,9 @@ void CMenus::RenderServerbrowserDDNetFilter(CUIRect View,
 	ScrollParams.m_ScrollbarThickness = 10.0f;
 	ScrollParams.m_ScrollbarMargin = 3.0f;
 	ScrollParams.m_ScrollUnit = 2.0f * ItemHeight;
-	ScrollRegion.Begin(&View, &ScrollParams);
+	const bool InLucentFilters = m_LucentPanelRendering && m_LucentBrowser.m_Panel == CLucentBrowserState::EPanel::FILTERS;
+	if(!InLucentFilters)
+		ScrollRegion.Begin(&View, &ScrollParams);
 
 	CUIRect Row;
 	int ColumnIndex = 0;
@@ -893,7 +932,7 @@ void CMenus::RenderServerbrowserDDNetFilter(CUIRect View,
 			View.HSplitTop(ItemHeight, &Row, &View);
 		Row.VSplitLeft(View.w / ItemsPerRow, &Item, &Row);
 		ColumnIndex = (ColumnIndex + 1) % ItemsPerRow;
-		if(!ScrollRegion.AddRect(Item))
+		if(!InLucentFilters && !ScrollRegion.AddRect(Item))
 			continue;
 
 		const void *pItemId = &vItemIds[ItemIndex];
@@ -981,7 +1020,8 @@ void CMenus::RenderServerbrowserDDNetFilter(CUIRect View,
 		RenderItem(ItemIndex, Item, pItemId, Active);
 	}
 
-	ScrollRegion.End();
+	if(!InLucentFilters)
+		ScrollRegion.End();
 }
 
 void CMenus::RenderServerbrowserCommunitiesFilter(CUIRect View)

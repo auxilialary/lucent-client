@@ -20,6 +20,7 @@ struct CScrollRegionParams
 	ColorRGBA m_SliderColorGrabbed;
 	bool m_ForceShowScrollbar;
 	bool m_ScrollHorizontal;
+	bool m_ManualScrollInput; // wheel ownership is handled by the caller
 
 	CScrollRegionParams()
 	{
@@ -36,6 +37,7 @@ struct CScrollRegionParams
 		m_SliderColorGrabbed = ColorRGBA(0.9f, 0.9f, 0.9f, 1.0f);
 		m_ForceShowScrollbar = false;
 		m_ScrollHorizontal = false;
+		m_ManualScrollInput = false;
 	}
 
 	ColorRGBA SliderColor(bool Active, bool Hovered) const
@@ -137,7 +139,8 @@ public:
 	CScrollRegion();
 	void Reset();
 
-	void Begin(CUIRect *pClipRect, const CScrollRegionParams *pParams = nullptr);
+	// Optional known content size clamps the offset before laying out this frame.
+	void Begin(CUIRect *pClipRect, const CScrollRegionParams *pParams = nullptr, float ContentSize = -1.0f);
 	void End();
 	bool AddRect(const CUIRect &Rect, bool ShouldScrollHere = false); // returns true if the added rect is visible (not clipped)
 	void ScrollHere(EScrollOption Option = SCROLLHERE_KEEP_IN_VIEW);

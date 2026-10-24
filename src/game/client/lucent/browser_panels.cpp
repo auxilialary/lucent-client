@@ -12,6 +12,7 @@ void CMenus::RenderLucentPanel(CUIRect View)
 {
 	using EPanel = CLucentBrowserState::EPanel;
 	const auto Mode = m_LucentBrowser.m_Panel;
+	const CUIRect PanelBounds = View;
 	View.Draw(ColorRGBA(.025f, .021f, .035f, .88f), IGraphics::CORNER_ALL, 4);
 	CUIRect Edge = {View.x, View.y + 8, .5f, View.h - 16};
 	Edge.Draw(ColorRGBA(1, .8f, .9f, .12f), 0, 0);
@@ -34,21 +35,17 @@ void CMenus::RenderLucentPanel(CUIRect View)
 	if(Mode == EPanel::FILTERS)
 	{
 		static CScrollRegion s_Scroll;
-		CScrollRegionParams Params;
-		Params.m_ScrollbarThickness = 8;
-		Params.m_ScrollbarMargin = 1;
-		s_Scroll.Begin(&View, &Params);
-		CUIRect Content = {View.x, View.y, View.w, std::max(540.f, View.h)};
-		s_Scroll.AddRect(Content);
-		CUIRect Exclude, Label;
-		Content.HSplitTop(21, &Exclude, &Content);
-		Exclude.VSplitLeft(65, &Label, &Exclude);
-		Ui()->DoLabel(&Label, Localize("Exclude"), 11, TEXTALIGN_ML);
-		static CLineInput s_Exclude(g_Config.m_BrExcludeString, sizeof(g_Config.m_BrExcludeString));
-		if(Ui()->DoClearableEditBox(&s_Exclude, &Exclude, 11))
-			Client()->ServerBrowserUpdate();
-		RenderServerbrowserFilters(Content);
-		s_Scroll.End();
+		// Consume over the whole panel before the server list sees the wheel,
+		// including the fixed header and padding on the first hover frame.
+		if(Ui()->Enabled() && Ui()->MouseHovered(&PanelBounds))
+		{
+			if(Ui()->ConsumeHotkey(CUi::HOTKEY_SCROLL_UP))
+				s_Scroll.ScrollRelative(CScrollRegion::SCROLLRELATIVE_UP);
+			else if(Ui()->ConsumeHotkey(CUi::HOTKEY_SCROLL_DOWN))
+				s_Scroll.ScrollRelative(CScrollRegion::SCROLLRELATIVE_DOWN);
+		}
+		// The filter renderer measures its complete layout before beginning scrolling.
+		RenderServerbrowserFilters(View, &s_Scroll);
 	}
 	else if(Mode == EPanel::FRIENDS)
 		RenderServerbrowserFriends(View);
