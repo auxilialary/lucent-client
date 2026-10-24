@@ -85,6 +85,28 @@ int main()
 	}
 	CHECK(Preview.Select("", 6));
 	CHECK(!Preview.Ready(7));
+	for(const auto &Size : {std::pair{1920u, 1080u}, std::pair{512u, 2048u}, std::pair{4096u, 8u}})
+	{
+		const float Scale = LucentPreview::DecodeScale(Size.first, Size.second);
+		CHECK(int(Size.first * Scale) * int(Size.second * Scale) <= 57600);
+		CHECK(std::max(Size.first, Size.second) * Scale <= 640.01f);
+		for(float ScreenWidth : {480.f, 1098.f, 1706.f})
+		{
+			const float Frame = LucentPreview::FrameScale(Size.first * Scale, Size.second * Scale, ScreenWidth, 600);
+			CHECK(Size.first * Scale * Frame <= ScreenWidth * .49f + .01f);
+			CHECK(Size.second * Scale * Frame <= 600 * .68f + .01f);
+			CHECK(Frame <= 1.6f);
+		}
+	}
+	for(float Mask : {0.f, .1f, .5f, .85f})
+		for(float T : {0.f, .1f, .5f, .9f, 1.f})
+		{
+			const float Old = LucentPreview::FadeAlpha(Mask, T, true, true);
+			const float New = LucentPreview::FadeAlpha(Mask, T, false, true);
+			CHECK(std::abs(New + Old * (1 - New) - Mask) < .00001f);
+			CHECK(std::abs(LucentPreview::FadeAlpha(Mask, T, true, false) - Mask * (1 - T)) < .00001f);
+		}
+
 	unsigned char aPng[33] = {137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 'I', 'H', 'D', 'R', 0, 0, 1, 64, 0, 0, 0, 180};
 	uint32_t W, H;
 	CHECK(LucentPreview::PngDimensions(aPng, sizeof(aPng), W, H));

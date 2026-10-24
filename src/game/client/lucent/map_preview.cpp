@@ -31,31 +31,19 @@ class CLucentMapPreview::CDecodeJob : public IJob
 		CByteBufferReader Reader(pData, Size);
 		if(!CImageLoader::LoadPng(Reader, "Lucent map preview", Source, Incompatible) || Source.m_Width != W || Source.m_Height != H)
 			return;
-		m_Image.m_Width = 320;
-		m_Image.m_Height = 180;
+		// Preserve the complete artwork, including portrait thumbnails. Decode once
+		// on the worker into a bounded texture; never crop text into a giant wallpaper.
+		const float Scale = LucentPreview::DecodeScale(W, H);
+		m_Image.m_Width = std::max(1, int(W * Scale));
+		m_Image.m_Height = std::max(1, int(H * Scale));
 		m_Image.m_Format = CImageInfo::FORMAT_RGBA;
 		m_Image.Allocate();
-		// Box sample in source space: inexpensive low-resolution blur and desaturation,
-		// performed once on a worker, never in the frame renderer.
-		for(size_t y = 0; y < 180; ++y)
-			for(size_t x = 0; x < 320; ++x)
+		for(size_t y = 0; y < m_Image.m_Height; ++y)
+			for(size_t x = 0; x < m_Image.m_Width; ++x)
 			{
-				ColorRGBA Sum(0, 0, 0, 0);
-				const float Scale = std::max(320.f / W, 180.f / H);
-				const int X = int((x + .5f - 160) / Scale + W * .5f), Y = int((y + .5f - 90) / Scale + H * .5f);
-				const int Radius = std::max(1, int(1 / Scale));
-				for(int dy = -2; dy <= 2; ++dy)
-					for(int dx = -2; dx <= 2; ++dx)
-					{
-						const auto C = Source.PixelColor(std::clamp(X + dx * Radius, 0, int(W) - 1), std::clamp(Y + dy * Radius, 0, int(H) - 1));
-						Sum.r += C.r / 25;
-						Sum.g += C.g / 25;
-						Sum.b += C.b / 25;
-					}
-				const float Grey = Sum.r * .2126f + Sum.g * .7152f + Sum.b * .0722f;
-				const float nx = (x + .5f) / 160 - 1, ny = (y + .5f) / 90 - 1;
-				const float Vignette = std::max(.35f, 1.f - .35f * (nx * nx + ny * ny));
-				m_Image.SetPixelColor(x, y, ColorRGBA((Grey * .7f + Sum.r * .3f) * Vignette, (Grey * .7f + Sum.g * .3f) * Vignette, (Grey * .7f + Sum.b * .3f) * Vignette, 1));
+				const auto C = Source.PixelColor(std::min(size_t(W - 1), x * W / m_Image.m_Width), std::min(size_t(H - 1), y * H / m_Image.m_Height));
+				const float Grey = C.r * .2126f + C.g * .7152f + C.b * .0722f;
+				m_Image.SetPixelColor(x, y, ColorRGBA(Grey * .18f + C.r * .82f, Grey * .18f + C.g * .82f, Grey * .18f + C.b * .82f, C.a));
 			}
 	}
 
@@ -92,9 +80,9 @@ void CLucentMapPreview::Update(const CServerInfo *pServer, double Now, bool Anim
 		m_pRequest.reset();
 		m_Map = pServer ? pServer->m_aMap : "";
 	}
-	if(!Animate || Now - m_FadeStart >= .38)
+	if(!Animate || Now - m_FadeStart >= .42)
 		m_Previous = -1;
-	if(m_pDecode && m_pDecode->Done() && (!Animate || Now - m_FadeStart >= .38))
+	if(m_pDecode && m_pDecode->Done() && (!Animate || Now - m_FadeStart >= .42))
 	{
 		if(m_Selection.Accept(m_pDecode->m_Generation) && m_pDecode->m_Image.m_pData)
 		{
@@ -105,6 +93,8 @@ void CLucentMapPreview::Update(const CServerInfo *pServer, double Now, bool Anim
 				pGraphics->UnloadTexture(&Entry.m_Texture);
 				Entry.m_Key = m_Selection.Key();
 				Entry.m_Used = Now;
+				Entry.m_Width = m_pDecode->m_Image.m_Width;
+				Entry.m_Height = m_pDecode->m_Image.m_Height;
 				Entry.m_Texture = pGraphics->LoadTextureRawMove(m_pDecode->m_Image, 0, "Lucent map atmosphere");
 				if(Entry.m_Texture.IsValid())
 					Change(Slot, Now, Animate);
@@ -162,11 +152,11 @@ void CLucentMapPreview::Update(const CServerInfo *pServer, double Now, bool Anim
 	}
 	if(m_Selection.Key().empty())
 	{
-		if(!Animate || Now - m_FadeStart >= .38)
+		if(!Animate || Now - m_FadeStart >= .42)
 			Change(-1, Now, Animate);
 		return;
 	}
-	if(!m_Selection.Ready(Now) || m_pDecode || m_pRequest || (Animate && Now - m_FadeStart < .38))
+	if(!m_Selection.Ready(Now) || m_pDecode || m_pRequest || (Animate && Now - m_FadeStart < .42))
 		return;
 	m_Selection.Start();
 	if(m_Failures.Contains(m_Selection.Key(), Now))
@@ -205,24 +195,44 @@ void CLucentMapPreview::Update(const CServerInfo *pServer, double Now, bool Anim
 void CLucentMapPreview::Render(IGraphics *pGraphics, const CUIRect &Screen, double Now, bool Animate)
 {
 	Screen.Draw(ColorRGBA(.018f, .015f, .027f, 1), 0, 0);
-	const float T = Animate ? std::clamp(float((Now - m_FadeStart) / .38), 0.f, 1.f) : 1;
+	const float T = Animate ? std::clamp(float((Now - m_FadeStart) / .42), 0.f, 1.f) : 1;
 	const float Fade = T * T * (3 - 2 * T);
-	const auto Draw = [&](int Index, float Alpha) {
+	const auto Draw = [&](int Index, float Alpha, bool Previous) {
 		if(Index < 0 || Alpha <= 0)
 			return;
 		pGraphics->TextureSet(m_aCache[Index].m_Texture);
 		pGraphics->WrapClamp();
 		pGraphics->QuadsBegin();
-		pGraphics->SetColor(1, 1, 1, Alpha * .38f);
-		// Cover with aspect-correct center crop.
-		const float Scale = std::max(Screen.w / 320, Screen.h / 180);
-		IGraphics::CQuadItem Quad(Screen.x + (Screen.w - 320 * Scale) / 2, Screen.y + (Screen.h - 180 * Scale) / 2, 320 * Scale, 180 * Scale);
-		pGraphics->QuadsDrawTL(&Quad, 1);
+		pGraphics->SetColor(1, 1, 1, Alpha * .85f);
+		const auto &Entry = m_aCache[Index];
+		const float Scale = LucentPreview::FrameScale(Entry.m_Width, Entry.m_Height, Screen.w, Screen.h);
+		const float Width = Entry.m_Width * Scale, Height = Entry.m_Height * Scale;
+		const float X = Screen.x + Screen.w * .76f - Width * .5f;
+		const float Y = Screen.y + Screen.h * .47f - Height * .5f;
+		// Feather all four edges in texture space. Geometry stays identical through fades.
+		constexpr int Steps = 24;
+		for(int y = 0; y < Steps; ++y)
+			for(int x = 0; x < Steps; ++x)
+			{
+				const auto Mask = [&](float u, float v) {
+					const float A = .85f * std::clamp(std::min({u, v, 1 - u, 1 - v}) * 7.f, 0.f, 1.f);
+					// Compensate alpha-over so equally framed images keep constant
+					// brightness and the outgoing image vanishes without a final jump.
+					return LucentPreview::FadeAlpha(A, Fade, Previous, m_Current >= 0);
+				};
+				const float U = float(x) / Steps, V = float(y) / Steps;
+				const float R = float(x + 1) / Steps, B = float(y + 1) / Steps;
+				pGraphics->QuadsSetSubset(U, V, R, B);
+				pGraphics->SetColor4(ColorRGBA(1, 1, 1, Mask(U, V)), ColorRGBA(1, 1, 1, Mask(R, V)), ColorRGBA(1, 1, 1, Mask(U, B)), ColorRGBA(1, 1, 1, Mask(R, B)));
+				IGraphics::CQuadItem Tile(X + Width * U, Y + Height * V, Width / Steps, Height / Steps);
+				pGraphics->QuadsDrawTL(&Tile, 1);
+			}
+		pGraphics->QuadsSetSubset(0, 0, 1, 1);
 		pGraphics->QuadsEnd();
 		pGraphics->WrapNormal();
 	};
-	Draw(m_Previous, 1 - Fade);
-	Draw(m_Current, Fade);
+	Draw(m_Previous, 1 - Fade, true);
+	Draw(m_Current, Fade, false);
 	// Preserve the artwork in open space, with a stronger scrim behind map names.
 	pGraphics->TextureClear();
 	pGraphics->QuadsBegin();

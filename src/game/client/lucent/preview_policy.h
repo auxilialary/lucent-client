@@ -2,6 +2,7 @@
 #define GAME_CLIENT_LUCENT_PREVIEW_POLICY_H
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <cstdint>
 #include <cstring>
 #include <string>
@@ -9,6 +10,20 @@
 
 namespace LucentPreview
 {
+	// Keep the original per-texture pixel budget while preserving source aspect.
+	inline float DecodeScale(uint32_t Width, uint32_t Height)
+	{
+		return std::min({1.f, 640.f / std::max(Width, Height), std::sqrt(57600.f / (float(Width) * Height))});
+	}
+	inline float FrameScale(float Width, float Height, float ScreenWidth, float ScreenHeight)
+	{
+		return std::min({ScreenWidth * .49f / Width, ScreenHeight * .68f / Height, 1.6f});
+	}
+	inline float FadeAlpha(float Mask, float Fade, bool Previous, bool HasCurrent)
+	{
+		return Previous && HasCurrent ? Mask * (1 - Fade) / (1 - Mask * Fade) : Mask * (Previous ? 1 - Fade : Fade);
+	}
+
 	inline bool PngDimensions(const unsigned char *pData, size_t Size, uint32_t &W, uint32_t &H)
 	{
 		const unsigned char aSignature[] = {137, 80, 78, 71, 13, 10, 26, 10};

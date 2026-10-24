@@ -21,8 +21,9 @@ class CLucentMapPreview
 		std::string m_Key;
 		IGraphics::CTextureHandle m_Texture;
 		double m_Used = 0;
+		int m_Width = 1, m_Height = 1;
 	};
-	// Eight 320x180 RGBA textures: <= 1.76 MiB, no persistent disk cache.
+	// Eight aspect-preserving textures, <= 57,600 pixels each: <= 1.76 MiB.
 	std::array<CEntry, 8> m_aCache;
 	LucentPreview::CFailures m_Failures;
 	void Fail(double Now, bool Animate);
