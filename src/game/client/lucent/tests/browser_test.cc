@@ -14,6 +14,12 @@
 	} while(0)
 int main()
 {
+	CHECK(CLucentBrowserState::Descriptor("DDNet RUS - Brutal") == "Brutal");
+	CHECK(CLucentBrowserState::Descriptor("DDNet GER - Moderate") == "Moderate");
+	CHECK(CLucentBrowserState::Descriptor("DDNet RUS - Custom") == "DDNet RUS - Custom");
+	CHECK(CLucentBrowserState::Descriptor("DDNet RUS - Brutal #2") == "DDNet RUS - Brutal #2");
+	CHECK(CLucentBrowserState::Descriptor("Other - Insane") == "Other - Insane");
+	CHECK(CLucentBrowserState::Descriptor("DDNet invalid - Solo") == "DDNet invalid - Solo");
 	CLucentBrowserState State;
 	using P = CLucentBrowserState::EPanel;
 	CHECK(!State.Escape());

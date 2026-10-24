@@ -66,9 +66,10 @@ void CMenus::RenderLucentBrowser(CUIRect Screen)
 	TextRender()->TextColor(LucentUi::Accent(1));
 	Ui()->DoLabel(&Brand, "LUCENT", 12, TEXTALIGN_ML);
 	TextRender()->TextColor(TextRender()->DefaultTextColor());
-	Top.VSplitRight(100, &Top, &Tools);
+	Top.VSplitRight(112, &Top, &Tools);
 	Top.VSplitRight(std::clamp(Top.w * .34f, 105.f, 205.f), &Nav, &Search);
 	Search.Margin(4, &Search);
+	Nav.VSplitRight(18, &Nav, nullptr);
 	static CLineInput s_Search(g_Config.m_BrFilterString, sizeof(g_Config.m_BrFilterString));
 	if(s_Search.IsActive())
 		m_LucentBrowser.m_Focus = 1;
@@ -104,14 +105,20 @@ void CMenus::RenderLucentBrowser(CUIRect Screen)
 		Client()->ServerBrowserUpdate();
 	static int s_aNav[5];
 	const char *apNav[] = {"All servers", "Favorites", "Friends", "Communities", "LAN"};
-	const float aWidths[] = {85, 75, 65, 95, 45};
-	const float NavScale = std::min(1.f, Nav.w / 365);
+	float aWidths[5];
+	float NavWidth = 0;
+	for(int i = 0; i < 5; ++i)
+	{
+		aWidths[i] = TextRender()->TextWidth(11, Localize(apNav[i])) + 18;
+		NavWidth += aWidths[i];
+	}
+	const float NavScale = std::min(1.f, Nav.w / NavWidth);
 	for(int i = 0; i < 5; ++i)
 	{
 		CUIRect Tab;
 		Nav.VSplitLeft(aWidths[i] * NavScale, &Tab, &Nav);
 		const bool Selected = (i == 0 && m_MenuPage == PAGE_INTERNET) || (i == 1 && m_MenuPage == PAGE_FAVORITES) || (i == 2 && m_LucentBrowser.m_Panel == CLucentBrowserState::EPanel::FRIENDS) || (i == 3 && m_LucentBrowser.m_Panel == CLucentBrowserState::EPanel::COMMUNITIES) || (i == 4 && m_MenuPage == PAGE_LAN);
-		if(!LucentBrowserButton(&s_aNav[i], apNav[i], Tab, Selected))
+		if(!LucentUi::TextButton(Ui(), TextRender(), &s_aNav[i], Localize(apNav[i]), Tab, Selected, 11 * NavScale))
 			continue;
 		if(i == 0 || i == 1 || i == 4)
 		{
@@ -137,7 +144,7 @@ void CMenus::RenderLucentBrowser(CUIRect Screen)
 	for(int i = 0; i < 4; ++i)
 	{
 		CUIRect Button;
-		Tools.VSplitLeft(25, &Button, &Tools);
+		Tools.VSplitLeft(28, &Button, &Tools);
 		Button.Margin(2, &Button);
 		const bool Click = LucentUi::IconButton(Ui(), TextRender(), &s_aTools[i], apIcons[i], Localize(apHints[i]), Button, i == 0 && m_LucentBrowser.m_Panel == CLucentBrowserState::EPanel::FILTERS);
 		if(i == 0 && (Click || (Activate && m_LucentBrowser.m_Focus == 2)))
@@ -148,7 +155,7 @@ void CMenus::RenderLucentBrowser(CUIRect Screen)
 		{
 			static SPopupMenuId s_Popup;
 			Ui()->SetActiveItem(&m_LucentDirectAddress);
-			Ui()->DoPopupMenu(&s_Popup, std::max(Screen.x, Button.x + Button.w - 255), Button.y + Button.h + 6, 255, 105, this, PopupLucentConnect, {IGraphics::CORNER_ALL, LucentUi::Accent(.18f), ColorRGBA(.025f, .021f, .035f, 1)});
+			Ui()->DoPopupMenu(&s_Popup, std::max(Screen.x, Button.x + Button.w - 255), Button.y + Button.h + 6, 255, 105, this, PopupLucentConnect, {IGraphics::CORNER_ALL, LucentUi::Accent(0), ColorRGBA(.025f, .021f, .035f, 1)});
 		}
 		if(i == 3 && Click)
 			SetShowStart(true);
@@ -217,17 +224,17 @@ void CMenus::RenderLucentBrowser(CUIRect Screen)
 void CMenus::RenderLucentServerList(CUIRect View, bool &Activated)
 {
 	static CListBox s_List;
-	s_List.SetColors(ColorRGBA(1, .8f, .9f, .075f), ColorRGBA(1, .9f, .95f, 0));
+	s_List.SetColors(ColorRGBA(1, .8f, .9f, 0), ColorRGBA(1, .9f, .95f, 0));
 	s_List.SetScrollbarWidth(10);
 	s_List.SetScrollbarMargin(2);
 	CUIRect Header;
 	View.HSplitTop(19, &Header, &View);
 	Header.VSplitRight(s_List.ScrollbarWidthMax(), &Header, nullptr);
 	const float ColumnScale = std::min(1.f, Header.w / 350);
-	const float Fixed = (24 + 64 + 46 + 32) * ColumnScale;
+	const float Fixed = (20 + 90 + 54 + 40 + 30) * ColumnScale;
 	const float MapWidth = std::max(0.f, Header.w - Fixed);
-	const float aWidths[] = {24 * ColumnScale, MapWidth, 0, 0, 32 * ColumnScale, 64 * ColumnScale, 46 * ColumnScale};
-	const char *apTitles[] = {"", "Map", "", "", "", "Players", "Ping"};
+	const float aWidths[] = {20 * ColumnScale, MapWidth, 0, 90 * ColumnScale, 40 * ColumnScale, 54 * ColumnScale, 30 * ColumnScale};
+	const char *apTitles[] = {"", "Map", "", "Type", "Region", "Players", "Ping"};
 	const int aSort[] = {IServerBrowser::SORT_FAVORITES, IServerBrowser::SORT_MAP, -1, -1, -1, IServerBrowser::SORT_NUMPLAYERS, IServerBrowser::SORT_PING};
 	static int s_aSortIds[7];
 	CUIRect aCols[7];
@@ -236,7 +243,7 @@ void CMenus::RenderLucentServerList(CUIRect View, bool &Activated)
 		Header.VSplitLeft(aWidths[c], &aCols[c], &Header);
 		if(aWidths[c] <= 0)
 			continue;
-		if(LucentBrowserButton(&s_aSortIds[c], apTitles[c], aCols[c], g_Config.m_BrSort == aSort[c]) && aSort[c] >= 0)
+		if(LucentUi::TextButton(Ui(), TextRender(), &s_aSortIds[c], Localize(apTitles[c]), aCols[c], false, 8, c >= 4 ? TEXTALIGN_MR : TEXTALIGN_ML) && aSort[c] >= 0)
 		{
 			CLucentBrowserState::Sort(aSort[c], g_Config.m_BrSort, g_Config.m_BrSortOrder, aSort[c] == IServerBrowser::SORT_PING || aSort[c] == IServerBrowser::SORT_NUMPLAYERS);
 			Client()->ServerBrowserUpdate();
@@ -275,7 +282,7 @@ void CMenus::RenderLucentServerList(CUIRect View, bool &Activated)
 		m_ServerBrowserShouldRevealSelection = false;
 	}
 	s_List.DoStart(17.f, Count, 1, 3, Selected, &View, false);
-	const char *apRegions[] = {"--", "AFR", "ASI", "AUS", "EUR", "NA", "SA", "CHN"};
+	const char *apRegions[] = {"--", "AF", "AS", "AU", "EU", "NA", "SA", "CN"};
 	for(int i = 0; i < Count; ++i)
 	{
 		const auto *pInfo = ServerBrowser()->SortedGet(i);
@@ -284,10 +291,12 @@ void CMenus::RenderLucentServerList(CUIRect View, bool &Activated)
 		m_vLucentRowHover[i] += (Hover - m_vLucentRowHover[i]) * (g_Config.m_ClLucentLogoAnimation ? 1 - std::exp(-Client()->RenderFrameTime() * 18) : 1);
 		if(!Item.m_Visible)
 			continue;
-		if(i == Selected)
+		const float Selection = LucentUi::Highlight(&vIds[i], i == Selected);
+		if(Selection > .001f)
 		{
+			Item.m_Rect.Draw(LucentUi::Accent(.065f * Selection), 0, 0);
 			CUIRect Marker = {Item.m_Rect.x, Item.m_Rect.y + 3, 1, Item.m_Rect.h - 6};
-			Marker.Draw(LucentUi::Accent(.85f), 0, 0);
+			Marker.Draw(LucentUi::Accent(.85f * Selection), 0, 0);
 		}
 		Item.m_Rect.Draw(ColorRGBA(1, .9f, .95f, .045f * m_vLucentRowHover[i]), IGraphics::CORNER_ALL, 2);
 		if(!vpElements[i])
@@ -298,7 +307,12 @@ void CMenus::RenderLucentServerList(CUIRect View, bool &Activated)
 			str_copy(aPing, "~");
 		else
 			str_format(aPing, sizeof(aPing), "%d", pInfo->m_Latency);
-		const char *apText[] = {pInfo->m_Favorite != TRISTATE::NONE ? FontIcon::STAR : "", pInfo->m_aMap, pInfo->m_aCommunityId, pInfo->m_aGameType, pInfo->m_aCommunityCountry[0] ? pInfo->m_aCommunityCountry : apRegions[std::clamp(pInfo->m_Location, 0, 7)], aPlayers, aPing};
+		char aDescriptor[128], aRegion[16];
+		const auto Descriptor = CLucentBrowserState::Descriptor(pInfo->m_aName);
+		str_copy(aDescriptor, std::string(Descriptor).c_str());
+		const char *pRegion = pInfo->m_aCommunityCountry[0] ? pInfo->m_aCommunityCountry : apRegions[std::clamp(pInfo->m_Location, 0, 7)];
+		str_copy(aRegion, str_comp(pRegion, "RUS") == 0 ? "RU" : str_comp(pRegion, "GER") == 0 ? "DE" : pRegion);
+		const char *apText[] = {pInfo->m_Favorite != TRISTATE::NONE ? FontIcon::STAR : "", pInfo->m_aMap, pInfo->m_aCommunityId, aDescriptor, aRegion, aPlayers, aPing};
 		for(int c = 0; c < 7; ++c)
 		{
 			if(aWidths[c] <= 0)
@@ -313,17 +327,6 @@ void CMenus::RenderLucentServerList(CUIRect View, bool &Activated)
 			{
 				TextRender()->SetFontPreset(EFontPreset::ICON_FONT);
 				TextRender()->TextColor(ColorRGBA(.95f, .79f, .87f, 1));
-			}
-			if(c == 1 && Cell.w > 120)
-			{
-				CUIRect Identity;
-				Cell.VSplitRight(Cell.w * .36f, &Cell, &Identity);
-				SLabelProperties IdentityProps = Props;
-				IdentityProps.m_MaxWidth = Identity.w;
-				TextRender()->TextColor(ColorRGBA(.54f, .50f, .55f, 1));
-				Ui()->DoLabel(&Identity, pInfo->m_aName, 8, TEXTALIGN_ML, IdentityProps);
-				TextRender()->TextColor(ColorRGBA(.94f, .92f, .95f, 1));
-				Props.m_MaxWidth = Cell.w;
 			}
 			Ui()->DoLabelStreamed(*vpElements[i]->Rect(c), &Cell, apText[c], c == 1 ? 11.f : 9.f, c >= 4 ? TEXTALIGN_MR : TEXTALIGN_ML, Props);
 			if(c == 0)
@@ -359,7 +362,6 @@ CUi::EPopupMenuFunctionResult CMenus::PopupLucentConnect(void *pContext, CUIRect
 {
 	auto *pMenus = static_cast<CMenus *>(pContext);
 	LucentUi::CScope Style(pMenus->Ui());
-	LucentUi::Surface(View);
 	View.Margin(8, &View);
 	CUIRect Title, Address, Action;
 	View.HSplitTop(20, &Title, &View);

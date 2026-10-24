@@ -84,6 +84,24 @@ namespace LucentUi
 		pTextRender->TextColor(pTextRender->DefaultTextColor());
 		return Enabled && pUi->DoButtonLogic(pId, Selected, &Rect, BUTTONFLAG_LEFT);
 	}
+	// Text navigation shares control geometry, without a persistent button surface.
+	inline bool TextButton(CUi *pUi, ITextRender *pTextRender, const void *pId, const char *pText, CUIRect Rect, bool Selected = false, float Size = 11, int Align = TEXTALIGN_MC)
+	{
+		const float Light = Highlight(pId, pUi->Enabled() && pUi->MouseHovered(&Rect));
+		const bool Pressed = pUi->CheckActiveItem(pId);
+		if(Selected)
+		{
+			CUIRect Line = {Rect.x + 4, Rect.y + Rect.h - 2, std::max(0.f, Rect.w - 8), 1};
+			Line.Draw(Accent(Pressed ? .95f : .7f), 0, 0);
+		}
+		pTextRender->TextColor(Selected ? Accent(Pressed ? .8f : 1.f) : ColorRGBA(.66f + .25f * Light, .63f + .20f * Light, .69f + .19f * Light, 1));
+		SLabelProperties Props;
+		Props.m_MaxWidth = std::max(0.f, Rect.w - 6);
+		Props.m_StopAtEnd = true;
+		pUi->DoLabel(&Rect, pText, Size, Align, Props);
+		pTextRender->TextColor(pTextRender->DefaultTextColor());
+		return pUi->DoButtonLogic(pId, Selected, &Rect, BUTTONFLAG_LEFT);
+	}
 	inline bool IconButton(CUi *pUi, ITextRender *pTextRender, const void *pId, const char *pIcon, const char *pHint, CUIRect Rect, bool Selected = false)
 	{
 		pTextRender->SetFontPreset(EFontPreset::ICON_FONT);

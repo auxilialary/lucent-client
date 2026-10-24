@@ -61,6 +61,25 @@ public:
 				return i;
 		return -1;
 	}
+	// Only a canonical DDNet identity can supply a shortened difficulty label.
+	// Unknown identities remain intact and are clipped by the presentation layer.
+	static std::string_view Descriptor(std::string_view Name)
+	{
+		constexpr std::string_view Prefix = "DDNet ";
+		if(Name.substr(0, Prefix.size()) != Prefix)
+			return Name;
+		const auto Separator = Name.find(" - ", Prefix.size());
+		if(Separator == std::string_view::npos)
+			return Name;
+		const auto Region = Name.substr(Prefix.size(), Separator - Prefix.size());
+		if(Region.size() < 2 || Region.size() > 3 || !std::all_of(Region.begin(), Region.end(), [](char C) { return C >= 'A' && C <= 'Z'; }))
+			return Name;
+		const auto Mode = Name.substr(Separator + 3);
+		for(const auto Known : {"Novice", "Moderate", "Brutal", "Insane", "Dummy", "Solo", "Oldschool", "DDmaX", "Race", "Fun"})
+			if(Mode == Known)
+				return Mode;
+		return Name;
+	}
 	static void Sort(int Column, int &Sort, int &Order, bool ThreeOrders)
 	{
 		Order = Sort == Column ? (Order + 1) % (ThreeOrders ? 3 : 2) : 0;
