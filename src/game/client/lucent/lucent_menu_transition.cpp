@@ -19,6 +19,7 @@ void CLucentMenu::CancelTransition()
 	m_RadialTransition.Reset();
 	m_Interaction.Reset();
 	m_Secondary.Reset();
+	m_ServerControls.Reset();
 	m_LastFrame = -1;
 	m_Focus = -1;
 }

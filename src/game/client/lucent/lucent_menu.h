@@ -3,6 +3,7 @@
 #include "lucent_logo.h"
 #include "lucent_menu_interaction.h"
 #include "radial_transition.h"
+#include "server_controls.h"
 
 #include <game/client/component.h>
 #include <game/client/ui.h>
@@ -11,9 +12,9 @@ class CLucentMenu : public CComponentInterfaces
 {
 	CLucentLogo m_Logo;
 	CLucentMenuInteraction m_Interaction;
-	CButtonContainer m_aButtons[13];
+	CButtonContainer m_aButtons[14];
 	float m_Progress = 0;
-	float m_aHighlight[13] = {};
+	float m_aHighlight[14] = {};
 	double m_aPulseStart[6] = {};
 	bool m_aWasHot[6] = {};
 	double m_LastFrame = -1;
@@ -23,6 +24,7 @@ class CLucentMenu : public CComponentInterfaces
 	vec2 m_OrbitOffset = vec2(0, 0);
 	int m_Focus = -1;
 	CLucentSecondaryNavigation m_Secondary;
+	CLucentServerControls m_ServerControls;
 	vec2 m_LastMouse = vec2(-1, -1);
 	CRadialTransition m_RadialTransition;
 	IGraphics::CTextureHandle m_SourceScene;
@@ -41,6 +43,7 @@ public:
 	{
 		m_Logo.Reset(pTextRender);
 		m_Interaction.Reset();
+		m_ServerControls.Reset();
 		// Complete navigation on resize; cached pixels must never be stretched.
 		m_RadialTransition.Update(0, false);
 		ReleaseScenes();

@@ -2766,6 +2766,7 @@ if(CLIENT)
     lucent/lucent_startup.cpp
     lucent/lucent_startup.h
     lucent/radial_transition.h
+    lucent/server_controls.h
     multiview.cpp
     pickup_data.cpp
     pickup_data.h

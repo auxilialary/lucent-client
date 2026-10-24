@@ -2716,7 +2716,7 @@ No country flags match your filter criteria
 == 
 
 Join
-== 
+== Подключиться
 
 not bound
 == 

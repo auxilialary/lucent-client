@@ -1,5 +1,6 @@
 // Standalone: compile with lucent_menu_interaction.cpp and the src include directory.
 #include "../lucent_menu_interaction.h"
+#include "../server_controls.h"
 
 #include <cstdio>
 #include <cstdlib>
@@ -16,6 +17,64 @@
 
 int main()
 {
+	for(int Fps : {30, 60, 144, 240})
+	{
+		CLucentServerControls Controls;
+		Controls.Update(0, true, false, true, true);
+		CHECK(!Controls.IsOpen() && !Controls.Interactive());
+		Controls.Open();
+		for(int Frame = 0; Frame < Fps; ++Frame)
+			Controls.Update(1.0f / Fps, true, true, true, true);
+		CHECK(Controls.Interactive() && Controls.Progress() == 1);
+		Controls.Close(); // Escape, outside click, Join, or More.
+		Controls.Update(0.05f, true, true, true, true);
+		CHECK(!Controls.Interactive() && Controls.Progress() < 1 && Controls.Progress() > 0);
+		const float Closing = Controls.Progress();
+		Controls.Toggle();
+		Controls.Update(0, true, true, true, true);
+		CHECK(Controls.Progress() == Closing);
+		Controls.Update(1, true, true, true, true);
+		CHECK(Controls.Progress() == 1);
+		Controls.Update(0.01f, true, true, false, true); // Parent collapse clears intent.
+		CHECK(!Controls.IsOpen() && !Controls.Interactive());
+		Controls.Update(1, true, true, true, true);
+		CHECK(!Controls.IsOpen() && Controls.Progress() == 0);
+		Controls.Open();
+		Controls.Update(0, false, true, true, true);
+		CHECK(Controls.Interactive() && Controls.Progress() == 1);
+		Controls.Update(0, true, true, true, false); // Focus / console.
+		CHECK(!Controls.IsOpen() && Controls.Progress() == 0);
+		Controls.Update(0, false, true, true, true);
+		CHECK(!Controls.IsOpen());
+		Controls.Open();
+		Controls.Update(0, false, true, true, true);
+		Controls.Update(0, true, false, true, true); // Stop or process exit.
+		CHECK(!Controls.IsOpen() && Controls.Progress() == 0);
+	}
+	// Dispatch uses both process and asynchronous startup state, including
+	// repeated activations while Android is still starting its service.
+	CHECK(CLucentServerControls::CanStart(false, false));
+	CHECK(!CLucentServerControls::CanStart(false, true));
+	CHECK(!CLucentServerControls::CanStart(true, false));
+	CHECK(!CLucentServerControls::CanStart(true, true));
+	for(float Scale : {0.6f, 1.0f, 1.8f})
+	{
+		const CUIRect Chip = {670 * Scale, 180 * Scale, 164 * Scale, 34 * Scale};
+		const CUIRect Group = {660 * Scale, 180 * Scale, 180 * Scale, 146 * Scale};
+		const CUIRect Panel = CLucentServerControls::Bounds(Chip, Group);
+		for(float Progress : {0.0f, 0.2f, 0.5f, 1.0f})
+		{
+			const CUIRect Join = CLucentServerControls::Row(Panel, 0, Progress);
+			const CUIRect Stop = CLucentServerControls::Row(Panel, 1, Progress);
+			CHECK(Join.w == Chip.w && Stop.w == Chip.w);
+			CHECK(Join.y > Group.y + Group.h);
+			CHECK(Stop.y > Join.y + Join.h);
+			CHECK(Join.x > 600 * Scale); // Clear of the logo and central More menu.
+			CHECK(CLucentMenuInteraction::Contains(CLucentServerControls::HitArea(Panel), vec2(Join.x, Join.y)));
+			CHECK(CLucentMenuInteraction::Contains(CLucentServerControls::HitArea(Panel), vec2(Stop.x + Stop.w, Stop.y + Stop.h)));
+		}
+	}
+	std::puts("Server controls lifecycle, reversal, geometry and duplicate-start guards passed");
 	CLucentSecondaryNavigation Secondary;
 	Secondary.Update(0, true, true, true, true);
 	Secondary.Toggle();

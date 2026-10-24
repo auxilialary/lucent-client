@@ -1081,6 +1081,7 @@ void CMenus::Render()
 	case IClient::STATE_OFFLINE:
 		if(m_Popup != POPUP_NONE)
 		{
+			m_MenusStart.CancelTransition();
 			RenderPopupFullscreen(Screen);
 		}
 		else if(m_ShowStart)

@@ -132,11 +132,11 @@ namespace
 		}
 	};
 
-	const std::array<CIconGeometry, 12> &Icons()
+	const std::array<CIconGeometry, 14> &Icons()
 	{
 		// Tessellated once, no heap or GPU resource ownership. 20 x 20 viewbox.
 		static const auto s_Icons = [] {
-			std::array<CIconGeometry, 12> G{};
+			std::array<CIconGeometry, 14> G{};
 			G[0].Line({-4, -6.5f}, {6, 0});
 			G[0].Line({6, 0}, {-4, 6.5f});
 			G[0].Line({-4, 6.5f}, {-4, -6.5f});
@@ -203,6 +203,14 @@ namespace
 			G[11].Line({-5, 8}, {0, 5});
 			for(float X : {-4.0f, 0.0f, 4.0f})
 				G[11].Line({X, -1}, {X, 1});
+			// Join: arrow entering a door. Stop: a distinct square control.
+			G[12].Line({-8, 0}, {3, 0});
+			G[12].Line({-1, -4}, {3, 0});
+			G[12].Line({3, 0}, {-1, 4});
+			G[12].Line({2, -7}, {7, -7});
+			G[12].Line({7, -7}, {7, 7});
+			G[12].Line({7, 7}, {2, 7});
+			G[13].RoundBox(-6, -6, 12, 12, 1);
 			for(auto &Icon : G)
 				Icon.Join();
 			return G;
@@ -376,7 +384,7 @@ void CLucentMenuEffects::Connection(IGraphics *pGraphics, vec2 Center, float Sca
 
 void CLucentMenuEffects::Chip(IGraphics *pGraphics, const CUIRect &Rect, int Icon, float Alpha, float Highlight, double Time)
 {
-	const bool Secondary = Icon >= 6 && Icon != 12;
+	const bool Secondary = Icon >= 6;
 	const float Strength = Secondary ? 0.75f : 1.0f;
 	const float Pixel = pGraphics->GetScreen().Size().y / pGraphics->ScreenSize().y;
 	const float Border = 0.7f + Highlight * 0.25f;
@@ -431,7 +439,7 @@ void CLucentMenuEffects::Chip(IGraphics *pGraphics, const CUIRect &Rect, int Ico
 		}
 	}
 	const ColorRGBA Color(0.88f + Highlight * 0.12f, 0.85f + Highlight * 0.1f, 0.92f + Highlight * 0.06f, Alpha * (0.82f + Highlight * 0.18f));
-	const auto &Geometry = Icons()[Icon == 12 ? 3 : Icon];
+	const auto &Geometry = Icons()[Icon];
 	const float IconScale = std::min(1.0f, Rect.h / 24.0f);
 	for(int i = 0; i < Geometry.m_Count; ++i)
 		Ribbon(pGraphics, Origin + Geometry.m_aSegments[i].m_A * IconScale, Origin + Geometry.m_aSegments[i].m_B * IconScale, Geometry.m_aSegments[i].m_NA, Geometry.m_aSegments[i].m_NB, 0.85f * IconScale, Color);
