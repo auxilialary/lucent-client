@@ -168,11 +168,16 @@ bool CUIRect::Inside(vec2 Point) const
 
 void CUIRect::Draw(ColorRGBA Color, int Corners, float Rounding) const
 {
+	Color.a *= ms_DrawOpacity;
 	ms_pGraphics->DrawRect(x, y, w, h, Color, Corners, Rounding);
 }
 
 void CUIRect::Draw4(ColorRGBA ColorTopLeft, ColorRGBA ColorTopRight, ColorRGBA ColorBottomLeft, ColorRGBA ColorBottomRight, int Corners, float Rounding) const
 {
+	ColorTopLeft.a *= ms_DrawOpacity;
+	ColorTopRight.a *= ms_DrawOpacity;
+	ColorBottomLeft.a *= ms_DrawOpacity;
+	ColorBottomRight.a *= ms_DrawOpacity;
 	ms_pGraphics->DrawRect4(x, y, w, h, ColorTopLeft, ColorTopRight, ColorBottomLeft, ColorBottomRight, Corners, Rounding);
 }
 
@@ -185,6 +190,7 @@ void CUIRect::DrawOutline(ColorRGBA Color) const
 		IGraphics::CLineItem(x, y + h, x, y)};
 	ms_pGraphics->TextureClear();
 	ms_pGraphics->LinesBegin();
+	Color.a *= ms_DrawOpacity;
 	ms_pGraphics->SetColor(Color);
 	ms_pGraphics->LinesDraw(aArray, std::size(aArray));
 	ms_pGraphics->LinesEnd();

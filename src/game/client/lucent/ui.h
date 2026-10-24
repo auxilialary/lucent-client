@@ -67,6 +67,24 @@ namespace LucentUi
 		explicit CScope(CUi *pUi) : m_pUi(pUi), m_Previous(pUi->LucentStyle()) { pUi->SetLucentStyle(true); }
 		~CScope() { m_pUi->SetLucentStyle(m_Previous); }
 	};
+	class COpacityScope
+	{
+		ITextRender *m_pTextRender;
+		float m_TextOpacity, m_RectOpacity;
+
+	public:
+		COpacityScope(ITextRender *pTextRender, float Opacity) :
+			m_pTextRender(pTextRender), m_TextOpacity(pTextRender->RenderOpacity()), m_RectOpacity(CUIRect::DrawOpacity())
+		{
+			m_pTextRender->SetRenderOpacity(m_TextOpacity * Opacity);
+			CUIRect::SetDrawOpacity(m_RectOpacity * Opacity);
+		}
+		~COpacityScope()
+		{
+			m_pTextRender->SetRenderOpacity(m_TextOpacity);
+			CUIRect::SetDrawOpacity(m_RectOpacity);
+		}
+	};
 	inline bool Button(CUi *pUi, ITextRender *pTextRender, const void *pId, const char *pText, CUIRect Rect, bool Selected = false, bool Enabled = true)
 	{
 		const bool Hover = Enabled && pUi->MouseHovered(&Rect);

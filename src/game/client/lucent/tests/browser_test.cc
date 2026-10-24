@@ -20,6 +20,8 @@ int main()
 	CHECK(CLucentBrowserState::Descriptor("DDNet RUS - Brutal #2") == "DDNet RUS - Brutal #2");
 	CHECK(CLucentBrowserState::Descriptor("Other - Insane") == "Other - Insane");
 	CHECK(CLucentBrowserState::Descriptor("DDNet invalid - Solo") == "DDNet invalid - Solo");
+	CHECK(CLucentBrowserState::Descriptor("DDNet RUS - Brutal #2", "Brutal") == "Brutal");
+	CHECK(CLucentBrowserState::Descriptor("Unusual server", "None") == "Unusual server");
 	CLucentBrowserState State;
 	using P = CLucentBrowserState::EPanel;
 	CHECK(!State.Escape());
@@ -53,6 +55,31 @@ int main()
 	State.Update(.016f, false);
 	CHECK(State.m_Open == 0);
 	CHECK(State.VisiblePanel() == P::NONE);
+	// The panel completes in 280 ms across display refresh rates. Switching
+	// content must preserve the surface and reverse closing without a snap.
+	for(int Fps : {30, 60, 144, 240})
+	{
+		CLucentBrowserState Motion;
+		Motion.Toggle(P::DETAILS);
+		for(int Frame = 0; Frame < int(std::ceil(.28f * Fps)); ++Frame)
+			Motion.Update(1.f / Fps, true);
+		CHECK(Motion.m_Open > .9999f);
+		Motion.Toggle(P::PLAYERS);
+		CHECK(Motion.m_Open > .9999f && Motion.m_Content == 0);
+		Motion.Update(.1f, true);
+		CHECK(Motion.m_Content > 0 && Motion.m_Content < 1);
+		Motion.Escape();
+		Motion.Update(.1f, true);
+		const float Partial = Motion.m_Open;
+		Motion.Toggle(P::FILTERS);
+		Motion.Update(1.f / Fps, true);
+		CHECK(Motion.m_Open > Partial);
+		Motion.Update(0, false);
+		CHECK(Motion.m_Open == 1 && Motion.m_Content == 1);
+		Motion.Escape();
+		Motion.Update(0, false);
+		CHECK(Motion.m_Open == 0 && Motion.VisiblePanel() == P::NONE);
+	}
 	int Sort = 3, Order = 0;
 	State.Sort(3, Sort, Order, true);
 	CHECK(Order == 1);

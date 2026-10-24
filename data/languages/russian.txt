@@ -2734,10 +2734,10 @@ Filters
 == Фильтры
 
 Server details
-== Сведения о сервере
+== Информация о сервере
 
 Legacy view
-== Классический вид
+== Классический интерфейс
 
 Return to Lucent browser
 == Вернуться в браузер Lucent
@@ -2746,7 +2746,7 @@ Search maps, servers, players
 == Поиск карт, серверов и игроков
 
 Direct connect
-== Быстрое подключение
+== Прямое подключение
 
 Server address
 == Адрес сервера
@@ -2807,3 +2807,21 @@ Refresh
 
 Connect
 == Подключиться
+
+Select a server to explore its map
+== Выберите сервер для просмотра карты
+
+Server preferences
+== Параметры сервера
+
+Identity and location
+== Тип и расположение
+
+Online friends
+== Друзья в сети
+
+Online clanmates
+== Соклановцы в сети
+
+Offline
+== Не в сети

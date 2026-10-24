@@ -73,6 +73,8 @@ void CMenus::RenderLucentBrowser(CUIRect Screen)
 	static CLineInput s_Search(g_Config.m_BrFilterString, sizeof(g_Config.m_BrFilterString));
 	if(s_Search.IsActive())
 		m_LucentBrowser.m_Focus = 1;
+	if(!Ui()->IsPopupOpen())
+		m_LucentDirectAddress.Deactivate();
 	const bool Keyboard = Ui()->Enabled() && !Ui()->IsPopupOpen();
 	if(Keyboard && Ui()->ConsumeHotkey(CUi::HOTKEY_TAB))
 	{
@@ -109,7 +111,7 @@ void CMenus::RenderLucentBrowser(CUIRect Screen)
 	float NavWidth = 0;
 	for(int i = 0; i < 5; ++i)
 	{
-		aWidths[i] = TextRender()->TextWidth(11, Localize(apNav[i])) + 18;
+		aWidths[i] = TextRender()->TextWidth(11, Localize(apNav[i])) + 24;
 		NavWidth += aWidths[i];
 	}
 	const float NavScale = std::min(1.f, Nav.w / NavWidth);
@@ -154,6 +156,9 @@ void CMenus::RenderLucentBrowser(CUIRect Screen)
 		if(i == 2 && (Click || (Activate && m_LucentBrowser.m_Focus >= 5)))
 		{
 			static SPopupMenuId s_Popup;
+			if(m_LucentDirectAddress.IsEmpty())
+				m_LucentDirectAddress.Set(g_Config.m_UiServerAddress);
+			m_LucentDirectAddress.SelectAll();
 			Ui()->SetActiveItem(&m_LucentDirectAddress);
 			Ui()->DoPopupMenu(&s_Popup, std::max(Screen.x, Button.x + Button.w - 255), Button.y + Button.h + 6, 255, 105, this, PopupLucentConnect, {IGraphics::CORNER_ALL, LucentUi::Accent(0), ColorRGBA(.025f, .021f, .035f, 1)});
 		}
@@ -217,7 +222,11 @@ void CMenus::RenderLucentBrowser(CUIRect Screen)
 	}
 	bool Activated = false;
 	RenderLucentServerList(List, Activated);
-	Status = Footer;
+	CUIRect Advanced;
+	Footer.VSplitRight(120, &Status, &Advanced);
+	static int s_Legacy;
+	if(LucentUi::TextButton(Ui(), TextRender(), &s_Legacy, Localize("Legacy view"), Advanced, false, 9, TEXTALIGN_MR))
+		m_LucentLegacyBrowser = true;
 	char aStatus[192];
 	str_format(aStatus, sizeof(aStatus), "%d %s · %d %s   %s", ServerBrowser()->NumSortedServers(), Localize("servers"), ServerBrowser()->NumSortedPlayers(), Localize("players"), ServerBrowser()->IsRefreshing() || ServerBrowser()->IsGettingServerlist() ? Localize("Refreshing...") : "");
 	TextRender()->TextColor(ColorRGBA(.63f, .62f, .69f, 1));
@@ -254,7 +263,10 @@ void CMenus::RenderLucentServerList(CUIRect View, bool &Activated)
 		Header.VSplitLeft(aWidths[c], &aCols[c], &Header);
 		if(aWidths[c] <= 0)
 			continue;
-		if(LucentUi::TextButton(Ui(), TextRender(), &s_aSortIds[c], Localize(apTitles[c]), aCols[c], false, 8, c >= 4 ? TEXTALIGN_MR : TEXTALIGN_ML) && aSort[c] >= 0)
+		CUIRect Label = aCols[c];
+		if(c != 0 && g_Config.m_BrSort == aSort[c])
+			Label.VSplitRight(9, &Label, nullptr);
+		if(LucentUi::TextButton(Ui(), TextRender(), &s_aSortIds[c], Localize(apTitles[c]), Label, false, 8, c >= 4 ? TEXTALIGN_MR : TEXTALIGN_ML) && aSort[c] >= 0)
 		{
 			CLucentBrowserState::Sort(aSort[c], g_Config.m_BrSort, g_Config.m_BrSortOrder, aSort[c] == IServerBrowser::SORT_PING || aSort[c] == IServerBrowser::SORT_NUMPLAYERS);
 			Client()->ServerBrowserUpdate();
@@ -319,10 +331,11 @@ void CMenus::RenderLucentServerList(CUIRect View, bool &Activated)
 		else
 			str_format(aPing, sizeof(aPing), "%d", pInfo->m_Latency);
 		char aDescriptor[128], aRegion[16];
-		const auto Descriptor = CLucentBrowserState::Descriptor(pInfo->m_aName);
+		const auto Descriptor = CLucentBrowserState::Descriptor(pInfo->m_aName, str_comp(pInfo->m_aCommunityId, IServerBrowser::COMMUNITY_DDNET) == 0 ? pInfo->m_aCommunityType : "");
 		str_copy(aDescriptor, std::string(Descriptor).c_str());
-		const char *pRegion = pInfo->m_aCommunityCountry[0] ? pInfo->m_aCommunityCountry : apRegions[std::clamp(pInfo->m_Location, 0, 7)];
-		str_copy(aRegion, str_comp(pRegion, "RUS") == 0 ? "RU" : str_comp(pRegion, "GER") == 0 ? "DE" : pRegion);
+		const char *pRegion = pInfo->m_aCommunityCountry[0] && str_comp(pInfo->m_aCommunityCountry, IServerBrowser::COMMUNITY_COUNTRY_NONE) != 0 ? pInfo->m_aCommunityCountry : apRegions[std::clamp(pInfo->m_Location, 0, 7)];
+		str_copy(aRegion, str_comp(pRegion, "RUS") == 0 ? "RU" : str_comp(pRegion, "GER") == 0 ? "DE" :
+													 pRegion);
 		const char *apText[] = {pInfo->m_Favorite != TRISTATE::NONE ? FontIcon::STAR : "", pInfo->m_aMap, pInfo->m_aCommunityId, aDescriptor, aRegion, aPlayers, aPing};
 		for(int c = 0; c < 7; ++c)
 		{
@@ -373,7 +386,7 @@ CUi::EPopupMenuFunctionResult CMenus::PopupLucentConnect(void *pContext, CUIRect
 {
 	auto *pMenus = static_cast<CMenus *>(pContext);
 	LucentUi::CScope Style(pMenus->Ui());
-	View.Margin(8, &View);
+	View.Margin(3, &View);
 	CUIRect Title, Address, Action;
 	View.HSplitTop(20, &Title, &View);
 	pMenus->Ui()->DoLabel(&Title, Localize("Direct connect"), 12, TEXTALIGN_ML);

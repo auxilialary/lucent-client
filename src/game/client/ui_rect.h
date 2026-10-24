@@ -6,13 +6,18 @@
 #include <base/color.h>
 #include <base/vmath.h>
 
+#include <algorithm>
+
 class IGraphics;
 
 class CUIRect
 {
 	static IGraphics *ms_pGraphics;
+	inline static float ms_DrawOpacity = 1;
 
 public:
+	static float DrawOpacity() { return ms_DrawOpacity; }
+	static void SetDrawOpacity(float Opacity) { ms_DrawOpacity = std::clamp(Opacity, 0.f, 1.f); }
 	static void Init(IGraphics *pGraphics) { ms_pGraphics = pGraphics; }
 
 	float x, y, w, h;

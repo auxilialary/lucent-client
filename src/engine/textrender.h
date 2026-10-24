@@ -8,6 +8,7 @@
 
 #include <engine/graphics.h>
 
+#include <algorithm>
 #include <cstdint>
 #include <functional>
 #include <memory>
@@ -195,6 +196,13 @@ class ITextRender : public IInterface
 {
 	MACRO_INTERFACE("textrender")
 public:
+private:
+	float m_RenderOpacity = 1;
+
+public:
+	// Submission-time opacity also fades cached text without rebuilding glyphs.
+	float RenderOpacity() const { return m_RenderOpacity; }
+	void SetRenderOpacity(float Opacity) { m_RenderOpacity = std::clamp(Opacity, 0.f, 1.f); }
 	virtual bool LoadFonts() = 0;
 	virtual void SetFontPreset(EFontPreset FontPreset) = 0;
 	virtual void SetFontLanguageVariant(const char *pLanguageFile) = 0;

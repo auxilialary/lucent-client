@@ -225,15 +225,15 @@ void CScrollRegion::DrawBackground(const CUIRect &ScrollbarBg)
 	// only show scrollbar if required
 	if(ScrollbarShown())
 	{
-		if(m_Params.m_ScrollbarBgColor.a > 0.0f)
+		if(!Ui()->LucentStyle() && m_Params.m_ScrollbarBgColor.a > 0.0f)
 		{
 			int Corners = m_Params.m_ScrollHorizontal ? IGraphics::CORNER_B : IGraphics::CORNER_R;
 			ScrollbarBg.Draw(m_Params.m_ScrollbarBgColor, Corners, 4.0f);
 		}
-		if(m_Params.m_RailBgColor.a > 0.0f)
+		if(!Ui()->LucentStyle() && m_Params.m_RailBgColor.a > 0.0f)
 		{
 			float Rounding = m_Params.m_ScrollHorizontal ? m_RailRect.h / 2.0f : m_RailRect.w / 2.0f;
-			m_RailRect.Draw(Ui()->LucentStyle() ? LucentUi::Accent(.045f) : m_Params.m_RailBgColor, IGraphics::CORNER_ALL, Rounding);
+			m_RailRect.Draw(m_Params.m_RailBgColor, IGraphics::CORNER_ALL, Rounding);
 		}
 	}
 	if(m_Params.m_ClipBgColor.a > 0.0f)
@@ -353,6 +353,14 @@ void CScrollRegion::DoSlider()
 	m_ScrollPos = std::clamp(m_ScrollPos, 0.0f, MaxScroll());
 	m_ContentScrollOffset = -m_ScrollPos;
 
+	// Keep the full rail as the drag target, only narrow the painted thumb.
+	if(Ui()->LucentStyle())
+	{
+		if(m_Params.m_ScrollHorizontal)
+			Slider.HMargin(std::max(0.f, (Slider.h - 2) * .5f), &Slider);
+		else
+			Slider.VMargin(std::max(0.f, (Slider.w - 2) * .5f), &Slider);
+	}
 	const float Rounding = m_Params.m_ScrollHorizontal ? Slider.h / 2.0f : Slider.w / 2.0f;
 	Slider.Draw(Ui()->LucentStyle() ? LucentUi::Accent(Ui()->CheckActiveItem(pId) ? .65f : Ui()->HotItem() == pId ? .48f :
 															.24f) :

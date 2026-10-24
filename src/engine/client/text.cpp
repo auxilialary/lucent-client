@@ -2137,8 +2137,11 @@ public:
 		}
 	}
 
-	void RenderTextContainer(STextContainerIndex TextContainerIndex, const ColorRGBA &TextColor, const ColorRGBA &TextOutlineColor) override
+	void RenderTextContainer(STextContainerIndex TextContainerIndex, const ColorRGBA &InputTextColor, const ColorRGBA &InputOutlineColor) override
 	{
+		ColorRGBA TextColor = InputTextColor, TextOutlineColor = InputOutlineColor;
+		TextColor.a *= RenderOpacity();
+		TextOutlineColor.a *= RenderOpacity();
 		const STextContainer &TextContainer = GetTextContainer(TextContainerIndex);
 
 		if(!TextContainer.m_StringInfo.m_vCharacterQuads.empty())
@@ -2201,7 +2204,9 @@ public:
 			if(TextContainer.m_HasSelection)
 			{
 				Graphics()->TextureClear();
-				Graphics()->SetColor(m_SelectionColor);
+				ColorRGBA SelectionColor = m_SelectionColor;
+				SelectionColor.a *= RenderOpacity();
+				Graphics()->SetColor(SelectionColor);
 				Graphics()->RenderQuadContainerEx(TextContainer.m_StringInfo.m_SelectionQuadContainerIndex, TextContainer.m_HasCursor ? 2 : 0, -1, 0, 0);
 				Graphics()->SetColor(1.0f, 1.0f, 1.0f, 1.0f);
 			}

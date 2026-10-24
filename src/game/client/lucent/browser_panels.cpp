@@ -1,3 +1,5 @@
+#include "ui.h"
+
 #include <engine/favorites.h>
 #include <engine/shared/config.h>
 
@@ -15,33 +17,24 @@ void CMenus::RenderLucentPanel(CUIRect View)
 	// Translate the entire surface, content and hitboxes together.
 	View.x += (1 - m_LucentBrowser.m_Open) * 12;
 	const CUIRect PanelBounds = View;
-	const ColorRGBA Clear(.025f, .021f, .035f, 0);
-	const ColorRGBA Scrim(.025f, .021f, .035f, .97f * m_LucentBrowser.m_Open);
-	CUIRect Feather = {View.x - 36, View.y, 36, View.h};
-	Feather.Draw4(Clear, Scrim, Clear, Scrim, 0, 0);
-	View.Draw(Scrim, 0, 0);
-	// Fade all legacy-rendered content uniformly, including skins and inputs.
-	// RAII keeps early-return paths (empty selection and players) consistent.
-	struct CContentFade
-	{
-		CUIRect m_Rect;
-		float m_Alpha;
-		~CContentFade() { m_Rect.Draw(ColorRGBA(.025f, .021f, .035f, m_Alpha), 0, 0); }
-	} ContentFade{View, 1 - m_LucentBrowser.m_Open * m_LucentBrowser.m_Content};
+	const float aX[] = {View.x - 36, View.x, View.x + View.w};
+	const float aY[] = {View.y - 16, View.y, View.y + View.h, View.y + View.h + 16};
+	const float aHorizontal[] = {0, 1, 1}, aVertical[] = {0, 1, 1, 0};
+	for(int y = 0; y < 3; ++y)
+		for(int x = 0; x < 2; ++x)
+		{
+			const auto Color = [&](int X, int Y) { return ColorRGBA(.025f, .021f, .035f, .97f * m_LucentBrowser.m_Open * aHorizontal[X] * aVertical[Y]); };
+			CUIRect Band = {aX[x], aY[y], aX[x + 1] - aX[x], aY[y + 1] - aY[y]};
+			Band.Draw4(Color(x, y), Color(x + 1, y), Color(x, y + 1), Color(x + 1, y + 1), 0, 0);
+		}
+	// Fade labels, cached text and shared controls with the same panel clock.
+	LucentUi::COpacityScope Opacity(TextRender(), m_LucentBrowser.m_Open * m_LucentBrowser.m_Content);
 	View.Margin(10, &View);
 	CUIRect Title, Close;
 	View.HSplitTop(24, &Title, &View);
 	Title.VSplitRight(24, &Title, &Close);
 	const char *apTitles[] = {"", "Filters", "Server details", "Players", "Friends", "Communities"};
 	Ui()->DoLabel(&Title, Localize(apTitles[int(Mode)]), 13, TEXTALIGN_ML);
-	static int s_Legacy;
-	if(Mode == EPanel::FILTERS)
-	{
-		CUIRect Legacy;
-		View.HSplitBottom(22, &View, &Legacy);
-		if(LucentBrowserButton(&s_Legacy, "Legacy view", Legacy))
-			m_LucentLegacyBrowser = true;
-	}
 	static int s_Close;
 	if(LucentBrowserButton(&s_Close, "x", Close))
 	{

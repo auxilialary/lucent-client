@@ -68,10 +68,12 @@ public:
 				return i;
 		return -1;
 	}
-	// Only a canonical DDNet identity can supply a shortened difficulty label.
+	// Prefer first-party community metadata, then a canonical DDNet identity.
 	// Unknown identities remain intact and are clipped by the presentation layer.
-	static std::string_view Descriptor(std::string_view Name)
+	static std::string_view Descriptor(std::string_view Name, std::string_view VerifiedType = {})
 	{
+		if(!VerifiedType.empty() && VerifiedType != "None")
+			return VerifiedType;
 		constexpr std::string_view Prefix = "DDNet ";
 		if(Name.substr(0, Prefix.size()) != Prefix)
 			return Name;
