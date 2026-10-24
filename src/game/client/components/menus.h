@@ -46,6 +46,7 @@ class CMenus : public CComponent
 	int m_LucentFilterWheel = 0;
 	void RenderLucentServerList(CUIRect View, bool &Activated);
 	void RenderLucentContext(CUIRect View, CLucentBrowserState::EPanel Mode);
+	const CServerInfo *LucentSelectedServer();
 	bool LucentBrowserButton(const void *pId, const char *pText, CUIRect Rect, bool Selected = false);
 	static ColorRGBA ms_GuiColor;
 	static ColorRGBA ms_ColorTabbarInactiveOutgame;

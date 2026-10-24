@@ -54,7 +54,7 @@ void CMenus::RenderLucentContext(CUIRect View, CLucentBrowserState::EPanel Mode)
 		RenderServerbrowserCommunitiesFilter(View);
 	else
 	{
-		const CServerInfo *pServer = ServerBrowser()->SortedGet(m_SelectedIndex);
+		const CServerInfo *pServer = LucentSelectedServer();
 		if(!pServer)
 		{
 			Ui()->DoLabel(&View, Localize("No server selected"), 12, TEXTALIGN_MC);

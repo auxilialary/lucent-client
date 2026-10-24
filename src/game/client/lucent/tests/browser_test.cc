@@ -1,3 +1,4 @@
+#include <game/client/lucent/browser_layout.h>
 #include <game/client/lucent/browser_state.h>
 #include <game/client/lucent/preview_policy.h>
 
@@ -22,6 +23,18 @@ int main()
 	CHECK(CLucentBrowserState::Descriptor("DDNet invalid - Solo") == "DDNet invalid - Solo");
 	CHECK(CLucentBrowserState::Descriptor("DDNet RUS - Brutal #2", "Brutal") == "Brutal");
 	CHECK(CLucentBrowserState::Descriptor("Unusual server", "None") == "Unusual server");
+	// The actual filter measurement must include every row when overflowing,
+	// and shrink again when changing grid tabs or disabling rank indication.
+	const auto Countries = CLucentBrowserFilterLayout::Measure(1000, 101, 3, true, true, true, true);
+	CHECK(Countries.m_Wide && Countries.m_GridHeight == 21 * 22);
+	CHECK(Countries.m_ContentHeight >= Countries.m_GridHeight + 25);
+	const auto Types = CLucentBrowserFilterLayout::Measure(1000, 101, 3, false, true, true, true);
+	CHECK(Types.m_GridHeight == 17 && Types.m_ContentHeight == 300);
+	const auto Narrow = CLucentBrowserFilterLayout::Measure(600, 8, 4, true, true, true, true);
+	CHECK(!Narrow.m_Wide && Narrow.m_GridHeight == 44);
+	CHECK(Narrow.m_ContentHeight > Types.m_ContentHeight);
+	CHECK(CLucentBrowserFilterLayout::Measure(600, 8, 4, true, true, true, false).m_ContentHeight == Narrow.m_ContentHeight - 21);
+	CHECK(CLucentBrowserFilterLayout::Measure(600, 8, 4, true, false, false, false).m_GridHeight == 0);
 	CLucentBrowserState State;
 	using P = CLucentBrowserState::EPanel;
 	CHECK(!State.Escape());
@@ -79,6 +92,15 @@ int main()
 		CHECK(Motion.m_Primary.m_Visible == Primary::SERVERS && Motion.Expansion() == 0);
 		CHECK(Motion.m_Scene.m_Target == Scene::DETAILS);
 	}
+	CLucentBrowserState Closing;
+	Closing.Toggle(P::FILTERS);
+	Closing.Update(0, false);
+	Closing.Escape();
+	Closing.Update(.1f, true);
+	CHECK(Closing.m_Overlay.m_Visible == Overlay::FILTERS && Closing.Expansion() > 0);
+	for(int i = 0; i < 4; ++i)
+		Closing.Update(.1f, true);
+	CHECK(Closing.m_Overlay.m_Visible == Overlay::NONE && Closing.Expansion() == 0);
 	// Retargeting preserves geometry, including reversal and changed UI scale.
 	CLucentBrowserIndicator Indicator;
 	Indicator.Update(10, 50, 0, true);

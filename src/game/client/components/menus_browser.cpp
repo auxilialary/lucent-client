@@ -20,6 +20,7 @@
 #include <game/client/animstate.h>
 #include <game/client/components/countryflags.h>
 #include <game/client/gameclient.h>
+#include <game/client/lucent/browser_layout.h>
 #include <game/client/ui.h>
 #include <game/client/ui_listbox.h>
 #include <game/localization.h>
@@ -695,15 +696,14 @@ void CMenus::RenderServerbrowserFilters(CUIRect View, CScrollRegion *pScroll)
 	float GridHeight = 0.0f;
 	if(pScroll)
 	{
-		if(ServerBrowser()->CommunityCache().CountriesTypesFilterAvailable())
-		{
-			const int Countries = ServerBrowser()->CommunityCache().SelectableCountries().size();
-			const int Types = ServerBrowser()->CommunityCache().SelectableTypes().size();
-			const int Columns = Countries > 8 ? 5 : 4;
-			GridHeight = LayoutTab == FILTERTAB_COUNTRIES ? ((Countries + Columns - 1) / Columns) * 22.0f : ((Types + 2) / 3) * 17.0f;
-		}
-		const bool Ranks = ServerBrowser()->CommunityCache().AnyRanksAvailable();
-		const float ContentHeight = Wide ? std::max(300.f, 35.f + GridHeight) : 21.0f + 10.0f + 11 * RowHeight + 15.0f + 48.0f + (Ranks ? RowHeight * (1 + LayoutFinished) : 0.0f) + (ServerBrowser()->CommunityCache().CountriesTypesFilterAvailable() ? 25.0f + GridHeight : 0.0f) + 3.0f + RowHeight;
+		const auto Layout = CLucentBrowserFilterLayout::Measure(View.w,
+			ServerBrowser()->CommunityCache().SelectableCountries().size(),
+			ServerBrowser()->CommunityCache().SelectableTypes().size(),
+			LayoutTab == FILTERTAB_COUNTRIES,
+			ServerBrowser()->CommunityCache().CountriesTypesFilterAvailable(),
+			ServerBrowser()->CommunityCache().AnyRanksAvailable(), LayoutFinished);
+		GridHeight = Layout.m_GridHeight;
+		const float ContentHeight = Layout.m_ContentHeight;
 		CScrollRegionParams Params;
 		Params.m_ScrollbarThickness = 8.0f;
 		Params.m_ScrollbarMargin = 1.0f;
@@ -1726,6 +1726,8 @@ void CMenus::RenderServerbrowserFriends(CUIRect View)
 				}
 
 				// handle click and double click on item
+				if(ButtonResult && !Friend.ServerInfo() && Ui()->LucentStyle())
+					g_Config.m_UiServerAddress[0] = '\0';
 				if(ButtonResult && Friend.ServerInfo())
 				{
 					str_copy(g_Config.m_UiServerAddress, Friend.ServerInfo()->m_aAddress);

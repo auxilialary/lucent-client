@@ -295,6 +295,14 @@ namespace
 
 }
 
+void CLucentMenuEffects::FocusStar(IGraphics *pGraphics, vec2 Center, float Scale, float Alpha)
+{
+	pGraphics->TextureClear();
+	pGraphics->QuadsBegin();
+	Star(pGraphics, Center, Scale, Alpha);
+	pGraphics->QuadsEnd();
+}
+
 void CLucentMenuEffects::Orbit(IGraphics *pGraphics, vec2 Center, float Scale, double Time, const float *pHighlight, bool Foreground, float Energy, float Alpha)
 {
 	// Independent periodic flows on a shared ellipse. Depth follows position,

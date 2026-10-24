@@ -1,3 +1,4 @@
+#include "lucent_menu_effects.h"
 #include "ui.h"
 
 #include <base/time.h>
@@ -18,6 +19,16 @@ bool CMenus::LucentBrowserButton(const void *pId, const char *pText, CUIRect Rec
 {
 	return LucentUi::Button(Ui(), TextRender(), pId, Localize(pText), Rect, Selected);
 }
+const CServerInfo *CMenus::LucentSelectedServer()
+{
+	const CServerInfo *pServer = ServerBrowser()->SortedGet(m_SelectedIndex);
+	if(pServer || m_LucentBrowser.m_Primary.m_Target != CLucentBrowserState::EPrimary::FRIENDS)
+		return pServer;
+	// Friends may be playing on a server excluded by the current list filters.
+	const int Index = CLucentBrowserState::FindSelection(ServerBrowser()->NumServers(), g_Config.m_UiServerAddress, [this](int i) { return ServerBrowser()->Get(i)->m_aAddress; });
+	return Index >= 0 ? ServerBrowser()->Get(Index) : nullptr;
+}
+
 void CMenus::RenderLucentBrowser(CUIRect Screen)
 {
 	LucentUi::CScope Style(Ui());
@@ -38,7 +49,7 @@ void CMenus::RenderLucentBrowser(CUIRect Screen)
 	const bool Animate = g_Config.m_ClLucentLogoAnimation != 0;
 	m_LucentBrowser.Update(Dt, Animate);
 	m_SelectedIndex = CLucentBrowserState::FindSelection(ServerBrowser()->NumSortedServers(), g_Config.m_UiServerAddress, [this](int i) { return ServerBrowser()->SortedGet(i)->m_aAddress; });
-	const CServerInfo *pSelected = ServerBrowser()->SortedGet(m_SelectedIndex);
+	const CServerInfo *pSelected = LucentSelectedServer();
 	m_LucentBrowser.Select(pSelected ? pSelected->m_aAddress : "", Animate);
 	m_LucentPreview.Update(pSelected, Now, Animate, Http(), Engine(), Graphics());
 	m_LucentPreview.Render(Graphics(), Screen, Now, Animate, m_LucentBrowser.m_SelectionPulse);
@@ -63,7 +74,6 @@ void CMenus::RenderLucentBrowser(CUIRect Screen)
 	Screen.HSplitTop(32, &Top, &Screen);
 	Screen.HSplitTop(22, nullptr, &Screen);
 	Screen.HSplitBottom(26, &Screen, &Footer);
-	const CUIRect HeaderBounds = Top;
 	CUIRect Search;
 	Top.VSplitRight(112, &Top, &Tools);
 	Top.VSplitRight(std::clamp(Top.w * .34f, 105.f, 205.f), &Nav, &Search);
@@ -103,6 +113,7 @@ void CMenus::RenderLucentBrowser(CUIRect Screen)
 	TextRender()->SetFontPreset(EFontPreset::DEFAULT_FONT);
 	if(Ui()->DoClearableEditBox(&s_Search, &Search, 12))
 		Client()->ServerBrowserUpdate();
+	const auto PreviousOverlay = m_LucentBrowser.m_Overlay.m_Target;
 	static int s_aNav[5];
 	const char *apNav[] = {"All servers", "Favorites", "Friends", "Communities", "LAN"};
 	float aWidths[5];
@@ -127,6 +138,9 @@ void CMenus::RenderLucentBrowser(CUIRect Screen)
 		if(i == 0 || i == 1 || i == 4)
 		{
 			m_LucentBrowser.Servers();
+			if(auto *pActive = CLineInput::GetActiveInput())
+				pActive->Deactivate();
+			Ui()->SetActiveItem(nullptr);
 			SetMenuPage(i == 0 ? PAGE_INTERNET : i == 1 ? PAGE_FAVORITES :
 								      PAGE_LAN);
 			RefreshBrowserTab(false);
@@ -156,7 +170,15 @@ void CMenus::RenderLucentBrowser(CUIRect Screen)
 		Button.Margin(2, &Button);
 		const bool Click = LucentUi::IconButton(Ui(), TextRender(), &s_aTools[i], apIcons[i], Localize(apHints[i]), Button, i == 0 && m_LucentBrowser.m_Overlay.m_Target == Overlay::FILTERS);
 		if(i == 0 && (Click || (Activate && m_LucentBrowser.m_Focus == 2)))
+		{
 			m_LucentBrowser.Toggle(CLucentBrowserState::EPanel::FILTERS);
+			if(m_LucentBrowser.m_Overlay.m_Target == Overlay::NONE)
+			{
+				if(auto *pActive = CLineInput::GetActiveInput())
+					pActive->Deactivate();
+				Ui()->SetActiveItem(nullptr);
+			}
+		}
 		if(i == 1 && (Click || (Keyboard && (Input()->KeyPress(KEY_F5) || (Input()->ModifierIsPressed() && Input()->KeyPress(KEY_R))))))
 			RefreshBrowserTab(true);
 		if(i == 2 && (Click || (Activate && m_LucentBrowser.m_Focus >= 5)))
@@ -170,6 +192,14 @@ void CMenus::RenderLucentBrowser(CUIRect Screen)
 		}
 		if(i == 3 && Click)
 			SetShowStart(true);
+	}
+	if(PreviousOverlay != Overlay::NONE && m_LucentBrowser.m_Overlay.m_Target == Overlay::NONE)
+	{
+		if(auto *pInput = CLineInput::GetActiveInput(); pInput && pInput != &s_Search)
+		{
+			pInput->Deactivate();
+			Ui()->SetActiveItem(nullptr);
+		}
 	}
 	// Fixed regions share the background, with independent contextual state.
 	CUIRect Atmosphere;
@@ -186,12 +216,14 @@ void CMenus::RenderLucentBrowser(CUIRect Screen)
 			OverlayBounds.w = std::min(310.f, Screen.w);
 			OverlayBounds.x = Screen.x + Screen.w - OverlayBounds.w;
 		}
-		if(Keyboard && Ui()->MouseButtonClicked(0) && !Ui()->MouseHovered(&OverlayBounds) && !Ui()->MouseHovered(&HeaderBounds))
+		if(Keyboard && Ui()->MouseButtonClicked(0) && !Ui()->MouseHovered(&OverlayBounds) && m_LucentBrowser.m_Overlay.m_Target == PreviousOverlay)
 		{
 			m_LucentBrowser.m_Overlay.m_Target = Overlay::NONE;
-			if(auto *pInput = CLineInput::GetActiveInput())
+			if(auto *pInput = CLineInput::GetActiveInput(); pInput && pInput != &s_Search)
+			{
 				pInput->Deactivate();
-			Ui()->SetActiveItem(nullptr);
+				Ui()->SetActiveItem(nullptr);
+			}
 		}
 	}
 	m_LucentFilterWheel = 0;
@@ -232,12 +264,17 @@ void CMenus::RenderLucentBrowser(CUIRect Screen)
 	{
 		// The same map title travels between preview and context, never duplicated.
 		const float Position = m_LucentBrowser.ScenePosition();
+		// A spatial scrim subdues the same artwork beneath contextual text.
+		Atmosphere.Draw4(ColorRGBA(.018f, .015f, .027f, .10f * Position), ColorRGBA(.018f, .015f, .027f, .48f * Position), ColorRGBA(.018f, .015f, .027f, .28f * Position), ColorRGBA(.018f, .015f, .027f, .60f * Position), 0, 0);
 		const float PreviewY = Atmosphere.y + Atmosphere.h - std::min(142.f, Atmosphere.h * .42f);
 		CUIRect Title = {Atmosphere.x, PreviewY + (Atmosphere.y - PreviewY) * Position, Atmosphere.w, 38};
 		SLabelProperties Props;
 		Props.m_MaxWidth = Title.w;
 		Props.m_StopAtEnd = true;
-		Ui()->DoLabel(&Title, pSelected->m_aMap, 28 - 5 * Position, TEXTALIGN_ML, Props);
+		{
+			LucentUi::COpacityScope SelectionOpacity(TextRender(), 1 - .18f * m_LucentBrowser.m_SelectionPulse);
+			Ui()->DoLabel(&Title, pSelected->m_aMap, 28 - 5 * Position, TEXTALIGN_ML, Props);
+		}
 		CUIRect Body = {Atmosphere.x, Title.y + Title.h + 4, Atmosphere.w, std::max(0.f, Atmosphere.y + Atmosphere.h - Title.y - Title.h - 4)};
 		LucentUi::COpacityScope Opacity(TextRender(), m_LucentBrowser.m_Scene.Opacity());
 		LucentUi::CInteractionScope Interaction(Ui(), m_LucentBrowser.m_Scene.m_Target == m_LucentBrowser.m_Scene.m_Visible);
@@ -293,13 +330,14 @@ void CMenus::RenderLucentBrowser(CUIRect Screen)
 	if(HasOverlay)
 	{
 		// Header-anchored reveal, clipped once; no competing list scroll input.
+		LucentUi::COpacityScope OverlayOpacity(TextRender(), m_LucentBrowser.m_Overlay.Opacity());
 		OverlayBounds.Draw4(ColorRGBA(.025f, .021f, .035f, .97f), ColorRGBA(.025f, .021f, .035f, .93f), ColorRGBA(.025f, .021f, .035f, .88f), ColorRGBA(.025f, .021f, .035f, .65f), 0, 0);
 		Ui()->ClipEnable(&OverlayBounds);
 		CUIRect Content;
 		OverlayBounds.Margin(9, &Content);
 		if(Content.h > 30)
 		{
-			LucentUi::COpacityScope Opacity(TextRender(), m_LucentBrowser.Expansion() * m_LucentBrowser.m_Overlay.Opacity());
+			LucentUi::COpacityScope Opacity(TextRender(), m_LucentBrowser.Expansion());
 			LucentUi::CInteractionScope Interaction(Ui(), m_LucentBrowser.m_Overlay.m_Target == VisibleOverlay);
 			m_LucentPanelRendering = true;
 			RenderLucentContext(Content, VisibleOverlay == Overlay::FILTERS ? P::FILTERS : P::DIRECT_CONNECT);
@@ -406,7 +444,7 @@ void CMenus::RenderLucentServerList(CUIRect View, bool &Activated)
 		const float Selection = LucentUi::Highlight(pInfo->m_aAddress, i == Selected);
 		if(Selection > .001f)
 		{
-			Item.m_Rect.Draw(LucentUi::Accent(.065f * Selection), 0, 0);
+			Item.m_Rect.Draw4(LucentUi::Accent(.025f * Selection), LucentUi::Accent(.07f * Selection), LucentUi::Accent(.025f * Selection), LucentUi::Accent(.015f * Selection), 0, 0);
 			CUIRect Marker = {Item.m_Rect.x, Item.m_Rect.y + 3, 1, Item.m_Rect.h - 6};
 			Marker.Draw(LucentUi::Accent(.85f * Selection), 0, 0);
 			if(i == Selected && m_LucentBrowser.m_SelectionPulse > 0)
@@ -417,6 +455,8 @@ void CMenus::RenderLucentServerList(CUIRect View, bool &Activated)
 			}
 		}
 		Item.m_Rect.Draw(ColorRGBA(1, .9f, .95f, .045f * Hover), IGraphics::CORNER_ALL, 2);
+		if(pInfo->m_Favorite == TRISTATE::NONE && Hover > .001f)
+			CLucentMenuEffects::FocusStar(Graphics(), vec2(Item.m_Rect.x + 10, Item.m_Rect.y + Item.m_Rect.h * .5f), .30f + .12f * Hover, .65f * Hover * CUIRect::DrawOpacity());
 		if(!vpElements[i])
 			vpElements[i] = Ui()->GetNewUIElement(14);
 		char aPlayers[32], aPing[16];
@@ -452,7 +492,7 @@ void CMenus::RenderLucentServerList(CUIRect View, bool &Activated)
 				TextRender()->SetFontPreset(EFontPreset::DEFAULT_FONT);
 		}
 		TextRender()->TextColor(TextRender()->DefaultTextColor());
-		Ui()->DoToolTip(&vIds[i], &Item.m_Rect, pInfo->m_aName);
+		Ui()->DoToolTip(&vIds[i], &Item.m_Rect, pInfo->m_aAddress);
 	}
 	m_SelectedIndex = s_List.DoEnd();
 	if(m_SelectedIndex >= 0 && m_SelectedIndex != Selected)
