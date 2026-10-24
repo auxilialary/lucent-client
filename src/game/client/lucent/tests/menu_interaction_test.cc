@@ -49,7 +49,9 @@ int main()
 		Controls.Open();
 		Controls.Update(0, false, true, true, true);
 		Controls.Update(0, true, false, true, true); // Stop or process exit.
-		CHECK(!Controls.IsOpen() && Controls.Progress() == 0);
+		CHECK(!Controls.IsOpen() && !Controls.Interactive());
+		Controls.Update(1, true, false, true, true);
+		CHECK(Controls.Progress() == 0);
 	}
 	// Dispatch uses both process and asynchronous startup state, including
 	// repeated activations while Android is still starting its service.
@@ -60,19 +62,68 @@ int main()
 	for(float Scale : {0.6f, 1.0f, 1.8f})
 	{
 		const CUIRect Chip = {670 * Scale, 180 * Scale, 164 * Scale, 34 * Scale};
-		const CUIRect Group = {660 * Scale, 180 * Scale, 180 * Scale, 146 * Scale};
-		const CUIRect Panel = CLucentServerControls::Bounds(Chip, Group);
-		for(float Progress : {0.0f, 0.2f, 0.5f, 1.0f})
+		const float BaseSettingsY = Chip.y + Chip.h + 21 * Scale;
+		for(int Step = 0; Step <= 100; ++Step)
 		{
-			const CUIRect Join = CLucentServerControls::Row(Panel, 0, Progress);
-			const CUIRect Stop = CLucentServerControls::Row(Panel, 1, Progress);
+			const float Progress = Step / 100.0f;
+			const CUIRect Panel = CLucentServerControls::Bounds(Chip, Progress);
+			CHECK(CLucentServerControls::Row(Chip, 0, Progress).h == Chip.h);
+			CHECK(CLucentServerControls::Row(Chip, 1, Progress).h == Chip.h);
+			const CUIRect Join = CLucentServerControls::VisibleRow(Chip, 0, Progress, Progress);
+			const CUIRect Stop = CLucentServerControls::VisibleRow(Chip, 1, Progress, Progress);
+			CUIRect Settings = {Chip.x, BaseSettingsY, Chip.w, Chip.h};
+			CLucentAnimatedInsertion::Offset(Settings, Panel.h);
+			CHECK(Join.x == Chip.x && Stop.x == Chip.x);
 			CHECK(Join.w == Chip.w && Stop.w == Chip.w);
-			CHECK(Join.y > Group.y + Group.h);
-			CHECK(Stop.y > Join.y + Join.h);
-			CHECK(Join.x > 600 * Scale); // Clear of the logo and central More menu.
-			CHECK(CLucentMenuInteraction::Contains(CLucentServerControls::HitArea(Panel), vec2(Join.x, Join.y)));
-			CHECK(CLucentMenuInteraction::Contains(CLucentServerControls::HitArea(Panel), vec2(Stop.x + Stop.w, Stop.y + Stop.h)));
+			CHECK(Join.y >= Chip.y + Chip.h);
+			CHECK(Stop.y + 0.001f >= Join.y + Join.h);
+			CHECK(Stop.h == 0 || Settings.y >= Stop.y + Stop.h);
+			CHECK(Join.h == 0 || CLucentMenuInteraction::Contains(Panel, vec2(Join.x, Join.y)));
+			CHECK(Stop.h == 0 || Stop.y + Stop.h <= Panel.y + Panel.h + 0.001f);
 		}
+
+		// The entire inline gap is a safe route from the parent to either child.
+		CLucentMenuInteraction Navigation;
+		const CUIRect Logo = {400 * Scale, 180 * Scale, 200 * Scale, 100 * Scale};
+		const CUIRect Left = {180 * Scale, 180 * Scale, 164 * Scale, 144 * Scale};
+		CHECK(Navigation.Update(0, vec2(500, 230) * Scale, Logo, Left, Chip, false, false));
+		for(int Step = 1; Step <= 36; ++Step)
+		{
+			const float Progress = Step / 36.0f;
+			const CUIRect Group = CLucentServerControls::Bounds(Chip, Progress);
+			const vec2 Mouse(Chip.x + Chip.w / 2, Group.y + Group.h * 0.5f);
+			CUIRect Right = Chip;
+			Right.h += Group.h + 2 * Chip.h;
+			CHECK(Navigation.Update(Step * 0.01, Mouse, Logo, Left, Right,
+				CLucentMenuInteraction::Contains(Group, Mouse), false));
+		}
+		Navigation.Close();
+		CHECK(!Navigation.IsOpen());
+	}
+	// Every point on the timeline can reverse without moving at zero dt.
+	for(int Step = 1; Step < 36; ++Step)
+	{
+		CLucentServerControls Controls;
+		Controls.Open();
+		Controls.Update(Step * 0.01f, true, true, true, true);
+		CHECK(Controls.Reveal(0) >= Controls.Reveal(1));
+		const float Before = Controls.Progress();
+		Controls.Close();
+		Controls.Update(0, true, true, true, true);
+		CHECK(Controls.Progress() == Before);
+		Controls.Update(0.005f, true, true, true, true);
+		CHECK(Controls.Progress() < Before);
+		Controls.Open();
+		const float Reversed = Controls.Progress();
+		Controls.Update(0, true, true, true, true);
+		CHECK(Controls.Progress() == Reversed);
+		Controls.Update(1, true, true, true, true);
+		CHECK(Controls.Progress() == 1 && Controls.Reveal(1) == 1);
+		Controls.Update(0.01f, true, false, true, true);
+		CHECK(Controls.Progress() > 0 && Controls.Progress() < 1);
+		CHECK(!Controls.Interactive());
+		Controls.Update(1, true, false, true, true);
+		CHECK(Controls.Progress() == 0);
 	}
 	std::puts("Server controls lifecycle, reversal, geometry and duplicate-start guards passed");
 	CLucentSecondaryNavigation Secondary;
