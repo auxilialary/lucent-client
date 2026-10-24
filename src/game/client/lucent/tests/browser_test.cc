@@ -58,6 +58,18 @@ int main()
 		CHECK(Context.BrowserOpacity() == 0 || Context.FiltersOpacity() == 0);
 	}
 	CHECK(!Context.FiltersWorkspace() && Context.BrowserOpacity() == 1);
+	Context.Toggle(CLucentBrowserState::EPanel::DIRECT_CONNECT);
+	Context.Update(0, false);
+	Context.Toggle(CLucentBrowserState::EPanel::FILTERS);
+	Context.Update(0, true);
+	CHECK(Context.BrowserOpacity() == 1 && Context.FiltersOpacity() == 0);
+	Context.Update(.1f, true);
+	const float BrowserBeforeReverse = Context.BrowserOpacity();
+	Context.Toggle(CLucentBrowserState::EPanel::DIRECT_CONNECT);
+	Context.Update(0, true);
+	CHECK(Context.BrowserOpacity() == BrowserBeforeReverse);
+	Context.Update(0, false);
+	CHECK(!Context.FiltersWorkspace());
 	CLucentBrowserState State;
 	using P = CLucentBrowserState::EPanel;
 	CHECK(!State.Escape());
@@ -162,6 +174,35 @@ int main()
 		for(int Frame = 0; Frame < int(std::ceil(.22f * Fps)); ++Frame)
 			Nav.Update(100, 80, 1.f / Fps, true);
 		CHECK(std::abs(Nav.X() - 100) < .001f && std::abs(Nav.Width() - 80) < .001f);
+	}
+	CLucentBrowserContent<std::string> Title;
+	Title.m_Target = "first map";
+	Title.Update(.21f, true, .42f);
+	CHECK(Title.m_Visible == "first map" && Title.m_Alpha == 0);
+	Title.Update(.21f, true, .42f);
+	CHECK(Title.Opacity() == 1);
+	Title.m_Target = "second map";
+	Title.Update(.05f, true, .42f);
+	const float TitleAlpha = Title.Opacity();
+	Title.m_Target = "first map";
+	Title.Update(0, true, .42f);
+	CHECK(Title.Opacity() == TitleAlpha);
+	Title.m_Target = "latest map";
+	Title.Update(0, false, .42f);
+	CHECK(Title.m_Visible == "latest map" && Title.Opacity() == 1);
+	for(int Fps : {30, 60, 144, 240})
+	{
+		CLucentBrowserState Selection;
+		Selection.Select("one:8303", true);
+		for(int i = 0; i < Fps; ++i)
+			Selection.Update(1.f / Fps, true);
+		CHECK(Selection.m_SelectionPulse == 0);
+		Selection.Select("two:8303", true);
+		Selection.Update(.1f, true);
+		Selection.Select("three:8303", true);
+		CHECK(Selection.m_SelectionPulse == 1);
+		Selection.Select("", true);
+		CHECK(Selection.m_SelectionPulse == 0);
 	}
 	int Sort = 3, Order = 0;
 	State.Sort(3, Sort, Order, true);

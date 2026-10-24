@@ -96,9 +96,11 @@ public:
 	};
 	CLucentBrowserContent<EPrimary> m_Primary;
 	CLucentBrowserContent<EScene> m_Scene;
+	CLucentBrowserContent<std::string> m_MapTitle;
 	CLucentBrowserContent<EOverlay> m_Overlay;
 	CLucentBrowserIndicator m_Navigation, m_DetailNavigation;
 	float m_Expansion = 0;
+	float m_FiltersExpansion = 0;
 	float m_ScenePosition = 0;
 	std::string m_LastSelection;
 	std::string m_ServerSelection;
@@ -115,10 +117,10 @@ public:
 	}
 	bool FiltersWorkspace() const
 	{
-		return m_Overlay.m_Target == EOverlay::FILTERS || m_Overlay.m_Visible == EOverlay::FILTERS;
+		return m_Overlay.m_Target == EOverlay::FILTERS || m_FiltersExpansion > 0;
 	}
-	float BrowserOpacity() const { return FiltersWorkspace() ? std::max(0.f, 1 - 2 * Expansion()) : 1.f; }
-	float FiltersOpacity() const { return std::max(0.f, 2 * Expansion() - 1); }
+	float BrowserOpacity() const { return FiltersWorkspace() ? std::max(0.f, 1 - 2 * FiltersExpansion()) : 1.f; }
+	float FiltersOpacity() const { return std::max(0.f, 2 * FiltersExpansion() - 1); }
 	float m_SelectionPulse = 0;
 	bool m_DirectFocusPending = false;
 	int m_Focus = 0;
@@ -195,6 +197,7 @@ public:
 		const auto Move = [&](float Value, bool Target, float Duration) {
 			return Animate ? std::clamp(Value + (Target ? Step : -Step) / Duration, 0.f, 1.f) : float(Target);
 		};
+		m_FiltersExpansion = Move(m_FiltersExpansion, m_Overlay.m_Target == EOverlay::FILTERS, .38f);
 		m_Expansion = Move(m_Expansion, m_Overlay.m_Target != EOverlay::NONE, .38f);
 		if(m_Expansion == 0 && m_Overlay.m_Target == EOverlay::NONE)
 		{
@@ -204,6 +207,7 @@ public:
 		m_ScenePosition = Move(m_ScenePosition, m_Scene.m_Target != EScene::PREVIEW, .36f);
 		m_SelectionPulse = Animate ? std::max(0.f, m_SelectionPulse - Step / .36f) : 0;
 	}
+	float FiltersExpansion() const { return m_FiltersExpansion * m_FiltersExpansion * (3 - 2 * m_FiltersExpansion); }
 	float Expansion() const { return m_Expansion * m_Expansion * (3 - 2 * m_Expansion); }
 	float ScenePosition() const { return m_ScenePosition * m_ScenePosition * (3 - 2 * m_ScenePosition); }
 	template<typename T>

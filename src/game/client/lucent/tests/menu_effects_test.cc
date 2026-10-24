@@ -22,6 +22,18 @@ void CUIRect::Draw(ColorRGBA, int, float) const
 
 int main()
 {
+	// Production sparkle: four 7-DIP cusps and concave, tapered sides.
+	for(int i = 0; i < 4; ++i)
+	{
+		CHECK(std::abs(length(SelectionSparklePoint(vec2(0, 0), 7, i * TAU / 4)) - 7) < .001f);
+		CHECK(length(SelectionSparklePoint(vec2(0, 0), 7, (i + .5f) * TAU / 4)) < 3.51f);
+	}
+	for(int i = 0; i <= 64; ++i)
+	{
+		const float Angle = i * TAU / 64;
+		const vec2 Tangent = SelectionSparklePoint(vec2(0, 0), 7, Angle + .01f) - SelectionSparklePoint(vec2(0, 0), 7, Angle - .01f);
+		CHECK(length(Tangent) > 0 && std::isfinite(normalize(Tangent).x));
+	}
 	// One pulse moves from the orbit towards the button and never loops.
 	CHECK(ConnectionPulse(0.1f, -1) == 0);
 	CHECK(ConnectionPulse(0.1f, 0) == 0);

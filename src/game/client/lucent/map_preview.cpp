@@ -198,7 +198,7 @@ void CLucentMapPreview::Render(IGraphics *pGraphics, const CUIRect &Screen, doub
 	Screen.Draw(ColorRGBA(.018f, .015f, .027f, 1), 0, 0);
 	const float T = Animate ? std::clamp(float((Now - m_FadeStart) / .42), 0.f, 1.f) : 1;
 	const float Fade = T * T * (3 - 2 * T);
-	const auto Draw = [&](int Index, float Alpha, bool Previous) {
+	const auto Draw = [&](int Index, float Alpha, bool Previous, bool Atmospheric) {
 		if(Index < 0 || Alpha <= 0)
 			return;
 		pGraphics->TextureSet(m_aCache[Index].m_Texture);
@@ -207,10 +207,10 @@ void CLucentMapPreview::Render(IGraphics *pGraphics, const CUIRect &Screen, doub
 		pGraphics->SetColor(1, 1, 1, Alpha * .85f);
 		const auto &Entry = m_aCache[Index];
 		const float Settle = Animate ? std::pow(1.f - std::clamp(float((Now - Entry.m_RevealStart) / 3.5), 0.f, 1.f), 3.f) : 0.f;
-		const float Scale = LucentPreview::FrameScale(Entry.m_Width, Entry.m_Height, Screen.w, Screen.h) * (1.f - .015f * Settle);
+		const float Scale = LucentPreview::FrameScale(Entry.m_Width, Entry.m_Height, Screen.w, Screen.h) * (Atmospheric ? 1.10f : .92f) * (1.f - .015f * Settle);
 		const float Width = Entry.m_Width * Scale, Height = Entry.m_Height * Scale;
-		const float X = Screen.x + Screen.w * .73f - Width * .5f;
-		const float Y = Screen.y + Screen.h * .47f - Height * .5f;
+		const float X = Screen.x + Screen.w * .755f - Width * .5f;
+		const float Y = Screen.y + Screen.h * .43f - Height * .5f;
 		// Feather all four edges in texture space. Geometry stays identical through fades.
 		constexpr int Steps = 24;
 		for(int y = 0; y < Steps; ++y)
@@ -219,7 +219,8 @@ void CLucentMapPreview::Render(IGraphics *pGraphics, const CUIRect &Screen, doub
 				const auto Mask = [&](float u, float v) {
 					const float Edge = std::clamp(std::min({u, v, 1 - u, 1 - v}) * 6.f, 0.f, 1.f);
 					const float Feather = Edge * Edge * (3 - 2 * Edge);
-					const float A = .9f * Feather * Opacity;
+					const float LowerFade = 1 - std::clamp((v - .58f) / .42f, 0.f, 1.f);
+					const float A = (Atmospheric ? .13f : .78f) * Feather * LowerFade * Opacity;
 					// Compensate alpha-over so equally framed images keep constant
 					// brightness and the outgoing image vanishes without a final jump.
 					return LucentPreview::FadeAlpha(A, Fade, Previous, m_Current >= 0);
@@ -235,8 +236,11 @@ void CLucentMapPreview::Render(IGraphics *pGraphics, const CUIRect &Screen, doub
 		pGraphics->QuadsEnd();
 		pGraphics->WrapNormal();
 	};
-	Draw(m_Previous, 1 - Fade, true);
-	Draw(m_Current, Fade, false);
+	// Both layers reuse the same bounded cached texture and crossfade geometry.
+	Draw(m_Previous, 1 - Fade, true, true);
+	Draw(m_Current, Fade, false, true);
+	Draw(m_Previous, 1 - Fade, true, false);
+	Draw(m_Current, Fade, false, false);
 	// Preserve the artwork in open space, with a stronger scrim behind map names.
 	pGraphics->TextureClear();
 	pGraphics->QuadsBegin();

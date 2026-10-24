@@ -29,6 +29,12 @@ namespace
 		return Center + vec2(X * 0.989f + Y * 0.148f, Y * 0.989f - X * 0.148f);
 	}
 
+	vec2 SelectionSparklePoint(vec2 Center, float Radius, float Angle)
+	{
+		const float X = std::cos(Angle), Y = std::sin(Angle);
+		return Center + vec2(X * X * X, Y * Y * Y) * Radius;
+	}
+
 	float ConnectionPulse(float T, float Age)
 	{
 		const float Tail = Age * 1.25f - T;
@@ -293,6 +299,56 @@ namespace
 		}
 	}
 
+}
+
+// A short orbit-relative cubic carries selection light into the scene. The
+// astroid has four tapered cusps and concave sides, with a DPI-sized alpha fringe.
+void CLucentMenuEffects::SelectionTransfer(IGraphics *pGraphics, vec2 From, vec2 To, float Progress, float Alpha)
+{
+	if(Progress <= 0 || Progress >= 1 || Alpha <= 0)
+		return;
+	pGraphics->TextureClear();
+	pGraphics->QuadsBegin();
+	const vec2 B = From + vec2(28, -9), C = To - vec2(25, 5);
+	const float Head = std::min(1.f, Progress * 1.45f);
+	for(int i = 0; i < 32; ++i)
+	{
+		const float T = i / 32.f, Next = (i + 1) / 32.f;
+		const float Tail = Head - T;
+		if(Tail < 0 || Tail > .32f)
+			continue;
+		const float Light = std::pow(std::sin(Tail / .32f * TAU * .5f), 2.f) * std::sin(Progress * TAU * .5f) * Alpha;
+		const vec2 A = Bezier(From, B, C, To, T), D = Bezier(From, B, C, To, Next);
+		Stroke(pGraphics, A, D, 1.6f, ColorRGBA(1, .65f, .82f, .10f * Light));
+		Stroke(pGraphics, A, D, .38f, ColorRGBA(1, .85f, .93f, .85f * Light));
+	}
+	const float StarTime = std::clamp((Progress - .30f) / .70f, 0.f, 1.f);
+	const float Light = std::sin(StarTime * TAU * .5f) * Alpha;
+	if(Light > .001f)
+	{
+		const float Radius = 7.f * (.85f + .15f * StarTime);
+		const float Fringe = pGraphics->GetScreen().Size().y / pGraphics->ScreenSize().y;
+		const auto Point = [&](float Angle) {
+			return SelectionSparklePoint(To, Radius, Angle);
+		};
+		for(int i = 0; i < 64; ++i)
+		{
+			const float T = TAU * i / 64, U = TAU * (i + 1) / 64;
+			const vec2 A = Point(T), D = Point(U);
+			const auto Normal = [&](float Angle) {
+				const vec2 Tangent = Point(Angle + .01f) - Point(Angle - .01f);
+				return normalize(vec2(Tangent.y, -Tangent.x));
+			};
+			const ColorRGBA Core(1, .96f, .98f, Light), Edge(1, .79f, .90f, Light);
+			pGraphics->SetColor4(Core, Edge, Core, Edge);
+			IGraphics::CFreeformItem Fill(To, A, To, D);
+			pGraphics->QuadsDrawFreeform(&Fill, 1);
+			pGraphics->SetColor4(Edge, Edge, Edge.WithAlpha(0), Edge.WithAlpha(0));
+			IGraphics::CFreeformItem Rim(A, D, A + Normal(T) * Fringe, D + Normal(U) * Fringe);
+			pGraphics->QuadsDrawFreeform(&Rim, 1);
+		}
+	}
+	pGraphics->QuadsEnd();
 }
 
 void CLucentMenuEffects::FocusStar(IGraphics *pGraphics, vec2 Center, float Scale, float Alpha)

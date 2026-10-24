@@ -1838,6 +1838,8 @@ void CMenus::RenderServerbrowserFriends(CUIRect View)
 			FriendlistOnUpdate();
 			Client()->ServerBrowserUpdate();
 			s_ShowAdd = false;
+			s_NameInput.Deactivate();
+			s_ClanInput.Deactivate();
 		}
 		if(Ui()->LucentStyle())
 			Ui()->ClipDisable();

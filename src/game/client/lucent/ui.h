@@ -123,6 +123,22 @@ namespace LucentUi
 		pTextRender->TextColor(pTextRender->DefaultTextColor());
 		return Interactive && pUi->DoButtonLogic(pId, Selected, &Rect, BUTTONFLAG_LEFT);
 	}
+	// Primary scene action: the same restrained hairline and edge light as the menu.
+	inline bool SceneButton(CUi *pUi, ITextRender *pTextRender, const void *pId, const char *pText, CUIRect Rect)
+	{
+		const bool Hover = pUi->Enabled() && pUi->MouseHovered(&Rect);
+		const bool Pressed = pUi->Enabled() && pUi->CheckActiveItem(pId);
+		const float Light = Highlight(pId, Hover || Pressed);
+		Surface(Rect, false, false, IGraphics::CORNER_ALL, .25f + .75f * Light);
+		CUIRect Inner;
+		Rect.Margin(1, &Inner);
+		Inner.Draw(Accent((Pressed ? .10f : .025f) + .025f * Light), IGraphics::CORNER_ALL, RADIUS);
+		pTextRender->TextColor(Accent(1));
+		const float Size = std::min(12.f, 12.f * std::max(1.f, Rect.w - 12) / std::max(1.f, pTextRender->TextWidth(12, pText)));
+		pUi->DoLabel(&Rect, pText, Size, TEXTALIGN_MC);
+		pTextRender->TextColor(pTextRender->DefaultTextColor());
+		return pUi->DoButtonLogic(pId, 0, &Rect, BUTTONFLAG_LEFT);
+	}
 	// Text navigation shares control geometry, without a persistent button surface.
 	inline bool TextButton(CUi *pUi, ITextRender *pTextRender, const void *pId, const char *pText, CUIRect Rect, bool Selected = false, float Size = 11, int Align = TEXTALIGN_MC, bool Underline = true)
 	{

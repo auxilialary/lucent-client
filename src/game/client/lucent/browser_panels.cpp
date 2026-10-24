@@ -38,6 +38,18 @@ void CMenus::RenderLucentContext(CUIRect View, CLucentBrowserState::EPanel Mode)
 	}
 	else if(Mode == EPanel::FILTERS)
 	{
+		CUIRect Heading, Back;
+		View.HSplitTop(32, &Heading, &View);
+		Heading.VSplitRight(72, &Heading, &Back);
+		Ui()->DoLabel(&Heading, Localize("Filters"), 18, TEXTALIGN_ML);
+		static int s_CloseFilters;
+		if(LucentUi::TextButton(Ui(), TextRender(), &s_CloseFilters, Localize("Back"), Back, false, 11))
+		{
+			m_LucentBrowser.m_Overlay.m_Target = CLucentBrowserState::EOverlay::NONE;
+			if(auto *pActive = CLineInput::GetActiveInput())
+				pActive->Deactivate();
+			Ui()->SetActiveItem(nullptr);
+		}
 		static CScrollRegion s_Scroll;
 		// Consume over the whole panel before the server list sees the wheel,
 		// including the fixed header and padding on the first hover frame.

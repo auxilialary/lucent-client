@@ -58,6 +58,10 @@ void CMenus::RenderLucentBrowser(CUIRect Screen)
 	m_SelectedIndex = CLucentBrowserState::FindSelection(ServerBrowser()->NumSortedServers(), g_Config.m_UiServerAddress, [this](int i) { return ServerBrowser()->SortedGet(i)->m_aAddress; });
 	const CServerInfo *pSelected = LucentSelectedServer();
 	m_LucentBrowser.Select(pSelected ? pSelected->m_aAddress : "", Animate);
+	const char *pMapTitle = pSelected ? pSelected->m_aMap : "";
+	if(m_LucentBrowser.m_MapTitle.m_Target != pMapTitle)
+		m_LucentBrowser.m_MapTitle.m_Target = pMapTitle;
+	m_LucentBrowser.m_MapTitle.Update(Dt, Animate, .42f);
 	m_LucentPreview.Update(pSelected, Now, Animate, Http(), Engine(), Graphics());
 	m_LucentPreview.Render(Graphics(), Screen, Now, Animate, m_LucentBrowser.m_SelectionPulse, m_LucentBrowser.BrowserOpacity());
 	Ui()->MapScreen();
@@ -272,6 +276,12 @@ void CMenus::RenderLucentBrowser(CUIRect Screen)
 				RenderLucentServerList(Content, Activated);
 			m_LucentPanelRendering = false;
 		}
+		if(m_LucentBrowser.m_Primary.m_Visible == Primary::SERVERS && m_LucentBrowser.m_SelectionY > 0)
+		{
+			const vec2 From(List.x + List.w - 3, m_LucentBrowser.m_SelectionY);
+			const vec2 To(Atmosphere.x + 42, mix(From.y, Atmosphere.y + Atmosphere.h * .45f, .2f));
+			CLucentMenuEffects::SelectionTransfer(Graphics(), From, To, 1 - m_LucentBrowser.m_SelectionPulse, BrowserAlpha);
+		}
 		if(pSelected)
 		{
 			// The same map title travels between preview and context, never duplicated.
@@ -284,8 +294,8 @@ void CMenus::RenderLucentBrowser(CUIRect Screen)
 			Props.m_MaxWidth = Title.w;
 			Props.m_StopAtEnd = true;
 			{
-				LucentUi::COpacityScope SelectionOpacity(TextRender(), 1 - .18f * m_LucentBrowser.m_SelectionPulse);
-				Ui()->DoLabel(&Title, pSelected->m_aMap, 28 - 5 * Position, TEXTALIGN_ML, Props);
+				LucentUi::COpacityScope SelectionOpacity(TextRender(), m_LucentBrowser.m_Scene.m_Visible == Scene::PREVIEW ? m_LucentBrowser.m_MapTitle.Opacity() : 1.f);
+				Ui()->DoLabel(&Title, m_LucentBrowser.m_Scene.m_Visible == Scene::PREVIEW ? m_LucentBrowser.m_MapTitle.m_Visible.c_str() : pSelected->m_aMap, 28 - 5 * Position, TEXTALIGN_ML, Props);
 			}
 			CUIRect Body = {Atmosphere.x, Title.y + Title.h + 4, Atmosphere.w, std::max(0.f, Atmosphere.y + Atmosphere.h - Title.y - Title.h - 4)};
 			LucentUi::COpacityScope Opacity(TextRender(), m_LucentBrowser.m_Scene.Opacity());
@@ -306,7 +316,7 @@ void CMenus::RenderLucentBrowser(CUIRect Screen)
 				Body.HSplitTop(22, &Action, &Body);
 				Action.VSplitMid(&Details, &Players);
 				static int s_Connect, s_Details, s_Players;
-				if(LucentBrowserButton(&s_Connect, "Connect", ConnectButton, true))
+				if(LucentUi::SceneButton(Ui(), TextRender(), &s_Connect, Localize("Connect"), ConnectButton))
 					Connect(pSelected->m_aAddress);
 				if(LucentUi::TextButton(Ui(), TextRender(), &s_Details, Localize("Server details"), Details, false, 10, TEXTALIGN_ML) || (Activate && m_LucentBrowser.m_Focus == 3))
 					m_LucentBrowser.Toggle(P::DETAILS);
@@ -343,15 +353,15 @@ void CMenus::RenderLucentBrowser(CUIRect Screen)
 	if(HasOverlay)
 	{
 		// Header-anchored reveal, clipped once; no competing list scroll input.
-		LucentUi::COpacityScope OverlayOpacity(TextRender(), Workspace ? m_LucentBrowser.FiltersOpacity() : m_LucentBrowser.m_Overlay.Opacity());
-		if(!Workspace)
+		LucentUi::COpacityScope OverlayOpacity(TextRender(), VisibleOverlay == Overlay::FILTERS ? m_LucentBrowser.FiltersOpacity() : m_LucentBrowser.m_Overlay.Opacity());
+		if(VisibleOverlay != Overlay::FILTERS)
 			OverlayBounds.Draw4(ColorRGBA(.025f, .021f, .035f, .97f), ColorRGBA(.025f, .021f, .035f, .93f), ColorRGBA(.025f, .021f, .035f, .88f), ColorRGBA(.025f, .021f, .035f, .65f), 0, 0);
 		Ui()->ClipEnable(&OverlayBounds);
 		CUIRect Content;
 		OverlayBounds.Margin(9, &Content);
-		if(Content.h > 30 && (!Workspace || m_LucentBrowser.FiltersOpacity() > 0))
+		if(Content.h > 30 && (VisibleOverlay != Overlay::FILTERS || m_LucentBrowser.FiltersOpacity() > 0))
 		{
-			LucentUi::COpacityScope Opacity(TextRender(), Workspace ? 1.f : m_LucentBrowser.Expansion());
+			LucentUi::COpacityScope Opacity(TextRender(), VisibleOverlay == Overlay::FILTERS ? 1.f : m_LucentBrowser.Expansion());
 			LucentUi::CInteractionScope Interaction(Ui(), m_LucentBrowser.m_Overlay.m_Target == VisibleOverlay);
 			m_LucentPanelRendering = true;
 			RenderLucentContext(Content, VisibleOverlay == Overlay::FILTERS ? P::FILTERS : P::DIRECT_CONNECT);
@@ -455,6 +465,7 @@ void CMenus::RenderLucentServerList(CUIRect View, bool &Activated)
 		m_ServerBrowserShouldRevealSelection = false;
 	}
 	s_List.DoStart(17.f, Count, 1, 3, Selected, &View, false);
+	m_LucentBrowser.m_SelectionY = -1;
 	const char *apRegions[] = {"--", "AF", "AS", "AU", "EU", "NA", "SA", "CN"};
 	for(int i = 0; i < Count; ++i)
 	{
@@ -488,7 +499,8 @@ void CMenus::RenderLucentServerList(CUIRect View, bool &Activated)
 		else
 			str_format(aPing, sizeof(aPing), "%d", pInfo->m_Latency);
 		char aDescriptor[128], aRegion[16];
-		const auto Descriptor = CLucentBrowserState::Descriptor(pInfo->m_aName, str_comp(pInfo->m_aCommunityId, IServerBrowser::COMMUNITY_DDNET) == 0 ? pInfo->m_aCommunityType : "");
+		const bool DDNetCommunity = str_comp(pInfo->m_aCommunityId, IServerBrowser::COMMUNITY_DDNET) == 0;
+		const auto Descriptor = DDNetCommunity || str_comp(pInfo->m_aGameType, "DDNet") == 0 ? CLucentBrowserState::Descriptor(pInfo->m_aName, DDNetCommunity ? pInfo->m_aCommunityType : "") : std::string_view(pInfo->m_aName);
 		str_copy(aDescriptor, Descriptor == "DDNet" || Descriptor == "None" ? "" : Descriptor.data());
 		const char *pRegion = pInfo->m_aCommunityCountry[0] && str_comp(pInfo->m_aCommunityCountry, IServerBrowser::COMMUNITY_COUNTRY_NONE) != 0 ? pInfo->m_aCommunityCountry : apRegions[std::clamp(pInfo->m_Location, 0, 7)];
 		str_copy(aRegion, str_comp(pRegion, "RUS") == 0 ? "RU" : str_comp(pRegion, "GER") == 0 ? "DE" :
