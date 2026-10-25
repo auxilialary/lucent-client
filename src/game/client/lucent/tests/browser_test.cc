@@ -18,39 +18,60 @@
 	} while(0)
 int main()
 {
-	// Visual motion follows actual glyph geometry, with bounded trails at every FPS.
+	// Replay the same edit events at each refresh rate. Motion uses event time,
+	// never frame count, and cannot accumulate lag during held Backspace.
+	{
+		CLucentTextMotion Slow;
+		Slow.Update(vec2(100, 20), 12, 0, true, true);
+		Slow.Update(vec2(105, 20), 12, .5, true, false);
+		Slow.Update(vec2(119, 20), 12, 1, true, false);
+		CHECK(Slow.Position(1) == vec2(119, 20));
+		Slow.Update(vec2(133, 20), 12, 1.04, true, false);
+		CHECK(Slow.Position(1.04).x > 133);
+		CHECK(Slow.Position(1.04).x <= 133 + 14 * LucentStyle::Motion::TextLeadGlyphs);
+		const auto BeforeScroll = Slow.Position(1.05);
+		Slow.Translate(vec2(-20, 0));
+		CHECK(distance(Slow.Position(1.05), BeforeScroll - vec2(20, 0)) < .001f);
+		Slow.Update(vec2(10, 40), 12, 1.06, true, false);
+		CHECK(Slow.Position(1.06) == vec2(10, 40) && Slow.TrailAlpha(1.06) == 0);
+	}
+	float Reference = 0;
 	for(int Fps : {60, 144, 240})
 	{
 		CLucentTextMotion Caret;
-		Caret.Update(vec2(10, 20), 12, 0, true, false);
-		Caret.Update(vec2(18, 20), 12, .01, true, false);
-		for(int Frame = 1; Frame <= Fps; ++Frame)
+		Caret.Update(vec2(100, 20), 12, 0, true, true);
+		for(int Event = 1; Event <= 40; ++Event)
 		{
-			const double Now = .01 + double(Frame) / Fps;
-			const vec2 Visual = Caret.Position(Now);
-			CHECK(Visual.x >= 10 && Visual.x <= 18 && Visual.y == 20);
-			CHECK(distance(Visual, Caret.Tail(Now, 12)) <= 12 * LucentStyle::Motion::TextTrailLength);
-			if(Now >= .22)
-				CHECK(Visual == vec2(18, 20) && Caret.TrailAlpha(Now) == 0);
+			const double Now = Event * .04;
+			const float X = Event <= 20 ? 100 + Event * 8 : 260 - (Event - 20) * 8;
+			Caret.Update(vec2(X, 20), 12, Now, true, false);
+			for(int Frame = 0; Frame < Fps * .04; ++Frame)
+			{
+				const double Time = Now + double(Frame) / Fps;
+				Caret.Update(vec2(X, 20), 12, Time, true, false);
+				const auto Head = Caret.Position(Time);
+				CHECK(std::abs(Head.x - X) <= 8 * LucentStyle::Motion::TextLeadGlyphs + .001f);
+				CHECK(Event <= 20 ? Head.x >= X : Head.x <= X);
+				CHECK(distance(Head, Caret.Tail(Time, 12)) <= 12 * LucentStyle::Motion::TextTrailLength + .001f);
+			}
+			if(Event == 40)
+			{
+				CHECK(Caret.Position(Now).x < X);
+				if(Fps == 60)
+					Reference = Caret.Position(Now).x;
+				CHECK(std::abs(Caret.Position(Now).x - Reference) < .001f);
+			}
 		}
-		Caret.Update(vec2(25, 20), 12, 2, true, false);
-		const vec2 Retarget = Caret.Position(2.04);
-		Caret.Update(vec2(30, 20), 12, 2.04, true, false);
-		CHECK(distance(Caret.Position(2.04), Retarget) < .001f);
-		Caret.Update(vec2(300, 20), 12, 2.05, true, false); // Home/End or paste
-		CHECK(Caret.Position(2.05) == vec2(300, 20));
-		CHECK(Caret.Tail(2.05, 12) == vec2(300, 20));
-		CHECK(Caret.CaretAlpha(2.05) == 0 && Caret.CaretAlpha(3) == 1);
-		Caret.Update(vec2(10, 32), 12, 2.06, true, false); // wrap/newline
-		CHECK(Caret.Position(2.06) == vec2(10, 32));
-		Caret.Update(vec2(16, 32), 12, 2.07, false, false);
-		CHECK(Caret.Position(2.07) == vec2(16, 32) && Caret.TrailAlpha(2.07) == 0);
-		Caret.Update(vec2(22, 32), 12, 2.08, true, true); // scroll/IME/scale
-		CHECK(Caret.Position(2.08) == vec2(22, 32));
+		CHECK(Caret.Position(2) == vec2(100, 20) && Caret.TrailAlpha(2) == 0);
+		Caret.Update(vec2(300, 20), 12, 2.1, true, true);
+		CHECK(Caret.Position(2.1) == vec2(300, 20) && Caret.TrailAlpha(2.1) == 0);
+		Caret.Update(vec2(308, 20), 12, 2.2, false, false);
+		CHECK(Caret.Position(2.2) == vec2(308, 20) && Caret.TrailAlpha(2.2) == 0);
+		Caret.Translate(vec2(-30, 0));
+		CHECK(Caret.Position(2.2) == vec2(278, 20));
 		Caret.Reset();
-		Caret.Update(vec2(100, 50), 12, 2.09, true, false);
-		CHECK(Caret.Position(2.09) == vec2(100, 50));
-		CHECK(Caret.Position(30) == vec2(100, 50) && Caret.TrailAlpha(30) == 0);
+		Caret.Update(vec2(10, 32), 12, 3, true, false);
+		CHECK(Caret.Position(3) == vec2(10, 32) && Caret.TrailAlpha(3) == 0);
 	}
 
 	// A closing Filters workspace outlives the shorter generic overlay animation.
@@ -199,32 +220,29 @@ int main()
 		for(float Minimum : {150.f, 185.f, 240.f})
 			for(bool CountriesTab : {false, true})
 				for(bool HasGrid : {false, true})
-					for(float Expansion : {0.f, .5f, 1.f})
+				{
+					const float Workspace = CLucentBrowserFilterLayout::WorkspaceWidth(Width);
+					const auto Layout = CLucentBrowserFilterLayout::Measure(Width, 101, 15, CountriesTab, HasGrid, true, true, Minimum);
+					const float GroupWidth = Layout.m_Wide ? (Workspace - CLucentBrowserFilterLayout::ColumnGap(Workspace)) / 2 : Workspace;
+					const float Left = CLucentBrowserFilterLayout::GroupHeight(GroupWidth, 4, Minimum);
+					const float Right = CLucentBrowserFilterLayout::GroupHeight(GroupWidth, 5, Minimum);
+					const float Groups = Layout.m_Wide ? std::max(Left, Right) : Left + 8 + Right;
+					// Walk the same sections as rendering, through the bottom of the grid.
+					const float Bottom = Groups + 26 + CLucentBrowserFilterLayout::InputHeight(Workspace) + 5 + 28.5f + 21 + (HasGrid ? 25 + Layout.m_GridHeight : 0);
+					CHECK(std::abs(Layout.m_ContentHeight - Bottom - 13) < .001f);
+					CUIRect Row = {18, 40, Workspace, CLucentBrowserFilterLayout::InputHeight(Workspace)};
+					for(int i = 0; i < 3; ++i)
 					{
-						const float Workspace = CLucentBrowserFilterLayout::WorkspaceWidth(Width);
-						const auto Layout = CLucentBrowserFilterLayout::Measure(Width, 101, 15, CountriesTab, HasGrid, true, true, Minimum);
-						const float GroupWidth = Layout.m_Wide ? (Workspace - CLucentBrowserFilterLayout::ColumnGap(Workspace)) / 2 : Workspace;
-						const float Left = CLucentBrowserFilterLayout::GroupHeight(GroupWidth, 4, Minimum);
-						const float Right = CLucentBrowserFilterLayout::GroupHeight(GroupWidth, 5, Minimum);
-						const float Groups = Layout.m_Wide ? std::max(Left, Right) : Left + 8 + Right;
-						// Walk the same sections as rendering, through the bottom of the grid.
-						const float Bottom = Groups + 26 + CLucentBrowserFilterLayout::InputHeight(Workspace) + 5 + 28.5f + 21 + (HasGrid ? 25 + Layout.m_GridHeight : 0);
-						CHECK(std::abs(Layout.m_ContentHeight - Bottom - 13) < .001f);
-						const auto Closed = CLucentBrowserFilterLayout::Measure(Width, 101, 15, CountriesTab, HasGrid, true, true, Minimum);
-						CHECK(std::abs(Layout.m_ContentHeight - Closed.m_ContentHeight) < .001f);
-						CUIRect Row = {18, 40, Workspace, CLucentBrowserFilterLayout::InputHeight(Workspace)};
-						for(int i = 0; i < 3; ++i)
+						const auto Chip = CLucentBrowserFilterLayout::ChipBounds(Row, i);
+						CHECK(Chip.x >= Row.x && Chip.x + Chip.w <= Row.x + Row.w + .001f);
+						CHECK(Chip.y + Chip.h <= Row.y + Row.h);
+						if(i > 0)
 						{
-							const auto Chip = CLucentBrowserFilterLayout::ChipBounds(Row, i);
-							CHECK(Chip.x >= Row.x && Chip.x + Chip.w <= Row.x + Row.w + .001f);
-							CHECK(Chip.y + Chip.h <= Row.y + Row.h);
-							if(i > 0)
-							{
-								const auto Previous = CLucentBrowserFilterLayout::ChipBounds(Row, i - 1);
-								CHECK(Chip.x >= Previous.x + Previous.w || Chip.y >= Previous.y + Previous.h);
-							}
+							const auto Previous = CLucentBrowserFilterLayout::ChipBounds(Row, i - 1);
+							CHECK(Chip.x >= Previous.x + Previous.w || Chip.y >= Previous.y + Previous.h);
 						}
 					}
+				}
 	for(float Workspace : {240.f, 420.f, 620.f, 820.f})
 		for(bool CountriesTab : {false, true})
 		{

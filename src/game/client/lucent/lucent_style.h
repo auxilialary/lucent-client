@@ -48,10 +48,13 @@ namespace LucentStyle
 		constexpr float SecondaryReveal = .32f, SecondaryStagger = .04f, SecondaryItem = .16f;
 		constexpr float MenuReveal = .35f, MenuDelay = .065f, MenuStagger = .02f, MenuItem = .245f;
 		constexpr float MapTitle = .42f;
-		constexpr float TextCaret = .12f, TextTrail = .20f, TextTrailIntensity = .16f;
+		constexpr float TextTrail = .24f, TextTrailIntensity = .55f;
+		constexpr float TextLeadGlyphs = 1.35f, TextSpeedLow = 25.f, TextSpeedHigh = 240.f;
+		constexpr float TextSpeedResponse = .055f, TextIdleInterval = .3f;
+		constexpr float TextHeadWidth = .065f, TextHeadMinWidth = .7f;
 		constexpr float TextJumpLimit = 3.f, TextTrailLength = 1.4f;
 		constexpr float FilterInput = .27f, Filters = .48f, FilterRise = 12.f;
-		constexpr float FilterNavTravel = 60, FilterFooterTravel = 50, FilterInputRise = 4;
+		constexpr float FilterNavTravel = 60, FilterFooterTravel = 50;
 		constexpr float FilterQuickDelay = .08f, FilterBodyDelay = .16f;
 		constexpr float Primary = .30f, Scene = .36f, Overlay = .32f, Expansion = .38f, Players = .40f;
 		inline float Lerp(float A, float B, float T) { return A + (B - A) * T; }

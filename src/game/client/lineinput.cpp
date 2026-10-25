@@ -27,6 +27,10 @@ static CLucentTextMotion s_TextMotion;
 static double s_CaretChanged = 0;
 static vec2 s_LastInputOrigin(0, 0);
 static float s_LastInputHeight = 0;
+static size_t s_LastInputChars = 0;
+static int s_LastCursorChars = 0;
+static bool s_LastSelection = false;
+static CLineInput *s_pMotionInput = nullptr;
 
 vec2 CLineInput::ms_CompositionWindowPosition = vec2(0.0f, 0.0f);
 float CLineInput::ms_CompositionLineHeight = 0.0f;
@@ -417,7 +421,7 @@ bool CLineInput::ProcessInput(const IInput::CEvent &Event)
 	return KeyHandled;
 }
 
-STextBoundingBox CLineInput::Render(const CUIRect *pRect, float FontSize, int Align, bool Changed, float LineWidth, float LineSpacing, const std::vector<STextColorSplit> &vColorSplits)
+STextBoundingBox CLineInput::Render(const CUIRect *pRect, float FontSize, int Align, bool Changed, float LineWidth, float LineSpacing, const std::vector<STextColorSplit> &vColorSplits, const CUIRect *pTrailClip)
 {
 	// update derived attributes to handle external changes to the buffer
 	UpdateStrData();
@@ -530,24 +534,47 @@ STextBoundingBox CLineInput::Render(const CUIRect *pRect, float FontSize, int Al
 		const double Now = double(time_get()) / time_freq();
 		auto &Clock = LucentStyle::Motion::Clock();
 		Clock.BeginFrame(Now, AnimateCaret);
-		const bool Reposition = HasComposition || CursorPos != s_LastInputOrigin || s_LastInputHeight != Cursor.m_AlignedFontSize;
+		const int CursorChars = str_utf8_offset_bytes_to_chars(pDisplayStr, DisplayCursorOffset);
+		const int CharDelta = int(GetNumChars()) - int(s_LastInputChars);
+		const bool Editing = CharDelta != 0;
+		const bool Sequential = std::abs(CharDelta) == 1 && CursorChars - s_LastCursorChars == CharDelta;
+		const bool Reposition = HasComposition || s_pMotionInput != this || s_LastInputHeight != Cursor.m_AlignedFontSize ||
+			HasSelection() || s_LastSelection || m_MouseSelection.m_Selecting ||
+			(Editing ? !Sequential : CursorChars != s_LastCursorChars) ||
+			(Input()->ModifierIsPressed() && Input()->KeyPress(KEY_V));
+		if(!Reposition)
+			s_TextMotion.Translate(CursorPos - s_LastInputOrigin);
 		s_TextMotion.Update(m_CaretPosition, Cursor.m_AlignedFontSize, Now, AnimateCaret, Reposition);
+		s_LastInputChars = GetNumChars();
+		s_LastCursorChars = CursorChars;
+		s_LastSelection = HasSelection();
+		s_pMotionInput = this;
 		s_LastInputOrigin = CursorPos;
 		s_LastInputHeight = Cursor.m_AlignedFontSize;
 		if(Changed || s_TextMotion.Moving(Now))
 			s_CaretChanged = Now;
 		if(AnimateCaret && (HasComposition || Now - s_CaretChanged < .5 || std::fmod(Now - s_CaretChanged, 1.0) < .5))
 		{
-			const vec2 Visual = s_TextMotion.Position(Now);
-			const vec2 Tail = s_TextMotion.Tail(Now, Cursor.m_AlignedFontSize);
+			const float CaretWidth = std::max(LucentStyle::Motion::TextHeadMinWidth, Cursor.m_AlignedFontSize * LucentStyle::Motion::TextHeadWidth);
+			const CUIRect &Clip = pTrailClip ? *pTrailClip : *pRect;
+			vec2 Visual = s_TextMotion.Position(Now);
+			vec2 Tail = s_TextMotion.Tail(Now, Cursor.m_AlignedFontSize);
+			Visual.x = std::clamp(Visual.x, Clip.x, std::max(Clip.x, Clip.x + Clip.w - CaretWidth));
+			Tail.x = std::clamp(Tail.x, Clip.x, std::max(Clip.x, Clip.x + Clip.w - CaretWidth));
 			const float Alpha = TextRender()->RenderOpacity();
 			const float Fade = s_TextMotion.TrailAlpha(Now) * Alpha;
 			const auto White = LucentStyle::Gradient::White.WithAlpha(Fade);
 			const auto Rose = LucentStyle::Gradient::Pink.WithAlpha(Fade);
 			CUIRect Trail = {std::min(Tail.x, Visual.x), Visual.y, std::abs(Visual.x - Tail.x), Cursor.m_AlignedFontSize};
-			Trail.Draw4(White, Rose, White.WithAlpha(0), Rose.WithAlpha(0), 0, 0);
-			CUIRect Caret = {Visual.x, Visual.y, std::max(.6f, Cursor.m_AlignedFontSize * .055f), Cursor.m_AlignedFontSize};
-			Caret.Draw(LucentStyle::Gradient::Sample(0, Clock.GradientTime()).WithAlpha(Alpha * s_TextMotion.CaretAlpha(Now)), 0, 0);
+			// Fade along the direction of travel; keep the leading edge white/rose.
+			if(Visual.x >= Tail.x)
+				Trail.Draw4(White.WithAlpha(0), White, Rose.WithAlpha(0), Rose, 0, 0);
+			else
+				Trail.Draw4(White, White.WithAlpha(0), Rose, Rose.WithAlpha(0), 0, 0);
+			CUIRect Head = {Visual.x, Visual.y, CaretWidth, Cursor.m_AlignedFontSize};
+			Head.Draw4(White, White, Rose, Rose, 0, 0);
+			CUIRect Caret = {m_CaretPosition.x, m_CaretPosition.y, CaretWidth, Cursor.m_AlignedFontSize};
+			Caret.Draw(LucentStyle::Gradient::Sample(0, Clock.GradientTime()).WithAlpha(Alpha), 0, 0);
 		}
 
 		CTextCursor CaretCursor;

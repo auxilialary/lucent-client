@@ -1032,10 +1032,10 @@ bool CUi::DoEditBox(CLineInput *pLineInput, const CUIRect *pRect, float FontSize
 		if(LucentStyle())
 		{
 			LucentUi::CTextScope Text(TextRender(), std::min(Textbox.w, TextRender()->TextWidth(FontSize, pLineInput->GetDisplayedString())), Filled, LucentUi::Highlight(pLineInput, Enabled() && HotItem() == pLineInput), Enabled());
-			BoundingBox = pLineInput->Render(&Textbox, FontSize, TEXTALIGN_ML, Changed || CursorChanged, -1.0f, 0.0f, vColorSplits);
+			BoundingBox = pLineInput->Render(&Textbox, FontSize, TEXTALIGN_ML, Changed || CursorChanged, -1.0f, 0.0f, vColorSplits, pRect);
 		}
 		else
-			BoundingBox = pLineInput->Render(&Textbox, FontSize, TEXTALIGN_ML, Changed || CursorChanged, -1.0f, 0.0f, vColorSplits);
+			BoundingBox = pLineInput->Render(&Textbox, FontSize, TEXTALIGN_ML, Changed || CursorChanged, -1.0f, 0.0f, vColorSplits, pRect);
 	}
 	ClipDisable();
 
