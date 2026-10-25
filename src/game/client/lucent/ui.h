@@ -17,7 +17,7 @@ namespace LucentUi
 		ACTIVE,
 		FOCUS
 	};
-	inline float Highlight(const void *pId, bool Target, EChannel Channel = EChannel::HOVER)
+	inline float Highlight(const void *pId, bool Target, EChannel Channel = EChannel::HOVER, float Duration = 0)
 	{
 		struct CState
 		{
@@ -47,7 +47,8 @@ namespace LucentUi
 		}
 		pState->m_Last = Clock.m_Now;
 		return pState->m_Transition.Update(Target, Clock.m_Now, Clock.m_Animate,
-			Channel == EChannel::FOCUS ? LucentStyle::Motion::Focus : LucentStyle::Motion::Hover);
+			Duration > 0 ? Duration : Channel == EChannel::FOCUS ? LucentStyle::Motion::Focus :
+									       LucentStyle::Motion::Hover);
 	}
 	constexpr float RADIUS = LucentStyle::Style::Radius;
 	inline ColorRGBA Accent(float Alpha) { return LucentStyle::Style::Accent.WithAlpha(Alpha); }
@@ -59,12 +60,16 @@ namespace LucentUi
 		const auto Right = LucentStyle::Gradient::Sample(LucentStyle::Gradient::ControlOrigin + LucentStyle::Gradient::ControlSpan, Time).WithAlpha(Alpha);
 		Rect.Draw4(Left, Right, Left, Right, Corners, Radius);
 	}
-	inline void Divider(CUIRect Rect, float Alpha = .25f, bool Glow = false)
+	inline void Divider(CUIRect Rect, float Alpha = .25f, bool Glow = false, bool Gradient = false)
 	{
 		CUIRect Left, Right;
 		Rect.VSplitMid(&Left, &Right);
-		Left.Draw4(Accent(0), Accent(Alpha), Accent(0), Accent(Alpha), 0, 0);
-		Right.Draw4(Accent(Alpha), Accent(0), Accent(Alpha), Accent(0), 0, 0);
+		const double Time = LucentStyle::Motion::Clock().GradientTime();
+		const auto Color = [&](float Position, float Opacity) {
+			return Gradient ? LucentStyle::Gradient::Sample(LucentStyle::Gradient::ControlOrigin + LucentStyle::Gradient::ControlSpan * Position, Time).WithAlpha(Opacity) : Accent(Opacity);
+		};
+		Left.Draw4(Color(0, 0), Color(.5f, Alpha), Color(0, 0), Color(.5f, Alpha), 0, 0);
+		Right.Draw4(Color(.5f, Alpha), Color(1, 0), Color(.5f, Alpha), Color(1, 0), 0, 0);
 		if(Glow)
 		{
 			Rect.y += Rect.h;
@@ -73,6 +78,25 @@ namespace LucentUi
 			Left.Draw4(Accent(0), Accent(.025f), Accent(0), Accent(0), 0, 0);
 			Right.Draw4(Accent(.025f), Accent(0), Accent(0), Accent(0), 0, 0);
 		}
+	}
+	// Filter masks contain exclusions: Active means allowed, including an empty mask.
+	inline float FilterItemOpacity(const void *pId, bool Active, bool Hover)
+	{
+		const float Hot = Highlight(pId, Hover);
+		const float Selected = Highlight(pId, Active, EChannel::ACTIVE);
+		return LucentStyle::Motion::Lerp(LucentStyle::Motion::Lerp(.30f, .75f, Hot), 1.f, Selected);
+	}
+	inline bool FilterTab(CUi *pUi, ITextRender *pTextRender, const void *pId, const char *pText, const CUIRect &Rect, bool Selected)
+	{
+		const float Hot = Highlight(pId, pUi->Enabled() && pUi->MouseHovered(&Rect));
+		const float Active = Highlight(pId, Selected, EChannel::ACTIVE, LucentStyle::Motion::Selection);
+		CUIRect Line = {Rect.x, Rect.y + Rect.h - 1, Rect.w, LucentStyle::Style::Hairline};
+		Divider(Line, Active * LucentStyle::Style::ButtonUnderline, false, true);
+		pTextRender->TextColor((Selected ? LucentStyle::Gradient::White : LucentStyle::Style::Text).WithAlpha(Selected ? 1.f : LucentStyle::Motion::Lerp(.58f, .85f, Hot)));
+		const float Size = std::min(11.f, 11.f * std::max(1.f, Rect.w - 6) / std::max(1.f, pTextRender->TextWidth(11, pText)));
+		pUi->DoLabel(&Rect, pText, Size, TEXTALIGN_MC);
+		pTextRender->TextColor(pTextRender->DefaultTextColor());
+		return pUi->DoButtonLogic(pId, Selected, &Rect, BUTTONFLAG_LEFT);
 	}
 	class CTextScope
 	{

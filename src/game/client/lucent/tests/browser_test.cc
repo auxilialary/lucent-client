@@ -351,7 +351,7 @@ int main()
 					const float Right = CLucentBrowserFilterLayout::GroupHeight(GroupWidth, 5, Minimum);
 					const float Groups = Layout.m_Wide ? std::max(Left, Right) : Left + 8 + Right;
 					// Walk the same sections as rendering, through the bottom of the grid.
-					const float Bottom = Groups + 26 + CLucentBrowserFilterLayout::InputHeight(Workspace) + 5 + 28.5f + 21 + (HasGrid ? 25 + Layout.m_GridHeight : 0);
+					const float Bottom = Groups + 26 + CLucentBrowserFilterLayout::InputHeight(Workspace) + 5 + 24.5f + CLucentBrowserFilterLayout::SectionDividerGap + 21 + (HasGrid ? 25 + CLucentBrowserFilterLayout::TabGridGap + Layout.m_GridHeight : 0);
 					CHECK(std::abs(Layout.m_ContentHeight - Bottom - 13) < .001f);
 					CUIRect Row = {18, 40, Workspace, CLucentBrowserFilterLayout::InputHeight(Workspace)};
 					for(int i = 0; i < 3; ++i)

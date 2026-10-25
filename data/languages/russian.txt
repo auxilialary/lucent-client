@@ -2882,3 +2882,6 @@ Reset filter (Ctrl+Shift+R)
 
 Expand text filter (Ctrl+1/2/3)
 == Открыть текстовый фильтр (Ctrl+1/2/3)
+
+Game types
+== Типы игры

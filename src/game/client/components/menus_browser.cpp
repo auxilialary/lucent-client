@@ -711,9 +711,9 @@ void CMenus::RenderServerbrowserFilters(CUIRect View, CScrollRegion *pScroll)
 		const int Counts[] = {4, 5};
 		int *apValues[] = {&g_Config.m_BrFilterEmpty, &g_Config.m_BrFilterFull, &g_Config.m_BrFilterUnfinishedMap, &g_Config.m_BrFilterGametypeStrict,
 			&g_Config.m_BrFilterPw, &g_Config.m_BrFilterLogin, &g_Config.m_BrFilterFriends, &g_Config.m_BrFilterConnectingPlayers, &g_Config.m_BrFilterSpectators};
-		const char *apLabels[] = {"Has people playing", "Server not full", "Unfinished map", "Strict gametype filter",
-			"No password", "No login required", "Show friends only", "Filter connecting players", "Count players only"};
-		const char *apGroups[] = {"Servers and maps", "Access and players"};
+		const char *apLabels[] = {Localizable("Has people playing"), Localizable("Server not full"), Localizable("Unfinished map"), Localizable("Strict gametype filter"),
+			Localizable("No password"), Localizable("No login required"), Localizable("Show friends only"), Localizable("Filter connecting players"), Localizable("Count players only")};
+		const char *apGroups[] = {Localizable("Servers and maps"), Localizable("Access and players")};
 		float Minimum = 0;
 		for(const char *pLabel : apLabels)
 			Minimum = std::max(Minimum, TextRender()->TextWidth(11, Localize(pLabel)) + LucentStyle::Style::ControlSize + LucentStyle::Style::LabelGap + 8);
@@ -777,7 +777,7 @@ void CMenus::RenderServerbrowserFilters(CUIRect View, CScrollRegion *pScroll)
 		Ui()->DoLabel(&TextHeading, Localize("Text filters"), 11, TEXTALIGN_MC);
 		CUIRect Compact;
 		View.HSplitTop(CLucentBrowserFilterLayout::InputHeight(View.w), &Compact, &View);
-		const char *apNames[] = {"Exclusions", "Game types:", "Server address:"};
+		const char *apNames[] = {Localizable("Exclusions"), Localizable("Game types"), Localizable("Server address")};
 		if(!Input()->HasComposition() && Ui()->Enabled())
 			for(int i = 0; i < 3; ++i)
 				if(s_CompactInputs[i].IsActive() && Ui()->ConsumeHotkey(CUi::HOTKEY_TAB))
@@ -832,7 +832,7 @@ void CMenus::RenderServerbrowserFilters(CUIRect View, CScrollRegion *pScroll)
 		View.HSplitTop(16, &Heading, &View);
 		TextRender()->TextColor(LucentStyle::Style::MutedText);
 		Ui()->DoLabel(&Heading, pText, 11, TEXTALIGN_MC);
-		View.HSplitTop(4, nullptr, &View);
+		View.HSplitTop(CLucentBrowserFilterLayout::SectionDividerGap, nullptr, &View);
 		CUIRect Line;
 		View.HSplitTop(LucentStyle::Style::Hairline, &Line, &View);
 		LucentUi::Divider(Line);
@@ -976,19 +976,21 @@ void CMenus::RenderServerbrowserFilters(CUIRect View, CScrollRegion *pScroll)
 		CUIRect TabContents, CountriesTab, TypesTab;
 		View.HSplitTop(6.0f, nullptr, &View);
 		View.HSplitTop(19.0f, &Button, &View);
+		if(pScroll)
+			View.HSplitTop(CLucentBrowserFilterLayout::TabGridGap, nullptr, &View);
 		View.HSplitTop(pScroll ? GridHeight : std::min(4.0f * 22.0f, View.h), &TabContents, &View);
 		Button.VSplitMid(&CountriesTab, &TypesTab);
 		if(!pScroll)
 			TabContents.Draw(ColorActive, IGraphics::CORNER_B, 4.0f);
 
 		static CButtonContainer s_CountriesButton;
-		if(pScroll ? LucentBrowserButton(&s_CountriesButton, "Countries", CountriesTab, s_ActiveTab == FILTERTAB_COUNTRIES) : DoButton_MenuTab(&s_CountriesButton, Localize("Countries"), s_ActiveTab == FILTERTAB_COUNTRIES, &CountriesTab, IGraphics::CORNER_TL, nullptr, &ColorInactive, &ColorActive, nullptr, 4.0f))
+		if(pScroll ? LucentUi::FilterTab(Ui(), TextRender(), &s_CountriesButton, Localize("Countries"), CountriesTab, s_ActiveTab == FILTERTAB_COUNTRIES) : DoButton_MenuTab(&s_CountriesButton, Localize("Countries"), s_ActiveTab == FILTERTAB_COUNTRIES, &CountriesTab, IGraphics::CORNER_TL, nullptr, &ColorInactive, &ColorActive, nullptr, 4.0f))
 		{
 			s_ActiveTab = FILTERTAB_COUNTRIES;
 		}
 
 		static CButtonContainer s_TypesButton;
-		if(pScroll ? LucentBrowserButton(&s_TypesButton, "Types", TypesTab, s_ActiveTab == FILTERTAB_TYPES) : DoButton_MenuTab(&s_TypesButton, Localize("Types"), s_ActiveTab == FILTERTAB_TYPES, &TypesTab, IGraphics::CORNER_TR, nullptr, &ColorInactive, &ColorActive, nullptr, 4.0f))
+		if(pScroll ? LucentUi::FilterTab(Ui(), TextRender(), &s_TypesButton, Localize("Types"), TypesTab, s_ActiveTab == FILTERTAB_TYPES) : DoButton_MenuTab(&s_TypesButton, Localize("Types"), s_ActiveTab == FILTERTAB_TYPES, &TypesTab, IGraphics::CORNER_TR, nullptr, &ColorInactive, &ColorActive, nullptr, 4.0f))
 		{
 			s_ActiveTab = FILTERTAB_TYPES;
 		}
@@ -1157,13 +1159,8 @@ void CMenus::RenderServerbrowserDDNetFilter(CUIRect View,
 				UpdateCommunityCache(true);
 		}
 
-		if(Ui()->HotItem() == pItemId && !ScrollRegion.Animating())
+		if(!InLucentFilters && Ui()->HotItem() == pItemId && !ScrollRegion.Animating())
 			Item.Draw(Ui()->LucentStyle() ? ColorRGBA(1, .82f, .91f, .06f) : ColorRGBA(1.0f, 1.0f, 1.0f, 0.33f), IGraphics::CORNER_ALL, 2.0f);
-		if(InLucentFilters && Active && &Filter != &ServerBrowser()->CountriesFilter())
-		{
-			CUIRect Marker = {Item.x + 3, Item.y + Item.h - 1, std::max(0.f, Item.w - 6), .6f};
-			Marker.Draw(LucentUi::Accent(.45f), 0, 0);
-		}
 		RenderItem(ItemIndex, Item, pItemId, Active);
 	}
 
@@ -1277,7 +1274,7 @@ void CMenus::RenderServerbrowserCountriesFilter(CUIRect View)
 		const float OldWidth = Item.w;
 		Item.w = Item.h * 2.0f;
 		Item.x += (OldWidth - Item.w) / 2.0f;
-		GameClient()->m_CountryFlags.Render(ServerBrowser()->CommunityCache().SelectableCountries()[ItemIndex]->FlagId(), ColorRGBA(1.0f, 1.0f, 1.0f, (m_LucentFiltersRendering ? (Active ? 1.f : .4f + .4f * LucentUi::Highlight(pItemId, Ui()->HotItem() == pItemId)) : (Active ? .9f : (Ui()->LucentStyle() ? .60f : .2f)) + (Ui()->HotItem() == pItemId ? .1f : 0.f)) * CUIRect::DrawOpacity()), Item.x, Item.y, Item.w, Item.h);
+		GameClient()->m_CountryFlags.Render(ServerBrowser()->CommunityCache().SelectableCountries()[ItemIndex]->FlagId(), ColorRGBA(1.0f, 1.0f, 1.0f, (m_LucentFiltersRendering ? LucentUi::FilterItemOpacity(pItemId, Active, Ui()->HotItem() == pItemId) : (Active ? .9f : (Ui()->LucentStyle() ? .60f : .2f)) + (Ui()->HotItem() == pItemId ? .1f : 0.f)) * CUIRect::DrawOpacity()), Item.x, Item.y, Item.w, Item.h);
 	};
 
 	RenderServerbrowserDDNetFilter(View, ServerBrowser()->CountriesFilter(), ItemHeight + 2.0f * Spacing, MaxEntries, EntriesPerRow, s_ScrollRegion, s_vItemIds, false, GetItemName, RenderItem);
@@ -1299,7 +1296,7 @@ void CMenus::RenderServerbrowserTypesFilter(CUIRect View)
 	};
 	const auto &&RenderItem = [&](int ItemIndex, CUIRect Item, const void *pItemId, bool Active) {
 		Item.Margin(Spacing, &Item);
-		TextRender()->TextColor(1.0f, 1.0f, 1.0f, (m_LucentFiltersRendering ? (Active ? 1.f : .4f + .4f * LucentUi::Highlight(pItemId, Ui()->HotItem() == pItemId)) : (Active ? .9f : (Ui()->LucentStyle() ? .60f : .2f)) + (Ui()->HotItem() == pItemId ? .1f : 0.f)));
+		TextRender()->TextColor(1.0f, 1.0f, 1.0f, (m_LucentFiltersRendering ? LucentUi::FilterItemOpacity(pItemId, Active, Ui()->HotItem() == pItemId) : (Active ? .9f : (Ui()->LucentStyle() ? .60f : .2f)) + (Ui()->HotItem() == pItemId ? .1f : 0.f)));
 		Ui()->DoLabel(&Item, GetItemName(ItemIndex), Item.h * CUi::ms_FontmodHeight, TEXTALIGN_MC);
 		TextRender()->TextColor(TextRender()->DefaultTextColor());
 	};
