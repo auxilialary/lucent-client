@@ -220,9 +220,9 @@ public:
 		const auto Move = [&](float Value, bool Target, float Duration) {
 			return Animate ? std::clamp(Value + (Target ? Step : -Step) / Duration, 0.f, 1.f) : float(Target);
 		};
-		m_FiltersExpansion = Move(m_FiltersExpansion, m_Overlay.m_Target == EOverlay::FILTERS, LucentStyle::Motion::Expansion);
+		m_FiltersExpansion = Move(m_FiltersExpansion, m_Overlay.m_Target == EOverlay::FILTERS, LucentStyle::Motion::Filters);
 		m_Expansion = Move(m_Expansion, m_Overlay.m_Target != EOverlay::NONE, LucentStyle::Motion::Expansion);
-		if(m_Expansion == 0 && m_Overlay.m_Target == EOverlay::NONE)
+		if(m_Expansion == 0 && m_FiltersExpansion == 0 && m_Overlay.m_Target == EOverlay::NONE)
 		{
 			m_Overlay.m_Visible = EOverlay::NONE;
 			m_Overlay.m_Alpha = 1;

@@ -2046,6 +2046,7 @@ public:
 			}
 		}
 
+		HasCursor &= pCursor->m_RenderCursor;
 		const bool HasSelection = !vSelectionQuads.empty() && SelectionUsedPress && SelectionUsedRelease;
 		if((HasSelection || HasCursor) && IsRendered)
 		{

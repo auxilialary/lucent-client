@@ -37,7 +37,7 @@ struct CLucentBrowserFilterLayout
 	}
 	static int QuickColumns(float Width) { return std::clamp(int((Width - 14) / 185), 1, 3); }
 	static float QuickHeight(float Width) { return ((5 + QuickColumns(Width) - 1) / QuickColumns(Width)) * 25.f + 8; }
-	static CLucentBrowserFilterLayout Measure(float Width, int Countries, int Types, bool CountriesTab, bool HasGrid, bool Ranks, bool Finished)
+	static CLucentBrowserFilterLayout Measure(float Width, int Countries, int Types, bool CountriesTab, bool HasGrid, bool Ranks, bool Finished, float InputExpansion = 0)
 	{
 		Width = WorkspaceWidth(Width);
 		Width -= 12; // Forced 8-unit scrollbar and 4-unit content inset.
@@ -47,9 +47,9 @@ struct CLucentBrowserFilterLayout
 								   ((Types + 2) / 3) * 17.f;
 		// Heights are the sum of consumed controls, not minimum section heights.
 		constexpr float Heading = 8 + 16 + .5f;
-		constexpr float Left = 5 * Heading + 18 + 7 * 21;
+		constexpr float Left = 2 * Heading + 4 * 21;
 		const float Right = 2 * Heading + (Ranks ? 21 + (Finished ? 21 : 28) : 0) + (HasGrid ? 6 + 19 + Grid : 0);
-		const float Height = QuickHeight(Width) + 10 + (Wide ? std::max(Left, Right) : Left + Right);
+		const float Height = 30 + 30 * std::clamp(InputExpansion, 0.f, 1.f) + QuickHeight(Width) + 10 + (Wide ? std::max(Left, Right) : Left + Right);
 		return {Wide, Grid, Height};
 	}
 };

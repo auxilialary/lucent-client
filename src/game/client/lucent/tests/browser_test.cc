@@ -2,6 +2,7 @@
 
 #include <game/client/lucent/browser_layout.h>
 #include <game/client/lucent/browser_state.h>
+#include <game/client/lucent/lucent_text_motion.h>
 #include <game/client/lucent/preview_policy.h>
 
 #include <cstdio>
@@ -17,6 +18,64 @@
 	} while(0)
 int main()
 {
+	// Visual motion follows actual glyph geometry, with bounded trails at every FPS.
+	for(int Fps : {60, 144, 240})
+	{
+		CLucentTextMotion Caret;
+		Caret.Update(vec2(10, 20), 12, 0, true, false);
+		Caret.Update(vec2(18, 20), 12, .01, true, false);
+		for(int Frame = 1; Frame <= Fps; ++Frame)
+		{
+			const double Now = .01 + double(Frame) / Fps;
+			const vec2 Visual = Caret.Position(Now);
+			CHECK(Visual.x >= 10 && Visual.x <= 18 && Visual.y == 20);
+			CHECK(distance(Visual, Caret.Tail(Now, 12)) <= 12 * LucentStyle::Motion::TextTrailLength);
+			if(Now >= .22)
+				CHECK(Visual == vec2(18, 20) && Caret.TrailAlpha(Now) == 0);
+		}
+		Caret.Update(vec2(25, 20), 12, 2, true, false);
+		const vec2 Retarget = Caret.Position(2.04);
+		Caret.Update(vec2(30, 20), 12, 2.04, true, false);
+		CHECK(distance(Caret.Position(2.04), Retarget) < .001f);
+		Caret.Update(vec2(300, 20), 12, 2.05, true, false); // Home/End or paste
+		CHECK(Caret.Position(2.05) == vec2(300, 20));
+		CHECK(Caret.Tail(2.05, 12) == vec2(300, 20));
+		CHECK(Caret.CaretAlpha(2.05) == 0 && Caret.CaretAlpha(3) == 1);
+		Caret.Update(vec2(10, 32), 12, 2.06, true, false); // wrap/newline
+		CHECK(Caret.Position(2.06) == vec2(10, 32));
+		Caret.Update(vec2(16, 32), 12, 2.07, false, false);
+		CHECK(Caret.Position(2.07) == vec2(16, 32) && Caret.TrailAlpha(2.07) == 0);
+		Caret.Update(vec2(22, 32), 12, 2.08, true, true); // scroll/IME/scale
+		CHECK(Caret.Position(2.08) == vec2(22, 32));
+		Caret.Reset();
+		Caret.Update(vec2(100, 50), 12, 2.09, true, false);
+		CHECK(Caret.Position(2.09) == vec2(100, 50));
+		CHECK(Caret.Position(30) == vec2(100, 50) && Caret.TrailAlpha(30) == 0);
+	}
+	for(float Width : {320.f, 600.f, 1000.f})
+	{
+		const auto Closed = CLucentBrowserFilterLayout::Measure(Width, 0, 0, true, false, false, false);
+		const auto Open = CLucentBrowserFilterLayout::Measure(Width, 0, 0, true, false, false, false, 1);
+		CHECK(Open.m_ContentHeight == Closed.m_ContentHeight + 30);
+	}
+
+	// A closing Filters workspace outlives the shorter generic overlay animation.
+	{
+		CLucentBrowserState Filters;
+		Filters.Toggle(CLucentBrowserState::EPanel::FILTERS);
+		Filters.Update(0, false);
+		Filters.Escape();
+		for(int i = 0; i < 4; ++i)
+			Filters.Update(.1f, true);
+		CHECK(Filters.m_Expansion == 0 && Filters.FiltersWorkspace());
+		CHECK(Filters.m_Overlay.m_Visible == CLucentBrowserState::EOverlay::FILTERS);
+		Filters.Toggle(CLucentBrowserState::EPanel::FILTERS);
+		Filters.Update(.01f, true);
+		CHECK(Filters.FiltersWorkspace());
+		Filters.Update(0, false);
+		CHECK(Filters.FiltersOpacity() == 1);
+	}
+
 	// The same timestamps must produce the same activation at 60/144/240 FPS.
 	for(int Fps : {60, 144, 240})
 	{
@@ -131,7 +190,7 @@ int main()
 	CHECK(Countries.m_Wide && Countries.m_GridHeight == 21 * 22);
 	CHECK(Countries.m_ContentHeight >= Countries.m_GridHeight + 59);
 	const auto Types = CLucentBrowserFilterLayout::Measure(1000, 101, 3, false, true, true, true);
-	CHECK(Types.m_GridHeight == 17 && Types.m_ContentHeight == 355.5f);
+	CHECK(Types.m_GridHeight == 17 && Types.m_ContentHeight == 231.f);
 	const auto Narrow = CLucentBrowserFilterLayout::Measure(600, 8, 4, true, true, true, true);
 	CHECK(!Narrow.m_Wide && Narrow.m_GridHeight == 44);
 	CHECK(Narrow.m_ContentHeight > Types.m_ContentHeight);
@@ -199,14 +258,14 @@ int main()
 	CHECK(std::string(Context.PrimarySelection("")).compare("browser:8303") == 0);
 	Context.Toggle(CLucentBrowserState::EPanel::FILTERS);
 	CHECK(Context.FiltersWorkspace());
-	for(int i = 0; i < 24; ++i)
+	for(int i = 0; i < 32; ++i)
 	{
 		Context.Update(1.f / 60, true);
 		CHECK(Context.BrowserOpacity() == 0 || Context.FiltersOpacity() == 0);
 	}
 	CHECK(Context.BrowserOpacity() == 0 && Context.FiltersOpacity() == 1);
 	Context.Escape();
-	for(int i = 0; i < 24; ++i)
+	for(int i = 0; i < 32; ++i)
 	{
 		Context.Update(1.f / 60, true);
 		CHECK(Context.BrowserOpacity() == 0 || Context.FiltersOpacity() == 0);

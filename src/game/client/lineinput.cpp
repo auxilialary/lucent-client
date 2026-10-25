@@ -2,11 +2,13 @@
 /* If you are missing that file, acquire a complete release at teeworlds.com.                */
 #include "lineinput.h"
 
+#include "lucent/lucent_text_motion.h"
 #include "ui.h"
 
 #include <base/dbg.h>
 #include <base/mem.h>
 #include <base/str.h>
+#include <base/time.h>
 
 #include <engine/graphics.h>
 #include <engine/keys.h>
@@ -19,6 +21,12 @@ IClient *CLineInput::ms_pClient = nullptr;
 
 CLineInput *CLineInput::ms_pActiveInput = nullptr;
 EInputPriority CLineInput::ms_ActiveInputPriority = EInputPriority::NONE;
+
+// Only the focused editor owns visual motion, including chat and both consoles.
+static CLucentTextMotion s_TextMotion;
+static double s_CaretChanged = 0;
+static vec2 s_LastInputOrigin(0, 0);
+static float s_LastInputHeight = 0;
 
 vec2 CLineInput::ms_CompositionWindowPosition = vec2(0.0f, 0.0f);
 float CLineInput::ms_CompositionLineHeight = 0.0f;
@@ -448,8 +456,10 @@ STextBoundingBox CLineInput::Render(const CUIRect *pRect, float FontSize, int Al
 
 		Cursor.SetPosition(CursorPos);
 		Cursor.m_FontSize = FontSize;
+		const bool AnimateCaret = g_Config.m_ClLucentLogoAnimation != 0;
+		Cursor.m_RenderCursor = !AnimateCaret;
 		Cursor.m_LineWidth = LineWidth;
-		Cursor.m_ForceCursorRendering = Changed;
+		Cursor.m_ForceCursorRendering = Changed || !AnimateCaret;
 		Cursor.m_LineSpacing = LineSpacing;
 		Cursor.m_PressMouse.x = m_MouseSelection.m_PressMouse.x;
 		Cursor.m_ReleaseMouse.x = m_MouseSelection.m_ReleaseMouse.x;
@@ -517,6 +527,28 @@ STextBoundingBox CLineInput::Render(const CUIRect *pRect, float FontSize, int Al
 		}
 
 		m_CaretPosition = Cursor.m_CursorRenderedPosition;
+		const double Now = double(time_get()) / time_freq();
+		auto &Clock = LucentStyle::Motion::Clock();
+		Clock.BeginFrame(Now, AnimateCaret);
+		const bool Reposition = HasComposition || CursorPos != s_LastInputOrigin || s_LastInputHeight != Cursor.m_AlignedFontSize;
+		s_TextMotion.Update(m_CaretPosition, Cursor.m_AlignedFontSize, Now, AnimateCaret, Reposition);
+		s_LastInputOrigin = CursorPos;
+		s_LastInputHeight = Cursor.m_AlignedFontSize;
+		if(Changed || s_TextMotion.Moving(Now))
+			s_CaretChanged = Now;
+		if(AnimateCaret && (HasComposition || Now - s_CaretChanged < .5 || std::fmod(Now - s_CaretChanged, 1.0) < .5))
+		{
+			const vec2 Visual = s_TextMotion.Position(Now);
+			const vec2 Tail = s_TextMotion.Tail(Now, Cursor.m_AlignedFontSize);
+			const float Alpha = TextRender()->RenderOpacity();
+			const float Fade = s_TextMotion.TrailAlpha(Now) * Alpha;
+			const auto White = LucentStyle::Gradient::White.WithAlpha(Fade);
+			const auto Rose = LucentStyle::Gradient::Pink.WithAlpha(Fade);
+			CUIRect Trail = {std::min(Tail.x, Visual.x), Visual.y, std::abs(Visual.x - Tail.x), Cursor.m_AlignedFontSize};
+			Trail.Draw4(White, Rose, White.WithAlpha(0), Rose.WithAlpha(0), 0, 0);
+			CUIRect Caret = {Visual.x, Visual.y, std::max(.6f, Cursor.m_AlignedFontSize * .055f), Cursor.m_AlignedFontSize};
+			Caret.Draw(LucentStyle::Gradient::Sample(0, Clock.GradientTime()).WithAlpha(Alpha * s_TextMotion.CaretAlpha(Now)), 0, 0);
+		}
 
 		CTextCursor CaretCursor;
 		CaretCursor.SetPosition(CursorPos);
@@ -662,11 +694,14 @@ void CLineInput::Deactivate() const
 
 void CLineInput::OnActivate()
 {
+	s_TextMotion.Reset();
+	s_CaretChanged = double(time_get()) / time_freq();
 	Input()->StartTextInput();
 }
 
 void CLineInput::OnDeactivate()
 {
+	s_TextMotion.Reset();
 	Input()->StopTextInput();
 	m_MouseSelection.m_Selecting = false;
 }

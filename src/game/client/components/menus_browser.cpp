@@ -702,6 +702,22 @@ void CMenus::RenderServerbrowserFilters(CUIRect View, CScrollRegion *pScroll)
 	const EFilterTab LayoutTab = s_ActiveTab;
 	const bool LayoutFinished = g_Config.m_BrIndicateFinished != 0;
 	float GridHeight = 0.0f;
+	static CLineInput s_CompactInputs[] = {
+		CLineInput(g_Config.m_BrExcludeString, sizeof(g_Config.m_BrExcludeString)),
+		CLineInput(g_Config.m_BrFilterGametype, sizeof(g_Config.m_BrFilterGametype)),
+		CLineInput(g_Config.m_BrFilterServerAddress, sizeof(g_Config.m_BrFilterServerAddress))};
+	static int s_OpenInput = -1, s_VisibleInput = 0;
+	static int s_aCompactIds[3];
+	static LucentStyle::Motion::CTransition s_InputExpansion;
+	const auto &Clock = LucentStyle::Motion::Clock();
+	if(pScroll && s_OpenInput >= 0 && !s_CompactInputs[s_OpenInput].IsActive() &&
+		Ui()->ActiveItem() != &s_aCompactIds[0] && Ui()->ActiveItem() != &s_aCompactIds[1] && Ui()->ActiveItem() != &s_aCompactIds[2] &&
+		!Input()->HasComposition() && !Ui()->IsPopupOpen())
+	{
+		s_OpenInput = -1;
+		s_InputExpansion = {};
+	}
+	const float InputExpansion = pScroll ? s_InputExpansion.Update(s_OpenInput >= 0, Clock.m_Now, Clock.m_Animate, LucentStyle::Motion::FilterInput) : 0;
 	if(pScroll)
 	{
 		const auto Layout = CLucentBrowserFilterLayout::Measure(View.w,
@@ -709,7 +725,7 @@ void CMenus::RenderServerbrowserFilters(CUIRect View, CScrollRegion *pScroll)
 			ServerBrowser()->CommunityCache().SelectableTypes().size(),
 			LayoutTab == FILTERTAB_COUNTRIES,
 			ServerBrowser()->CommunityCache().CountriesTypesFilterAvailable(),
-			ServerBrowser()->CommunityCache().AnyRanksAvailable(), LayoutFinished);
+			ServerBrowser()->CommunityCache().AnyRanksAvailable(), LayoutFinished, InputExpansion);
 		GridHeight = Layout.m_GridHeight;
 		const float ContentHeight = Layout.m_ContentHeight;
 		CScrollRegionParams Params;
@@ -722,7 +738,72 @@ void CMenus::RenderServerbrowserFilters(CUIRect View, CScrollRegion *pScroll)
 		View.VSplitRight(4.0f, &View, nullptr);
 		View.h = ContentHeight;
 		pScroll->AddRect(View);
+		CUIRect Compact;
+		View.HSplitTop(30, &Compact, &View);
+		const char *apNames[] = {"Exclusions", "Game types:", "Server address:"};
+		for(int i = 0; i < 3; ++i)
 		{
+			CUIRect Chip = {Compact.x + i * Compact.w / 3, Compact.y, Compact.w / 3 - 6, 24};
+			const bool Filled = s_CompactInputs[i].GetString()[0] != 0;
+			LucentUi::InputFrame(Chip, &s_aCompactIds[i], Filled, s_OpenInput == i, Ui()->MouseHovered(&Chip), Ui()->Enabled(), IGraphics::CORNER_ALL);
+			CUIRect Icon, Label;
+			Chip.VSplitLeft(18, &Icon, &Label);
+			TextRender()->SetFontPreset(EFontPreset::ICON_FONT);
+			Ui()->DoLabel(&Icon, s_OpenInput == i ? FontIcon::CHEVRON_UP : FontIcon::CHEVRON_DOWN, 8, TEXTALIGN_MC);
+			TextRender()->SetFontPreset(EFontPreset::DEFAULT_FONT);
+			SLabelProperties Props;
+			Props.m_MaxWidth = Label.w - 4;
+			Props.m_EllipsisAtEnd = true;
+			char aLabel[512];
+			str_format(aLabel, sizeof(aLabel), "%s%s%s", Localize(apNames[i]), Filled ? " · " : "", s_CompactInputs[i].GetString());
+			LucentUi::CTextScope Text(TextRender(), Label.w, Filled ? 1.f : 0.f, 0, Ui()->Enabled());
+			if(!Filled)
+				TextRender()->TextColor(LucentStyle::Style::MutedText);
+			Ui()->DoLabel(&Label, aLabel, 10, TEXTALIGN_ML, Props);
+			if(Ui()->DoButtonLogic(&s_aCompactIds[i], 0, &Chip, BUTTONFLAG_LEFT) && !Input()->HasComposition())
+			{
+				if(s_OpenInput >= 0)
+					s_CompactInputs[s_OpenInput].Deactivate();
+				s_OpenInput = s_OpenInput == i ? -1 : i;
+				if(s_OpenInput >= 0)
+				{
+					s_VisibleInput = s_OpenInput;
+					Ui()->SetActiveItem(&s_CompactInputs[i]);
+					s_CompactInputs[i].Activate(EInputPriority::UI);
+				}
+				else
+					Ui()->SetActiveItem(nullptr);
+			}
+		}
+		CUIRect Reveal;
+		View.HSplitTop(30 * InputExpansion, &Reveal, &View);
+		if(InputExpansion > .001f || s_OpenInput >= 0)
+		{
+			Ui()->ClipEnable(&Reveal);
+			CUIRect Edit = {Reveal.x, Reveal.y + LucentStyle::Motion::Slide(LucentStyle::Motion::FilterInputRise, InputExpansion), Reveal.w - 6, 23};
+			LucentUi::COpacityScope Opacity(TextRender(), InputExpansion);
+			auto &InputField = s_CompactInputs[s_VisibleInput];
+			const bool WasActive = InputField.IsActive();
+			{
+				LucentUi::CInteractionScope Interaction(Ui(), s_OpenInput >= 0);
+				if(Ui()->DoEditBox(&InputField, &Edit, 11))
+					Client()->ServerBrowserUpdate();
+			}
+			if(s_OpenInput >= 0 && Ui()->Enabled() && !Input()->HasComposition() &&
+				(Ui()->ConsumeHotkey(CUi::HOTKEY_ENTER) || Ui()->ConsumeHotkey(CUi::HOTKEY_ESCAPE) ||
+					(WasActive && !InputField.IsActive() && !Ui()->MouseHovered(&Compact)) ||
+					(Ui()->MouseButtonClicked(0) && !Ui()->MouseHovered(&Edit) && !Ui()->MouseHovered(&Compact))))
+			{
+				// Filters apply live, so Escape preserves the already applied value.
+				InputField.Deactivate();
+				Ui()->SetActiveItem(nullptr);
+				s_OpenInput = -1;
+			}
+			Ui()->ClipDisable();
+		}
+		{
+			const float Reveal = LucentStyle::Motion::Smooth(std::clamp((m_LucentBrowser.FiltersOpacity() - LucentStyle::Motion::FilterQuickDelay) / (1 - LucentStyle::Motion::FilterQuickDelay), 0.f, 1.f));
+			LucentUi::COpacityScope QuickOpacity(TextRender(), Reveal);
 			CUIRect Quick;
 			const int QuickColumns = CLucentBrowserFilterLayout::QuickColumns(View.w);
 			View.HSplitTop(CLucentBrowserFilterLayout::QuickHeight(View.w), &Quick, &View);
@@ -768,17 +849,7 @@ void CMenus::RenderServerbrowserFilters(CUIRect View, CScrollRegion *pScroll)
 		LucentUi::Divider(Rule, .14f);
 		TextRender()->TextColor(TextRender()->DefaultTextColor());
 	};
-	if(pScroll)
-	{
-		Section(Localize("Exclusions"));
-		CUIRect Label, Exclude;
-		View.HSplitTop(18, &Label, &View);
-		Ui()->DoLabel(&Label, Localize("Exclude"), 11, TEXTALIGN_ML);
-		View.HSplitTop(RowHeight, &Exclude, &View);
-		static CLineInput s_Exclude(g_Config.m_BrExcludeString, sizeof(g_Config.m_BrExcludeString));
-		if(Ui()->DoClearableEditBox(&s_Exclude, &Exclude, 11))
-			Client()->ServerBrowserUpdate();
-	}
+	LucentUi::COpacityScope BodyOpacity(TextRender(), pScroll ? LucentStyle::Motion::Smooth(std::clamp((m_LucentBrowser.FiltersOpacity() - LucentStyle::Motion::FilterBodyDelay) / (1 - LucentStyle::Motion::FilterBodyDelay), 0.f, 1.f)) : 1.f);
 	Section(Localize("Server preferences"));
 	if(!pScroll)
 	{
@@ -823,41 +894,25 @@ void CMenus::RenderServerbrowserFilters(CUIRect View, CScrollRegion *pScroll)
 	if(CheckBox(&g_Config.m_BrFilterGametypeStrict, Localize("Strict gametype filter"), g_Config.m_BrFilterGametypeStrict, &Button))
 		g_Config.m_BrFilterGametypeStrict ^= 1;
 
-	CUIRect TypeLabel;
-	if(pScroll)
+	if(!pScroll)
 	{
-		Section(Localize("Game types:"));
+		CUIRect Label;
+		View.HSplitTop(3, nullptr, &View);
 		View.HSplitTop(RowHeight, &Button, &View);
-	}
-	else
-	{
-		View.HSplitTop(3.0f, nullptr, &View);
+		Button.VSplitRight(60, &Label, &Button);
+		Ui()->DoLabel(&Label, Localize("Game types:"), FontSize, TEXTALIGN_ML);
+		static CLineInput s_GametypeInput(g_Config.m_BrFilterGametype, sizeof(g_Config.m_BrFilterGametype));
+		if(Ui()->DoEditBox(&s_GametypeInput, &Button, FontSize))
+			Client()->ServerBrowserUpdate();
+		View.HSplitTop(6, nullptr, &View);
 		View.HSplitTop(RowHeight, &Button, &View);
-		Button.VSplitRight(60.f, &TypeLabel, &Button);
-		Ui()->DoLabel(&TypeLabel, Localize("Game types:"), FontSize, TEXTALIGN_ML);
+		View.HSplitTop(6, nullptr, &View);
+		Button.VSplitRight(60, &Label, &Button);
+		Ui()->DoLabel(&Label, Localize("Server address:"), FontSize, TEXTALIGN_ML);
+		static CLineInput s_Address(g_Config.m_BrFilterServerAddress, sizeof(g_Config.m_BrFilterServerAddress));
+		if(Ui()->DoEditBox(&s_Address, &Button, FontSize))
+			Client()->ServerBrowserUpdate();
 	}
-	static CLineInput s_GametypeInput(g_Config.m_BrFilterGametype, sizeof(g_Config.m_BrFilterGametype));
-	if(pScroll ? Ui()->DoClearableEditBox(&s_GametypeInput, &Button, FontSize) : Ui()->DoEditBox(&s_GametypeInput, &Button, FontSize))
-		Client()->ServerBrowserUpdate();
-
-	// server address
-	CUIRect AddressLabel;
-	if(pScroll)
-	{
-		Section(Localize("Server address:"));
-		View.HSplitTop(RowHeight, &Button, &View);
-	}
-	else
-	{
-		View.HSplitTop(6.0f, nullptr, &View);
-		View.HSplitTop(RowHeight, &Button, &View);
-		View.HSplitTop(6.0f, nullptr, &View);
-		Button.VSplitRight(60.f, &AddressLabel, &Button);
-		Ui()->DoLabel(&AddressLabel, Localize("Server address:"), FontSize, TEXTALIGN_ML);
-	}
-	static CLineInput s_FilterServerAddressInput(g_Config.m_BrFilterServerAddress, sizeof(g_Config.m_BrFilterServerAddress));
-	if(pScroll ? Ui()->DoClearableEditBox(&s_FilterServerAddressInput, &Button, FontSize) : Ui()->DoEditBox(&s_FilterServerAddressInput, &Button, FontSize))
-		Client()->ServerBrowserUpdate();
 
 	// player country
 	Section(Localize("Players"));

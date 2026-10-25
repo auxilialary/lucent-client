@@ -43,9 +43,7 @@ void CMenus::RenderLucentContext(CUIRect View, CLucentBrowserState::EPanel Mode)
 	}
 	else if(Mode == EPanel::FILTERS)
 	{
-		CUIRect Heading, Back, Reset, Actions;
-		View.HSplitTop(32, &Heading, &View);
-		Ui()->DoLabel(&Heading, Localize("Filters"), 18, TEXTALIGN_MC);
+		CUIRect Back, Reset, Actions;
 		// A separate action row keeps the title centered at narrow widths too.
 		View.HSplitTop(22, &Actions, &View);
 		Actions.VSplitRight(182, nullptr, &Actions);
@@ -64,7 +62,10 @@ void CMenus::RenderLucentContext(CUIRect View, CLucentBrowserState::EPanel Mode)
 		}
 		CUIRect Rule;
 		View.HSplitTop(1, &Rule, &View);
+		const float Reveal = m_LucentBrowser.FiltersOpacity();
+		Rule.VMargin(Rule.w * (1 - Reveal) / 2, &Rule);
 		LucentUi::Divider(Rule, .35f, true);
+		View.y += LucentStyle::Motion::Slide(LucentStyle::Motion::FilterRise, Reveal);
 		View.HSplitTop(12, nullptr, &View);
 		static CScrollRegion s_Scroll;
 		// Consume over the whole panel before the server list sees the wheel,

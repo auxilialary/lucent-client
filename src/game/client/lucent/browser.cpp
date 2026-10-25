@@ -201,40 +201,54 @@ void CMenus::RenderLucentBrowser(CUIRect Screen)
 	const float NavScale = std::min(1.f, Nav.w / NavWidth);
 	CUIRect ActiveTab = {};
 	const bool ContextNav = m_LucentBrowser.m_Primary.m_Target == Primary::FRIENDS || m_LucentBrowser.m_Primary.m_Target == Primary::COMMUNITIES;
-	for(int i = 0; i < 5; ++i)
+	const float FiltersProgress = m_LucentBrowser.FiltersExpansion();
+	const CUIRect FilterTitle = Nav;
+	Nav.y -= LucentStyle::Motion::FilterNavTravel * FiltersProgress;
 	{
-		CUIRect Tab;
-		Nav.VSplitLeft(aWidths[i] * NavScale, &Tab, &Nav);
-		const bool Selected = (i == 0 && !ContextNav && m_MenuPage == PAGE_INTERNET) || (i == 1 && !ContextNav && m_MenuPage == PAGE_FAVORITES) || (i == 2 && m_LucentBrowser.m_Primary.m_Target == Primary::FRIENDS) || (i == 3 && m_LucentBrowser.m_Primary.m_Target == Primary::COMMUNITIES) || (i == 4 && !ContextNav && m_MenuPage == PAGE_LAN);
-		if(Selected)
-			ActiveTab = Tab;
-		if(!LucentUi::TextButton(Ui(), TextRender(), &s_aNav[i], Localize(apNav[i]), Tab, Selected, 11 * NavScale, TEXTALIGN_MC, false))
-			continue;
-		if(i == 0 || i == 1 || i == 4)
+		LucentUi::COpacityScope Opacity(TextRender(), 1 - FiltersProgress);
+		LucentUi::CInteractionScope Interaction(Ui(), !m_LucentBrowser.FiltersWorkspace());
+		for(int i = 0; i < 5; ++i)
 		{
-			m_LucentBrowser.Servers();
-			if(auto *pActive = CLineInput::GetActiveInput())
-				pActive->Deactivate();
-			Ui()->SetActiveItem(nullptr);
-			SetMenuPage(i == 0 ? PAGE_INTERNET : i == 1 ? PAGE_FAVORITES :
-								      PAGE_LAN);
-			RefreshBrowserTab(false);
-		}
-		if(i == 2)
-			m_LucentBrowser.Toggle(CLucentBrowserState::EPanel::FRIENDS);
-		if(i == 3)
-		{
-			if(m_MenuPage != PAGE_INTERNET && m_MenuPage != PAGE_FAVORITES)
+			CUIRect Tab;
+			Nav.VSplitLeft(aWidths[i] * NavScale, &Tab, &Nav);
+			const bool Selected = (i == 0 && !ContextNav && m_MenuPage == PAGE_INTERNET) || (i == 1 && !ContextNav && m_MenuPage == PAGE_FAVORITES) || (i == 2 && m_LucentBrowser.m_Primary.m_Target == Primary::FRIENDS) || (i == 3 && m_LucentBrowser.m_Primary.m_Target == Primary::COMMUNITIES) || (i == 4 && !ContextNav && m_MenuPage == PAGE_LAN);
+			if(Selected)
+				ActiveTab = Tab;
+			if(!LucentUi::TextButton(Ui(), TextRender(), &s_aNav[i], Localize(apNav[i]), Tab, Selected, 11 * NavScale, TEXTALIGN_MC, false))
+				continue;
+			if(i == 0 || i == 1 || i == 4)
 			{
-				SetMenuPage(PAGE_INTERNET);
+				m_LucentBrowser.Servers();
+				if(auto *pActive = CLineInput::GetActiveInput())
+					pActive->Deactivate();
+				Ui()->SetActiveItem(nullptr);
+				SetMenuPage(i == 0 ? PAGE_INTERNET : i == 1 ? PAGE_FAVORITES :
+									      PAGE_LAN);
 				RefreshBrowserTab(false);
 			}
-			m_LucentBrowser.Toggle(CLucentBrowserState::EPanel::COMMUNITIES);
+			if(i == 2)
+				m_LucentBrowser.Toggle(CLucentBrowserState::EPanel::FRIENDS);
+			if(i == 3)
+			{
+				if(m_MenuPage != PAGE_INTERNET && m_MenuPage != PAGE_FAVORITES)
+				{
+					SetMenuPage(PAGE_INTERNET);
+					RefreshBrowserTab(false);
+				}
+				m_LucentBrowser.Toggle(CLucentBrowserState::EPanel::COMMUNITIES);
+			}
 		}
+		m_LucentBrowser.m_Navigation.Update(ActiveTab.x + 8 * NavScale, std::max(0.f, ActiveTab.w - 16 * NavScale), Dt, Animate);
+		CUIRect Indicator = {m_LucentBrowser.m_Navigation.X(), ActiveTab.y + ActiveTab.h - 2, m_LucentBrowser.m_Navigation.Width(), 1};
+		Indicator.Draw(LucentUi::Accent(.7f), 0, 0);
 	}
-	m_LucentBrowser.m_Navigation.Update(ActiveTab.x + 8 * NavScale, std::max(0.f, ActiveTab.w - 16 * NavScale), Dt, Animate);
-	CUIRect Indicator = {m_LucentBrowser.m_Navigation.X(), ActiveTab.y + ActiveTab.h - 2, m_LucentBrowser.m_Navigation.Width(), 1};
-	Indicator.Draw(LucentUi::Accent(.7f), 0, 0);
+	if(FiltersProgress > 0)
+	{
+		LucentUi::COpacityScope Opacity(TextRender(), m_LucentBrowser.FiltersOpacity());
+		CUIRect Title = FilterTitle;
+		Title.y += LucentStyle::Motion::Slide(LucentStyle::Motion::FilterRise, FiltersProgress);
+		Ui()->DoLabel(&Title, Localize("Filters"), 18, TEXTALIGN_ML);
+	}
 	const float DirectAnchor = Tools.x + 84;
 	static int s_aTools[4];
 	const char *apIcons[] = {FontIcon::LIST_UL, FontIcon::ARROWS_ROTATE, FontIcon::CHEVRON_RIGHT, FontIcon::HOUSE};
@@ -291,7 +305,7 @@ void CMenus::RenderLucentBrowser(CUIRect Screen)
 	const auto VisibleOverlay = m_LucentBrowser.m_Overlay.m_Visible;
 	const bool Workspace = m_LucentBrowser.FiltersWorkspace();
 	const float BrowserAlpha = m_LucentBrowser.BrowserOpacity();
-	const bool HasOverlay = m_LucentBrowser.m_Expansion > 0 && VisibleOverlay != Overlay::NONE;
+	const bool HasOverlay = (m_LucentBrowser.m_Expansion > 0 || m_LucentBrowser.m_FiltersExpansion > 0) && VisibleOverlay != Overlay::NONE;
 	if(HasOverlay)
 	{
 		OverlayBounds.h = VisibleOverlay == Overlay::FILTERS ? Screen.y + Screen.h - OverlayBounds.y : 98.f * m_LucentBrowser.Expansion();
@@ -455,9 +469,11 @@ void CMenus::RenderLucentBrowser(CUIRect Screen)
 	if(!m_LucentBrowser.TooltipsAllowed() || Ui()->IsPopupOpen())
 		Ui()->OnReset();
 	CUIRect Advanced;
+	Footer.y += LucentStyle::Motion::FilterFooterTravel * FiltersProgress;
 	Footer.VSplitRight(120, &Status, &Advanced);
+	LucentUi::COpacityScope FooterOpacity(TextRender(), 1 - FiltersProgress);
 	static int s_Legacy;
-	if(Workspace && m_LucentBrowser.FiltersOpacity() == 1 && LucentUi::TextButton(Ui(), TextRender(), &s_Legacy, Localize("Legacy view"), Advanced, false, 9, TEXTALIGN_MR))
+	if(!Workspace && LucentUi::TextButton(Ui(), TextRender(), &s_Legacy, Localize("Legacy view"), Advanced, false, 9, TEXTALIGN_MR))
 		m_LucentLegacyBrowser = true;
 	char aStatus[192];
 	str_format(aStatus, sizeof(aStatus), "%d %s · %d %s   %s", ServerBrowser()->NumSortedServers(), Localize("servers"), ServerBrowser()->NumSortedPlayers(), Localize("players"), ServerBrowser()->IsRefreshing() || ServerBrowser()->IsGettingServerlist() ? Localize("Refreshing...") : "");
