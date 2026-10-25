@@ -632,7 +632,7 @@ STextBoundingBox CLineInput::Render(const CUIRect *pRect, float FontSize, int Al
 		{
 			const float CaretWidth = std::max(LucentStyle::Motion::TextHeadMinWidth, Cursor.m_AlignedFontSize * LucentStyle::Motion::TextHeadWidth);
 			const CUIRect &Clip = pTrailClip ? *pTrailClip : *pRect;
-			vec2 Visual = s_TextMotion.Position(Now);
+			vec2 Visual = m_CaretPosition;
 			vec2 Tail = s_TextMotion.Tail(Now, Cursor.m_AlignedFontSize);
 			Visual.x = std::clamp(Visual.x, Clip.x, std::max(Clip.x, Clip.x + Clip.w - CaretWidth));
 			Tail.x = std::clamp(Tail.x, Clip.x, std::max(Clip.x, Clip.x + Clip.w - CaretWidth));
@@ -641,13 +641,12 @@ STextBoundingBox CLineInput::Render(const CUIRect *pRect, float FontSize, int Al
 			const auto White = LucentStyle::Gradient::White.WithAlpha(Fade);
 			const auto Rose = LucentStyle::Gradient::Pink.WithAlpha(Fade);
 			CUIRect Trail = {std::min(Tail.x, Visual.x), Visual.y, std::abs(Visual.x - Tail.x), Cursor.m_AlignedFontSize};
-			// Fade along the direction of travel; keep the leading edge white/rose.
-			if(Visual.x >= Tail.x)
-				Trail.Draw4(White.WithAlpha(0), White, Rose.WithAlpha(0), Rose, 0, 0);
-			else
-				Trail.Draw4(White, White.WithAlpha(0), Rose, Rose.WithAlpha(0), 0, 0);
-			CUIRect Head = {Visual.x, Visual.y, CaretWidth, Cursor.m_AlignedFontSize};
-			Head.Draw4(White, White, Rose, Rose, 0, 0);
+			// A soft opacity ribbon, not a second cursor: both ends dissolve and
+			// the sole solid caret stays exactly at the logical insertion point.
+			CUIRect Left, Right;
+			Trail.VSplitMid(&Left, &Right);
+			Left.Draw4(White.WithAlpha(0), White, Rose.WithAlpha(0), Rose, 0, 0);
+			Right.Draw4(White, White.WithAlpha(0), Rose, Rose.WithAlpha(0), 0, 0);
 			CUIRect Caret = {m_CaretPosition.x, m_CaretPosition.y, CaretWidth, Cursor.m_AlignedFontSize};
 			Caret.Draw(LucentStyle::Gradient::Sample(0, Clock.GradientTime()).WithAlpha(Alpha), 0, 0);
 		}

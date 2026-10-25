@@ -150,11 +150,11 @@ int main()
 		Slow.Update(vec2(119, 20), 12, 1, true, false);
 		CHECK(Slow.Position(1) == vec2(119, 20));
 		Slow.Update(vec2(133, 20), 12, 1.04, true, false);
-		CHECK(Slow.Position(1.04).x > 133);
-		CHECK(Slow.Position(1.04).x <= 133 + 14 * LucentStyle::Motion::TextLeadGlyphs);
-		const auto BeforeScroll = Slow.Position(1.05);
+		CHECK(Slow.Position(1.04).x == 133 && Slow.Tail(1.04, 12).x < 133);
+		CHECK(133 - Slow.Tail(1.04, 12).x <= 14 * LucentStyle::Motion::TextTrailGlyphs);
+		const auto BeforeScroll = Slow.Tail(1.05, 12);
 		Slow.Translate(vec2(-20, 0));
-		CHECK(distance(Slow.Position(1.05), BeforeScroll - vec2(20, 0)) < .001f);
+		CHECK(distance(Slow.Tail(1.05, 12), BeforeScroll - vec2(20, 0)) < .001f);
 		Slow.Update(vec2(10, 40), 12, 1.06, true, false);
 		CHECK(Slow.Position(1.06) == vec2(10, 40) && Slow.TrailAlpha(1.06) == 0);
 	}
@@ -173,16 +173,16 @@ int main()
 				const double Time = Now + double(Frame) / Fps;
 				Caret.Update(vec2(X, 20), 12, Time, true, false);
 				const auto Head = Caret.Position(Time);
-				CHECK(std::abs(Head.x - X) <= 8 * LucentStyle::Motion::TextLeadGlyphs + .001f);
-				CHECK(Event <= 20 ? Head.x >= X : Head.x <= X);
-				CHECK(distance(Head, Caret.Tail(Time, 12)) <= 12 * LucentStyle::Motion::TextTrailLength + .001f);
+				CHECK(Head.x == X);
+				CHECK(Event <= 20 ? Caret.Tail(Time, 12).x <= X : Caret.Tail(Time, 12).x >= X);
+				CHECK(distance(Head, Caret.Tail(Time, 12)) <= 8 * LucentStyle::Motion::TextTrailGlyphs + .001f);
 			}
 			if(Event == 40)
 			{
-				CHECK(Caret.Position(Now).x < X);
+				CHECK(Caret.Position(Now).x == X && Caret.Tail(Now, 12).x > X);
 				if(Fps == 60)
-					Reference = Caret.Position(Now).x;
-				CHECK(std::abs(Caret.Position(Now).x - Reference) < .001f);
+					Reference = Caret.Tail(Now, 12).x;
+				CHECK(std::abs(Caret.Tail(Now, 12).x - Reference) < .001f);
 			}
 		}
 		CHECK(Caret.Position(2) == vec2(100, 20) && Caret.TrailAlpha(2) == 0);
@@ -195,6 +195,40 @@ int main()
 		Caret.Reset();
 		Caret.Update(vec2(10, 32), 12, 3, true, false);
 		CHECK(Caret.Position(3) == vec2(10, 32) && Caret.TrailAlpha(3) == 0);
+	}
+
+	// Held-key regression: no advancing/duplicate head and no age reset of
+	// earlier letters, even when repeat events arrive between render frames.
+	for(int Fps : {60, 144, 240})
+	{
+		CLucentTextMotion Motion;
+		CLucentTextAppear Appear;
+		Motion.Update(vec2(100, 20), 12, 0, true, true);
+		for(int Repeat = 1; Repeat <= 120; ++Repeat)
+		{
+			const double Now = Repeat * .025;
+			const float X = Repeat <= 60 ? 100 + Repeat * 8 : 580 - (Repeat - 60) * 8;
+			Motion.Update(vec2(X, 20), 12, Now, true, false);
+			if(Repeat <= 60)
+				Appear.Replace(Repeat - 1, 0, 1, Now);
+			else
+				Appear.Replace(120 - Repeat, 1, 0, Now);
+			for(int Frame = 0; Frame < Fps * .025; ++Frame)
+			{
+				const double Time = Now + double(Frame) / Fps;
+				CHECK(Motion.Position(Time) == vec2(X, 20));
+				const float Tail = Motion.Tail(Time, 12).x;
+				CHECK(Repeat <= 60 ? Tail <= X : Tail >= X);
+				CHECK(std::abs(Tail - X) <= 12.001f);
+				if(Repeat > 7 && Repeat <= 60)
+				{
+					CHECK(Appear.Alpha(Repeat - 7, Time) == 1);
+					CHECK(Appear.Alpha(Repeat - 1, Now) == 0);
+				}
+			}
+		}
+		CHECK(Motion.Tail(3.25, 12) == vec2(100, 20));
+		CHECK(Motion.TrailAlpha(3.25) == 0);
 	}
 
 	// Fade only inserted decoded characters. A Cyrillic letter, emoji and a
@@ -259,14 +293,14 @@ int main()
 		for(auto *pMotion : {&Batch, &Slow, &Fast})
 			pMotion->Update(vec2(100, 20), 12, 0, true, true);
 		Batch.Update(vec2(140, 20), 12, .04, true, false, 5);
-		CHECK(Batch.Position(.04).x > 140 && Batch.Position(.04).x <= 152);
+		CHECK(Batch.Position(.04).x == 140 && Batch.Tail(.04, 12).x >= 128);
 		Slow.Update(vec2(108, 20), 12, .2, true, false);
 		Fast.Update(vec2(108, 20), 12, .04, true, false);
-		CHECK(Fast.Position(.04).x - 108 > Slow.Position(.2).x - 108);
+		CHECK(Fast.Position(.04).x == 108 && Slow.Position(.2).x == 108);
 		CHECK(Fast.TrailAlpha(.04) > Slow.TrailAlpha(.2));
-		// The first reversed step already has a leading head on the left.
+		// Reversal immediately moves the ribbon behind the new direction.
 		Fast.Update(vec2(100, 20), 12, .08, true, false);
-		CHECK(Fast.Position(.08).x < 100 && Fast.Tail(.08, 12).x > Fast.Position(.08).x);
+		CHECK(Fast.Position(.08).x == 100 && Fast.Tail(.08, 12).x > 100);
 		CHECK(Fast.Position(.30) == vec2(100, 20) && Fast.TrailAlpha(.30) == 0);
 	}
 
