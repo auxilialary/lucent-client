@@ -2846,3 +2846,15 @@ Add to favorites
 
 Remove from favorites
 == Удалить из избранного
+
+Countries and types
+== Страны и типы
+
+Search country code
+== Найти код страны
+
+No countries found
+== Страны не найдены
+
+Unknown
+== Неизвестно

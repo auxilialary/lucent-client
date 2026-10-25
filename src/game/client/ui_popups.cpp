@@ -35,7 +35,16 @@ void CUi::RenderPopupMenus()
 {
 	for(size_t i = 0; i < m_vPopupMenus.size(); ++i)
 	{
-		const SPopupMenu &PopupMenu = m_vPopupMenus[i];
+		SPopupMenu &PopupMenu = m_vPopupMenus[i];
+		if(PopupMenu.m_Props.m_ClampToScreen)
+		{
+			// Re-clamp every frame, including window resize and UI-scale changes.
+			const CUIRect ScreenRect = *Screen();
+			PopupMenu.m_Rect.w = std::min(PopupMenu.m_Rect.w, std::max(1.f, ScreenRect.w - 12));
+			PopupMenu.m_Rect.h = std::min(PopupMenu.m_Rect.h, std::max(1.f, ScreenRect.h - 12));
+			PopupMenu.m_Rect.x = std::clamp(PopupMenu.m_Rect.x, ScreenRect.x + 6, ScreenRect.x + ScreenRect.w - PopupMenu.m_Rect.w - 6);
+			PopupMenu.m_Rect.y = std::clamp(PopupMenu.m_Rect.y, ScreenRect.y + 6, ScreenRect.y + ScreenRect.h - PopupMenu.m_Rect.h - 6);
+		}
 		const SPopupMenuId *pId = PopupMenu.m_pId;
 		const bool Inside = MouseInside(&PopupMenu.m_Rect);
 		const bool Active = i == m_vPopupMenus.size() - 1;
@@ -73,7 +82,7 @@ void CUi::RenderPopupMenus()
 
 		CUIRect PopupRect = PopupMenu.m_Rect;
 		PopupRect.Draw(PopupMenu.m_Props.m_BorderColor, PopupMenu.m_Props.m_Corners, 3.0f);
-		PopupRect.Margin(SPopupMenu::POPUP_BORDER, &PopupRect);
+		PopupRect.Margin(PopupMenu.m_Props.m_BorderWidth, &PopupRect);
 		PopupRect.Draw(PopupMenu.m_Props.m_BackgroundColor, PopupMenu.m_Props.m_Corners, 3.0f);
 		PopupRect.Margin(SPopupMenu::POPUP_MARGIN, &PopupRect);
 

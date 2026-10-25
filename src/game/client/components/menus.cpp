@@ -285,15 +285,14 @@ int CMenus::DoButton_Favorite(const void *pButtonId, const void *pParentId, bool
 
 int CMenus::DoButton_CheckBox_Common(const void *pId, const char *pText, const char *pBoxText, const CUIRect *pRect, const unsigned Flags)
 {
+	if(m_LucentPanelRendering)
+		return LucentUi::CheckBox(Ui(), pId, pText, pBoxText, *pRect, Flags);
 	CUIRect Box, Label;
 	pRect->VSplitLeft(pRect->h, &Box, &Label);
 	Label.VSplitLeft(5.0f, nullptr, &Label);
 
 	Box.Margin(2.0f, &Box);
-	if(m_LucentPanelRendering)
-		LucentUi::Surface(Box, *pBoxText != 0, Ui()->MouseHovered(pRect));
-	else
-		Box.Draw(ColorRGBA(1, 1, 1, .25f * Ui()->ButtonColorMul(pId)), IGraphics::CORNER_ALL, 3);
+	Box.Draw(ColorRGBA(1, 1, 1, .25f * Ui()->ButtonColorMul(pId)), IGraphics::CORNER_ALL, 3);
 
 	const bool Checkable = *pBoxText == 'X';
 	if(Checkable)

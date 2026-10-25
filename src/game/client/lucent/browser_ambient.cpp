@@ -17,7 +17,10 @@ void CLucentBrowserAmbient::Update(float Dt, bool Animate, vec2 Cursor)
 		m_Cursor += (Cursor - m_Cursor) * Blend;
 	}
 	else
+	{
+		m_Time = 0;
 		m_Cursor = vec2(0, 0);
+	}
 }
 
 void CLucentBrowserAmbient::Render(IGraphics *pGraphics, const CUIRect &Screen, float Pulse, float Opacity) const
@@ -36,7 +39,7 @@ void CLucentBrowserAmbient::Render(IGraphics *pGraphics, const CUIRect &Screen, 
 		const float Header = std::clamp((V - .10f) / .12f, 0.f, 1.f);
 		const float Field = std::exp(-X * X * 16 - Y * Y * 7);
 		const float Local = std::exp(-std::pow((U - .51f) * 15, 2.f) - std::pow((V - .45f) * 5, 2.f));
-		return ColorRGBA(.91f, .68f, .80f, (.037f * Field + .018f * Local * Pulse) * Boundary * Header * Opacity);
+		return ColorRGBA(.91f, .68f, .80f, (.055f * Field + .028f * Local * Pulse) * Boundary * Header * Opacity);
 	};
 	for(int Y = 0; Y < YSteps; ++Y)
 		for(int X = 0; X < XSteps; ++X)
@@ -56,14 +59,21 @@ void CLucentBrowserAmbient::Render(IGraphics *pGraphics, const CUIRect &Screen, 
 		const float Drift = 3 * std::sin(Time * .045f + I * 2) + m_Cursor.x * 1.5f;
 		const vec2 A(Screen.x + Screen.w * X + Drift, Screen.y + Screen.h * .27f);
 		const vec2 B = A + vec2(I == 0 ? 15 : -16, Screen.h * .25f);
-		CLucentMenuEffects::SelectionTransfer(pGraphics, A, B, .48f + .06f * std::sin(Time * .035f + I), .075f * Opacity);
+		CLucentMenuEffects::SelectionTransfer(pGraphics, A, B, .48f, .11f * Opacity);
+		if(I == 0)
+		{
+			// One brief light pass follows the gutter curve, with a long quiet interval.
+			const float Phase = std::fmod(Time + 3, 20.0) / 6.f;
+			if(Phase < 1)
+				CLucentMenuEffects::SelectionTransfer(pGraphics, A, B, Phase, .20f * Opacity);
+		}
 	}
 	// Sparse elongated vector stars sit outside artwork/title/control bounds.
 	for(int I = 0; I < 3; ++I)
 	{
 		const float X[] = {.49f, .91f, .96f};
 		const float Y[] = {.20f, .17f, .55f};
-		const float Alpha = .055f + .035f * std::sin(Time * .12f + I * 2.1f);
+		const float Alpha = .085f + .025f * std::sin(Time * .12f + I * 2.1f);
 		CLucentMenuEffects::FocusStar(pGraphics, vec2(Screen.x + Screen.w * X[I], Screen.y + Screen.h * Y[I]), .42f + I * .08f, Alpha * Opacity);
 	}
 }

@@ -69,6 +69,28 @@ namespace LucentUi
 		Rect.Margin(.5f, &Inner);
 		Inner.Draw(ColorRGBA(.025f, .021f, .035f, .98f), Corners, RADIUS);
 	}
+	inline int CheckBox(CUi *pUi, const void *pId, const char *pText, const char *pMark, const CUIRect &Rect, unsigned Flags = BUTTONFLAG_LEFT)
+	{
+		CUIRect Box, Label;
+		Rect.VSplitLeft(14, &Box, &Label);
+		Box.HMargin((Box.h - 14) / 2, &Box);
+		Label.VSplitLeft(7, nullptr, &Label);
+		const float Light = Highlight(pId, *pMark || (pUi->Enabled() && pUi->MouseHovered(&Rect)));
+		Surface(Box, false, false, IGraphics::CORNER_ALL, Light);
+		if(*pMark)
+		{
+			Box.Margin(4, &Box);
+			if(*pMark == 'O')
+				Box.HMargin((Box.h - 1.5f) / 2, &Box);
+			Box.Draw(Accent(.85f), IGraphics::CORNER_ALL, 1);
+		}
+		SLabelProperties Props;
+		Props.m_MaxWidth = Label.w;
+		Props.m_StopAtEnd = true;
+		Props.m_EnableWidthCheck = false;
+		pUi->DoLabel(&Label, pText, 11, TEXTALIGN_ML, Props);
+		return pUi->DoButtonLogic(pId, 0, &Rect, Flags);
+	}
 	class CScope
 	{
 		CUi *m_pUi;
@@ -124,23 +146,24 @@ namespace LucentUi
 		return Interactive && pUi->DoButtonLogic(pId, Selected, &Rect, BUTTONFLAG_LEFT);
 	}
 	// Primary scene action: the same restrained hairline and edge light as the menu.
-	inline bool SceneButton(CUi *pUi, ITextRender *pTextRender, const void *pId, const char *pText, CUIRect Rect)
+	inline bool SceneButton(CUi *pUi, ITextRender *pTextRender, const void *pId, const char *pText, CUIRect Rect, bool Enabled = true)
 	{
-		const bool Hover = pUi->Enabled() && pUi->MouseHovered(&Rect);
-		const bool Pressed = pUi->Enabled() && pUi->CheckActiveItem(pId);
+		const bool Interactive = Enabled && pUi->Enabled();
+		const bool Hover = Interactive && pUi->MouseHovered(&Rect);
+		const bool Pressed = Interactive && pUi->CheckActiveItem(pId);
 		const float Light = Highlight(pId, Hover || Pressed);
 		Surface(Rect, false, false, IGraphics::CORNER_ALL, .25f + .75f * Light);
 		CUIRect Inner;
 		Rect.Margin(1, &Inner);
 		Inner.Draw(Accent((Pressed ? .10f : .025f) + .025f * Light), IGraphics::CORNER_ALL, RADIUS);
-		pTextRender->TextColor(Accent(1));
+		pTextRender->TextColor(Accent(Enabled ? 1.f : .35f));
 		const float Size = std::min(12.f, 12.f * std::max(1.f, Rect.w - 12) / std::max(1.f, pTextRender->TextWidth(12, pText)));
 		pUi->DoLabel(&Rect, pText, Size, TEXTALIGN_MC);
 		pTextRender->TextColor(pTextRender->DefaultTextColor());
-		return pUi->DoButtonLogic(pId, 0, &Rect, BUTTONFLAG_LEFT);
+		return Interactive && pUi->DoButtonLogic(pId, 0, &Rect, BUTTONFLAG_LEFT);
 	}
 	// Text navigation shares control geometry, without a persistent button surface.
-	inline bool TextButton(CUi *pUi, ITextRender *pTextRender, const void *pId, const char *pText, CUIRect Rect, bool Selected = false, float Size = 11, int Align = TEXTALIGN_MC, bool Underline = true)
+	inline bool TextButton(CUi *pUi, ITextRender *pTextRender, const void *pId, const char *pText, CUIRect Rect, bool Selected = false, float Size = 11, int Align = TEXTALIGN_MC, bool Underline = true, const char *pIcon = nullptr)
 	{
 		const float Light = Highlight(pId, pUi->Enabled() && pUi->MouseHovered(&Rect));
 		const bool Pressed = pUi->CheckActiveItem(pId);
@@ -150,19 +173,30 @@ namespace LucentUi
 			Line.Draw(Accent(Pressed ? .95f : .7f), 0, 0);
 		}
 		pTextRender->TextColor(Selected ? Accent(Pressed ? .8f : 1.f) : ColorRGBA(.66f + .25f * Light, .63f + .20f * Light, .69f + .19f * Light, 1));
+		CUIRect Label = Rect;
+		if(pIcon)
+		{
+			CUIRect Icon;
+			Label.VSplitLeft(18, &Icon, &Label);
+			pTextRender->SetFontPreset(EFontPreset::ICON_FONT);
+			pUi->DoLabel(&Icon, pIcon, Size, TEXTALIGN_MC);
+			pTextRender->SetFontPreset(EFontPreset::DEFAULT_FONT);
+		}
 		SLabelProperties Props;
-		Props.m_MaxWidth = std::max(0.f, Rect.w - 6);
+		Props.m_EnableWidthCheck = false;
+		Props.m_MaxWidth = std::max(0.f, Label.w - 6);
 		Props.m_StopAtEnd = true;
-		pUi->DoLabel(&Rect, pText, Size, Align, Props);
+		pUi->DoLabel(&Label, pText, Size, Align, Props);
 		pTextRender->TextColor(pTextRender->DefaultTextColor());
 		return pUi->DoButtonLogic(pId, Selected, &Rect, BUTTONFLAG_LEFT);
 	}
-	inline bool IconButton(CUi *pUi, ITextRender *pTextRender, const void *pId, const char *pIcon, const char *pHint, CUIRect Rect, bool Selected = false)
+	inline bool IconButton(CUi *pUi, ITextRender *pTextRender, const void *pId, const char *pIcon, const char *pHint, CUIRect Rect, bool Selected = false, bool Tooltip = true)
 	{
 		pTextRender->SetFontPreset(EFontPreset::ICON_FONT);
 		const bool Clicked = Button(pUi, pTextRender, pId, pIcon, Rect, Selected);
 		pTextRender->SetFontPreset(EFontPreset::DEFAULT_FONT);
-		pUi->DoToolTip(pId, &Rect, pHint);
+		if(Tooltip && !Clicked && !pUi->IsPopupOpen())
+			pUi->DoToolTip(pId, &Rect, pHint);
 		return Clicked;
 	}
 }

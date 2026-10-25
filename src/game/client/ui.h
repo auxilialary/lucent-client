@@ -300,6 +300,8 @@ struct SPopupMenuId
 struct SPopupMenuProperties
 {
 	int m_Corners = IGraphics::CORNER_ALL;
+	bool m_ClampToScreen = false;
+	float m_BorderWidth = 1.f;
 	ColorRGBA m_BorderColor = ColorRGBA(0.5f, 0.5f, 0.5f, 0.75f);
 	ColorRGBA m_BackgroundColor = ColorRGBA(0.0f, 0.0f, 0.0f, 0.75f);
 };

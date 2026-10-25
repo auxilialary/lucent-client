@@ -27,14 +27,51 @@ int main()
 	// and shrink again when changing grid tabs or disabling rank indication.
 	const auto Countries = CLucentBrowserFilterLayout::Measure(1000, 101, 3, true, true, true, true);
 	CHECK(Countries.m_Wide && Countries.m_GridHeight == 21 * 22);
-	CHECK(Countries.m_ContentHeight >= Countries.m_GridHeight + 25);
+	CHECK(Countries.m_ContentHeight >= Countries.m_GridHeight + 59);
 	const auto Types = CLucentBrowserFilterLayout::Measure(1000, 101, 3, false, true, true, true);
-	CHECK(Types.m_GridHeight == 17 && Types.m_ContentHeight == 386);
+	CHECK(Types.m_GridHeight == 17 && Types.m_ContentHeight == 408);
 	const auto Narrow = CLucentBrowserFilterLayout::Measure(600, 8, 4, true, true, true, true);
 	CHECK(!Narrow.m_Wide && Narrow.m_GridHeight == 44);
 	CHECK(Narrow.m_ContentHeight > Types.m_ContentHeight);
 	CHECK(CLucentBrowserFilterLayout::Measure(600, 8, 4, true, true, true, false).m_ContentHeight == Narrow.m_ContentHeight - 21 + 28);
 	CHECK(CLucentBrowserFilterLayout::Measure(600, 8, 4, true, false, false, false).m_GridHeight == 0);
+	// Quick controls wrap into bounded rows; narrow workspaces include every group.
+	CHECK(CLucentBrowserFilterLayout::QuickColumns(820) == 3);
+	CHECK(CLucentBrowserFilterLayout::QuickColumns(420) == 2);
+	CHECK(CLucentBrowserFilterLayout::QuickColumns(300) == 1);
+	CHECK(CLucentBrowserFilterLayout::QuickHeight(300) > CLucentBrowserFilterLayout::QuickHeight(420));
+	for(float Width : {300.f, 420.f, 600.f, 720.f, 820.f})
+	{
+		const auto Layout = CLucentBrowserFilterLayout::Measure(Width, 101, 15, true, true, true, true);
+		CHECK(Layout.m_ContentHeight >= Layout.m_GridHeight + CLucentBrowserFilterLayout::QuickHeight(Width));
+		CHECK(CLucentBrowserFilterLayout::QuickColumns(Width) >= 1);
+	}
+	CLucentCountryPickerState Picker;
+	CHECK(Picker.Reconcile(200, 127, false) && Picker.m_Cursor == 127);
+	CHECK(!Picker.CanCommit(200, false, false));
+	CHECK(Picker.CanCommit(200, true, false));
+	CHECK(Picker.Reconcile(3, -1, true) && Picker.m_Cursor == 0);
+	Picker.m_Cursor = 2;
+	CHECK(!Picker.Reconcile(3, -1, false) && Picker.m_Cursor == 2);
+	CHECK(Picker.CanCommit(3, false, true));
+	CHECK(Picker.Reconcile(0, -1, true) && Picker.m_Cursor == -1);
+	CHECK(!Picker.CanCommit(0, true, true));
+	CHECK(Picker.Reconcile(200, 127, true) && Picker.m_Cursor == 127);
+	Picker.m_Cursor = 250;
+	CHECK(!Picker.CanCommit(200, true, false));
+	Picker = {};
+	CHECK(Picker.Reconcile(200, 3, false) && Picker.m_Cursor == 3);
+	CLucentBrowserState Tooltip;
+	CHECK(Tooltip.TooltipsAllowed());
+	Tooltip.Toggle(CLucentBrowserState::EPanel::DIRECT_CONNECT);
+	CHECK(!Tooltip.TooltipsAllowed());
+	Tooltip.Update(0, false);
+	Tooltip.Escape();
+	CHECK(!Tooltip.TooltipsAllowed()); // Suppress during the entire closing reveal.
+	Tooltip.Update(.1f, true);
+	CHECK(!Tooltip.TooltipsAllowed());
+	Tooltip.Update(0, false);
+	CHECK(Tooltip.TooltipsAllowed());
 	CLucentBrowserState Context;
 	CHECK(Context.PrimarySelection("browser:8303") == nullptr);
 	Context.Toggle(CLucentBrowserState::EPanel::FRIENDS);

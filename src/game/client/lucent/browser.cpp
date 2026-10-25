@@ -92,6 +92,8 @@ void CMenus::RenderLucentBrowser(CUIRect Screen)
 	using Scene = CLucentBrowserState::EScene;
 	using Overlay = CLucentBrowserState::EOverlay;
 	Screen = *Ui()->Screen();
+	if(!Ui()->IsPopupOpen())
+		m_LucentCountrySearch.Deactivate();
 	UpdateCommunityCache(false);
 	if(g_Config.m_UiPage == PAGE_LAN && m_ForceRefreshLanPage)
 	{
@@ -232,6 +234,7 @@ void CMenus::RenderLucentBrowser(CUIRect Screen)
 	m_LucentBrowser.m_Navigation.Update(ActiveTab.x + 8 * NavScale, std::max(0.f, ActiveTab.w - 16 * NavScale), Dt, Animate);
 	CUIRect Indicator = {m_LucentBrowser.m_Navigation.X(), ActiveTab.y + ActiveTab.h - 2, m_LucentBrowser.m_Navigation.Width(), 1};
 	Indicator.Draw(LucentUi::Accent(.7f), 0, 0);
+	const float DirectAnchor = Tools.x + 84;
 	static int s_aTools[4];
 	const char *apIcons[] = {FontIcon::LIST_UL, FontIcon::ARROWS_ROTATE, FontIcon::CHEVRON_RIGHT, FontIcon::HOUSE};
 	const char *apHints[] = {"Filters", "Refresh", "Direct connect", "Main menu"};
@@ -240,7 +243,7 @@ void CMenus::RenderLucentBrowser(CUIRect Screen)
 		CUIRect Button;
 		Tools.VSplitLeft(28, &Button, &Tools);
 		Button.Margin(2, &Button);
-		const bool Click = LucentUi::IconButton(Ui(), TextRender(), &s_aTools[i], apIcons[i], Localize(apHints[i]), Button, i == 0 && m_LucentBrowser.m_Overlay.m_Target == Overlay::FILTERS);
+		const bool Click = LucentUi::IconButton(Ui(), TextRender(), &s_aTools[i], apIcons[i], Localize(apHints[i]), Button, i == 0 && m_LucentBrowser.m_Overlay.m_Target == Overlay::FILTERS, m_LucentBrowser.TooltipsAllowed());
 		if(i == 0 && LucentBrowserFiltersActive())
 		{
 			CUIRect Dot = {Button.x + Button.w - 4, Button.y + 3, 2.5f, 2.5f};
@@ -263,6 +266,7 @@ void CMenus::RenderLucentBrowser(CUIRect Screen)
 			if(m_LucentDirectAddress.IsEmpty())
 				m_LucentDirectAddress.Set(g_Config.m_UiServerAddress);
 			m_LucentDirectAddress.SelectAll();
+			Ui()->OnReset();
 			m_LucentBrowser.Toggle(CLucentBrowserState::EPanel::DIRECT_CONNECT);
 			m_LucentBrowser.m_DirectFocusPending = m_LucentBrowser.m_Overlay.m_Target == Overlay::DIRECT_CONNECT;
 			Ui()->SetActiveItem(nullptr);
@@ -289,11 +293,11 @@ void CMenus::RenderLucentBrowser(CUIRect Screen)
 	const bool HasOverlay = m_LucentBrowser.m_Expansion > 0 && VisibleOverlay != Overlay::NONE;
 	if(HasOverlay)
 	{
-		OverlayBounds.h = VisibleOverlay == Overlay::FILTERS ? Screen.y + Screen.h - OverlayBounds.y : 106.f * m_LucentBrowser.Expansion();
+		OverlayBounds.h = VisibleOverlay == Overlay::FILTERS ? Screen.y + Screen.h - OverlayBounds.y : 98.f * m_LucentBrowser.Expansion();
 		if(VisibleOverlay == Overlay::DIRECT_CONNECT)
 		{
-			OverlayBounds.w = std::min(310.f, Screen.w);
-			OverlayBounds.x = Screen.x + Screen.w - OverlayBounds.w;
+			OverlayBounds.w = std::min(250.f, Screen.w);
+			OverlayBounds.x = std::clamp(DirectAnchor - OverlayBounds.w, Screen.x, Screen.x + Screen.w - OverlayBounds.w);
 		}
 		if(!Workspace && Keyboard && Ui()->MouseButtonClicked(0) && !Ui()->MouseHovered(&OverlayBounds) && m_LucentBrowser.m_Overlay.m_Target == PreviousOverlay)
 		{
@@ -353,7 +357,7 @@ void CMenus::RenderLucentBrowser(CUIRect Screen)
 			// The same map title travels between preview and context, never duplicated.
 			const float Position = m_LucentBrowser.ScenePosition();
 			// A spatial scrim subdues the same artwork beneath contextual text.
-			Atmosphere.Draw4(ColorRGBA(.018f, .015f, .027f, .10f * Position), ColorRGBA(.018f, .015f, .027f, .48f * Position), ColorRGBA(.018f, .015f, .027f, .28f * Position), ColorRGBA(.018f, .015f, .027f, .60f * Position), 0, 0);
+			Atmosphere.Draw4(ColorRGBA(.010f, .009f, .016f, .83f * Position), ColorRGBA(.010f, .009f, .016f, .57f * Position), ColorRGBA(.010f, .009f, .016f, .96f * Position), ColorRGBA(.010f, .009f, .016f, .76f * Position), 0, 0);
 			const float PreviewY = Screen.y + Screen.h * .56f;
 			CUIRect Title = {Atmosphere.x, PreviewY + (Atmosphere.y - PreviewY) * Position, Atmosphere.w, 38};
 			SLabelProperties Props;
@@ -364,10 +368,11 @@ void CMenus::RenderLucentBrowser(CUIRect Screen)
 				Ui()->DoLabel(&Title, m_LucentBrowser.m_Scene.m_Visible == Scene::PREVIEW ? m_LucentBrowser.m_MapTitle.m_Visible.c_str() : pSelected->m_aMap, 28 - 5 * Position, TEXTALIGN_ML, Props);
 			}
 			CUIRect Body = {Atmosphere.x, Title.y + Title.h + 8, Atmosphere.w, std::max(0.f, Atmosphere.y + Atmosphere.h - Title.y - Title.h - 8)};
-			LucentUi::COpacityScope Opacity(TextRender(), m_LucentBrowser.m_Scene.Opacity());
-			LucentUi::CInteractionScope Interaction(Ui(), m_LucentBrowser.m_Scene.m_Target == m_LucentBrowser.m_Scene.m_Visible);
+
 			if(m_LucentBrowser.m_Scene.m_Visible == Scene::PREVIEW)
 			{
+				LucentUi::COpacityScope Opacity(TextRender(), m_LucentBrowser.m_Scene.Opacity());
+				LucentUi::CInteractionScope Interaction(Ui(), m_LucentBrowser.m_Scene.m_Target == Scene::PREVIEW && m_LucentBrowser.m_Scene.Opacity() > .95f);
 				CUIRect Meta, Action, ConnectButton, Details, Players;
 				Body.HSplitTop(22, &Meta, &Body);
 				char aMeta[128];
@@ -398,11 +403,17 @@ void CMenus::RenderLucentBrowser(CUIRect Screen)
 				static int s_Back, s_Details, s_Players;
 				if(LucentUi::IconButton(Ui(), TextRender(), &s_Back, FontIcon::CHEVRON_LEFT, Localize("Back"), Back))
 					m_LucentBrowser.m_Scene.m_Target = Scene::PREVIEW;
-				if(LucentUi::TextButton(Ui(), TextRender(), &s_Details, Localize("Server details"), Details, m_LucentBrowser.m_Scene.m_Target == Scene::DETAILS, 10))
+				if(LucentUi::TextButton(Ui(), TextRender(), &s_Details, Localize("Server details"), Details, m_LucentBrowser.m_Scene.m_Target == Scene::DETAILS, 10, TEXTALIGN_MC, false))
 					m_LucentBrowser.m_Scene.m_Target = Scene::DETAILS;
-				if(LucentUi::TextButton(Ui(), TextRender(), &s_Players, Localize("Players"), Players, m_LucentBrowser.m_Scene.m_Target == Scene::PLAYERS, 10))
+				if(LucentUi::TextButton(Ui(), TextRender(), &s_Players, Localize("Players"), Players, m_LucentBrowser.m_Scene.m_Target == Scene::PLAYERS, 10, TEXTALIGN_MC, false))
 					m_LucentBrowser.m_Scene.m_Target = Scene::PLAYERS;
+				const CUIRect ActiveSceneTab = m_LucentBrowser.m_Scene.m_Target == Scene::PLAYERS ? Players : Details;
+				m_LucentBrowser.m_DetailNavigation.Update(ActiveSceneTab.x + 5, ActiveSceneTab.w - 10, Dt, Animate);
+				CUIRect TabLine = {m_LucentBrowser.m_DetailNavigation.X(), Tabs.y + Tabs.h - 1, m_LucentBrowser.m_DetailNavigation.Width(), .7f};
+				TabLine.Draw(LucentUi::Accent(.7f), 0, 0);
 				Body.HSplitTop(8, nullptr, &Body);
+				LucentUi::COpacityScope Opacity(TextRender(), m_LucentBrowser.m_Scene.Opacity());
+				LucentUi::CInteractionScope Interaction(Ui(), m_LucentBrowser.m_Scene.m_Target == m_LucentBrowser.m_Scene.m_Visible && m_LucentBrowser.m_Scene.Opacity() > .95f);
 				m_LucentPanelRendering = true;
 				RenderLucentContext(Body, m_LucentBrowser.m_Scene.m_Visible == Scene::PLAYERS ? P::PLAYERS : P::DETAILS);
 				m_LucentPanelRendering = false;
@@ -421,20 +432,24 @@ void CMenus::RenderLucentBrowser(CUIRect Screen)
 		// Header-anchored reveal, clipped once; no competing list scroll input.
 		LucentUi::COpacityScope OverlayOpacity(TextRender(), VisibleOverlay == Overlay::FILTERS ? m_LucentBrowser.FiltersOpacity() : m_LucentBrowser.m_Overlay.Opacity());
 		if(VisibleOverlay != Overlay::FILTERS)
-			OverlayBounds.Draw4(ColorRGBA(.025f, .021f, .035f, .97f), ColorRGBA(.025f, .021f, .035f, .93f), ColorRGBA(.025f, .021f, .035f, .88f), ColorRGBA(.025f, .021f, .035f, .65f), 0, 0);
+			LucentUi::Surface(OverlayBounds);
 		Ui()->ClipEnable(&OverlayBounds);
 		CUIRect Content;
-		OverlayBounds.Margin(9, &Content);
+		OverlayBounds.Margin(12, &Content);
+		if(VisibleOverlay == Overlay::FILTERS && Content.w > 820)
+			Content.VMargin((Content.w - 820) / 2, &Content);
 		if(Content.h > 30 && (VisibleOverlay != Overlay::FILTERS || m_LucentBrowser.FiltersOpacity() > 0))
 		{
 			LucentUi::COpacityScope Opacity(TextRender(), VisibleOverlay == Overlay::FILTERS ? 1.f : m_LucentBrowser.Expansion());
-			LucentUi::CInteractionScope Interaction(Ui(), m_LucentBrowser.m_Overlay.m_Target == VisibleOverlay);
+			LucentUi::CInteractionScope Interaction(Ui(), m_LucentBrowser.m_Overlay.m_Target == VisibleOverlay && (VisibleOverlay == Overlay::FILTERS ? m_LucentBrowser.FiltersOpacity() : m_LucentBrowser.Expansion()) > .95f);
 			m_LucentPanelRendering = true;
 			RenderLucentContext(Content, VisibleOverlay == Overlay::FILTERS ? P::FILTERS : P::DIRECT_CONNECT);
 			m_LucentPanelRendering = false;
 		}
 		Ui()->ClipDisable();
 	}
+	if(!m_LucentBrowser.TooltipsAllowed() || Ui()->IsPopupOpen())
+		Ui()->OnReset();
 	CUIRect Advanced;
 	Footer.VSplitRight(120, &Status, &Advanced);
 	static int s_Legacy;

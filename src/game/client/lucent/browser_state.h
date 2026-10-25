@@ -62,6 +62,23 @@ struct CLucentBrowserContent
 	float Opacity() const { return m_Alpha * m_Alpha * (3 - 2 * m_Alpha); }
 };
 
+// The highlighted search result is separate from the committed country filter.
+struct CLucentCountryPickerState
+{
+	int m_Cursor = -1;
+	bool Reconcile(int Count, int Selected, bool SearchChanged)
+	{
+		if(!SearchChanged && m_Cursor >= 0 && m_Cursor < Count)
+			return false;
+		m_Cursor = Selected >= 0 && Selected < Count ? Selected : (Count > 0 ? 0 : -1);
+		return true;
+	}
+	bool CanCommit(int Count, bool Selected, bool Activated) const
+	{
+		return m_Cursor >= 0 && m_Cursor < Count && (Selected || Activated);
+	}
+};
+
 class CLucentBrowserState
 {
 public:
@@ -120,6 +137,7 @@ public:
 	{
 		return m_Overlay.m_Target == EOverlay::FILTERS || m_FiltersExpansion > 0;
 	}
+	bool TooltipsAllowed() const { return m_Overlay.m_Target == EOverlay::NONE && m_Expansion == 0; }
 	float BrowserOpacity() const { return FiltersWorkspace() ? std::max(0.f, 1 - 2 * FiltersExpansion()) : 1.f; }
 	float FiltersOpacity() const { return std::max(0.f, 2 * FiltersExpansion() - 1); }
 	float m_SelectionPulse = 0;

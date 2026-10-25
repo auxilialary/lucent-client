@@ -686,21 +686,7 @@ void CMenus::RenderServerbrowserFilters(CUIRect View, CScrollRegion *pScroll)
 	const auto CheckBox = [&](const void *pId, const char *pText, int Checked, const CUIRect *pRect) {
 		if(!pScroll)
 			return DoButton_CheckBox(pId, pText, Checked, pRect);
-		CUIRect Box, Label;
-		pRect->VSplitLeft(14, &Box, &Label);
-		Box.HMargin(4, &Box);
-		Label.VSplitLeft(7, nullptr, &Label);
-		LucentUi::Surface(Box, Checked, Ui()->Enabled() && Ui()->MouseHovered(pRect));
-		if(Checked)
-		{
-			Box.Margin(3, &Box);
-			Box.Draw(LucentUi::Accent(.85f), IGraphics::CORNER_ALL, 1);
-		}
-		SLabelProperties Props;
-		Props.m_MaxWidth = Label.w;
-		Props.m_StopAtEnd = true;
-		Ui()->DoLabel(&Label, pText, 11, TEXTALIGN_ML, Props);
-		return Ui()->DoButtonLogic(pId, 0, pRect, BUTTONFLAG_LEFT);
+		return LucentUi::CheckBox(Ui(), pId, pText, Checked ? "X" : "", *pRect);
 	};
 	const float FontSize = pScroll ? 11.f : (18.0f - 4.0f) * CUi::ms_FontmodHeight; // based on DoButton_CheckBox
 
@@ -734,18 +720,17 @@ void CMenus::RenderServerbrowserFilters(CUIRect View, CScrollRegion *pScroll)
 		View.VSplitRight(4.0f, &View, nullptr);
 		View.h = ContentHeight;
 		pScroll->AddRect(View);
-		if(Wide)
 		{
 			CUIRect Quick;
-			View.HSplitTop(36, &Quick, &View);
+			const int QuickColumns = CLucentBrowserFilterLayout::QuickColumns(View.w);
+			View.HSplitTop(CLucentBrowserFilterLayout::QuickHeight(View.w), &Quick, &View);
 			int *apValues[] = {&g_Config.m_BrFilterEmpty, &g_Config.m_BrFilterFull, &g_Config.m_BrFilterPw, &g_Config.m_BrFilterLogin, &g_Config.m_BrFilterFriends};
 			const char *apLabels[] = {"Has people playing", "Server not full", "No password", "No login required", "Show friends only"};
-			const float Width = Quick.w / 5;
+			const float Width = std::min(190.f, Quick.w / QuickColumns);
 			for(int i = 0; i < 5; ++i)
 			{
 				CUIRect Toggle;
-				Quick.VSplitLeft(Width, &Toggle, &Quick);
-				Toggle.HMargin(7, &Toggle);
+				Toggle = {Quick.x + (i % QuickColumns) * Width, Quick.y + (i / QuickColumns) * 25, Width - 8, 22};
 				if(CheckBox(apValues[i], Localize(apLabels[i]), *apValues[i], &Toggle))
 					*apValues[i] ^= 1;
 			}
@@ -783,7 +768,7 @@ void CMenus::RenderServerbrowserFilters(CUIRect View, CScrollRegion *pScroll)
 		TextRender()->TextColor(TextRender()->DefaultTextColor());
 	};
 	Section("Server preferences");
-	if(!Wide)
+	if(!pScroll)
 	{
 		View.HSplitTop(RowHeight, &Button, &View);
 		if(CheckBox(&g_Config.m_BrFilterEmpty, Localize("Has people playing"), g_Config.m_BrFilterEmpty, &Button))
@@ -794,43 +779,43 @@ void CMenus::RenderServerbrowserFilters(CUIRect View, CScrollRegion *pScroll)
 	if(CheckBox(&g_Config.m_BrFilterSpectators, Localize("Count players only"), g_Config.m_BrFilterSpectators, &Button))
 		g_Config.m_BrFilterSpectators ^= 1;
 
-	if(!Wide)
+	if(!pScroll)
 	{
 		View.HSplitTop(RowHeight, &Button, &View);
 		if(CheckBox(&g_Config.m_BrFilterFull, Localize("Server not full"), g_Config.m_BrFilterFull, &Button))
 			g_Config.m_BrFilterFull ^= 1;
 	}
 
-	if(!Wide)
+	if(!pScroll)
 	{
 		View.HSplitTop(RowHeight, &Button, &View);
 		if(CheckBox(&g_Config.m_BrFilterFriends, Localize("Show friends only"), g_Config.m_BrFilterFriends, &Button))
 			g_Config.m_BrFilterFriends ^= 1;
 	}
 
-	if(!Wide)
+	if(!pScroll)
 	{
 		View.HSplitTop(RowHeight, &Button, &View);
 		if(CheckBox(&g_Config.m_BrFilterPw, Localize("No password"), g_Config.m_BrFilterPw, &Button))
 			g_Config.m_BrFilterPw ^= 1;
 	}
 
-	if(!Wide)
+	if(!pScroll)
 	{
 		View.HSplitTop(RowHeight, &Button, &View);
 		if(CheckBox(&g_Config.m_BrFilterLogin, Localize("No login required"), g_Config.m_BrFilterLogin, &Button))
 			g_Config.m_BrFilterLogin ^= 1;
 	}
 
-	Section("Identity and location");
 	View.HSplitTop(RowHeight, &Button, &View);
 	if(CheckBox(&g_Config.m_BrFilterGametypeStrict, Localize("Strict gametype filter"), g_Config.m_BrFilterGametypeStrict, &Button))
 		g_Config.m_BrFilterGametypeStrict ^= 1;
 
 	View.HSplitTop(3.0f, nullptr, &View);
 	View.HSplitTop(RowHeight, &Button, &View);
-	Ui()->DoLabel(&Button, Localize("Game types:"), FontSize, TEXTALIGN_ML);
-	Button.VSplitRight(pScroll ? std::max(70.f, Button.w * .48f) : 60.f, nullptr, &Button);
+	CUIRect TypeLabel;
+	Button.VSplitRight(pScroll ? Button.w * .48f : 60.f, &TypeLabel, &Button);
+	Ui()->DoLabel(&TypeLabel, Localize("Game types:"), FontSize, TEXTALIGN_ML);
 	static CLineInput s_GametypeInput(g_Config.m_BrFilterGametype, sizeof(g_Config.m_BrFilterGametype));
 	if(Ui()->DoEditBox(&s_GametypeInput, &Button, FontSize))
 		Client()->ServerBrowserUpdate();
@@ -839,13 +824,15 @@ void CMenus::RenderServerbrowserFilters(CUIRect View, CScrollRegion *pScroll)
 	View.HSplitTop(6.0f, nullptr, &View);
 	View.HSplitTop(RowHeight, &Button, &View);
 	View.HSplitTop(6.0f, nullptr, &View);
-	Ui()->DoLabel(&Button, Localize("Server address:"), FontSize, TEXTALIGN_ML);
-	Button.VSplitRight(pScroll ? std::max(70.f, Button.w * .48f) : 60.f, nullptr, &Button);
+	CUIRect AddressLabel;
+	Button.VSplitRight(pScroll ? Button.w * .48f : 60.f, &AddressLabel, &Button);
+	Ui()->DoLabel(&AddressLabel, Localize("Server address:"), FontSize, TEXTALIGN_ML);
 	static CLineInput s_FilterServerAddressInput(g_Config.m_BrFilterServerAddress, sizeof(g_Config.m_BrFilterServerAddress));
 	if(Ui()->DoEditBox(&s_FilterServerAddressInput, &Button, FontSize))
 		Client()->ServerBrowserUpdate();
 
 	// player country
+	Section("Players");
 	{
 		CUIRect Flag;
 		View.HSplitTop(RowHeight, &Button, &View);
@@ -865,7 +852,21 @@ void CMenus::RenderServerbrowserFilters(CUIRect View, CScrollRegion *pScroll)
 			s_PopupCountryContext.m_pMenus = this;
 			s_PopupCountryContext.m_Selection = g_Config.m_BrFilterCountryIndex;
 			s_PopupCountryContext.m_New = true;
-			Ui()->DoPopupMenu(&s_PopupCountryId, Flag.x, Flag.y + Flag.h, 490, 210, &s_PopupCountryContext, PopupCountrySelection);
+			if(pScroll)
+			{
+				const CUIRect Screen = *Ui()->Screen();
+				const float Width = std::min(280.f, Screen.w - 12);
+				const float Height = std::min(240.f, Screen.h - 12);
+				SPopupMenuProperties Props;
+				Props.m_ClampToScreen = true;
+				Props.m_BorderWidth = .5f;
+				Props.m_BorderColor = LucentUi::Accent(.22f);
+				Props.m_BackgroundColor = ColorRGBA(.025f, .021f, .035f, .99f);
+				Ui()->OnReset();
+				Ui()->DoPopupMenu(&s_PopupCountryId, std::clamp(Flag.x, Screen.x + 6, Screen.x + Screen.w - Width - 6), std::clamp(Flag.y + Flag.h + 4, Screen.y + 6, Screen.y + Screen.h - Height - 6), Width, Height, &s_PopupCountryContext, PopupLucentCountrySelection, Props);
+			}
+			else
+				Ui()->DoPopupMenu(&s_PopupCountryId, Flag.x, Flag.y + Flag.h, 490, 210, &s_PopupCountryContext, PopupCountrySelection);
 		}
 	}
 
@@ -909,6 +910,7 @@ void CMenus::RenderServerbrowserFilters(CUIRect View, CScrollRegion *pScroll)
 
 	if(Wide)
 		View = Columns[2];
+	Section("Countries and types");
 	// countries and types filters
 	if(ServerBrowser()->CommunityCache().CountriesTypesFilterAvailable())
 	{
@@ -1406,7 +1408,7 @@ void CMenus::RenderServerbrowserInfo(CUIRect View)
 
 void CMenus::RenderServerbrowserInfoScoreboard(CUIRect View, const CServerInfo *pSelectedServer)
 {
-	const float FontSize = 10.0f;
+	const float FontSize = Ui()->LucentStyle() ? 11.f : 10.f;
 
 	static CListBox s_ListBox;
 	View.VSplitLeft(5.0f, nullptr, &View);
@@ -1414,7 +1416,8 @@ void CMenus::RenderServerbrowserInfoScoreboard(CUIRect View, const CServerInfo *
 	s_ListBox.SetScrollbarWidth(Ui()->LucentStyle() ? 10.0f : 16.0f);
 	s_ListBox.SetScrollbarMargin(Ui()->LucentStyle() ? 1.0f : 5.0f);
 	s_ListBox.SetColors(Ui()->LucentStyle() ? ColorRGBA(1, .82f, .91f, .08f) : ColorRGBA(1, 1, 1, .5f), Ui()->LucentStyle() ? ColorRGBA(1, .82f, .91f, .045f) : ColorRGBA(1, 1, 1, .33f));
-	s_ListBox.DoStart(25.0f, (int)pSelectedServer->m_vClients.size(), 1, 3, -1, &View, false, IGraphics::CORNER_NONE, true);
+	s_ListBox.SetActive(Ui()->Enabled());
+	s_ListBox.DoStart(Ui()->LucentStyle() ? 28.f : 25.f, (int)pSelectedServer->m_vClients.size(), 1, 3, -1, &View, false, IGraphics::CORNER_NONE, true);
 
 	for(size_t i = 0; i < pSelectedServer->m_vClients.size(); i++)
 	{
@@ -1431,8 +1434,8 @@ void CMenus::RenderServerbrowserInfoScoreboard(CUIRect View, const CServerInfo *
 		Name.VSplitLeft(1.0f, nullptr, &Name);
 		if(Ui()->LucentStyle())
 		{
-			Name.VSplitLeft(24.0f, &Skin, &Name);
-			Name.VSplitRight(34.0f, &Name, &Score);
+			Name.VSplitLeft(29.0f, &Skin, &Name);
+			Name.VSplitRight(std::min(58.f, View.w * .22f), &Name, &Score);
 		}
 		else
 		{
@@ -1440,8 +1443,14 @@ void CMenus::RenderServerbrowserInfoScoreboard(CUIRect View, const CServerInfo *
 			Name.VSplitLeft(18.0f, &Skin, &Name);
 		}
 		Name.VSplitRight(26.0f, &Name, &Flag);
-		Flag.HMargin(6.0f, &Flag);
-		Name.HSplitTop(12.0f, &Name, &Clan);
+		Flag.HMargin((Flag.h - 12.f) / 2, &Flag);
+		Flag.VMargin(1.f, &Flag);
+		Name.HSplitTop(Ui()->LucentStyle() ? 15.f : 12.f, &Name, &Clan);
+		if(Ui()->LucentStyle())
+		{
+			const float Hover = LucentUi::Highlight(&CurrentClient, Ui()->Enabled() && Ui()->MouseHovered(&Item.m_Rect));
+			Item.m_Rect.Draw(LucentUi::Accent(.045f * Hover), 0, 0);
+		}
 
 		// score
 		char aTemp[16];
@@ -1522,6 +1531,8 @@ void CMenus::RenderServerbrowserInfoScoreboard(CUIRect View, const CServerInfo *
 			TextRender()->TextEx(&NameCursor, pName, -1);
 
 		// clan
+		if(Ui()->LucentStyle())
+			TextRender()->TextColor(ColorRGBA(.67f, .63f, .70f, 1));
 		CTextCursor ClanCursor;
 		ClanCursor.SetPosition(vec2(Clan.x, Clan.y + (Clan.h - (FontSize - 2.0f)) / 2.0f));
 		ClanCursor.m_FontSize = FontSize - 2.0f;
@@ -1540,8 +1551,10 @@ void CMenus::RenderServerbrowserInfoScoreboard(CUIRect View, const CServerInfo *
 		if(!Printed)
 			TextRender()->TextEx(&ClanCursor, pClan, -1);
 
+		TextRender()->TextColor(TextRender()->DefaultTextColor());
+
 		// flag
-		GameClient()->m_CountryFlags.Render(CurrentClient.m_Country, ColorRGBA(1.0f, 1.0f, 1.0f, 0.5f * CUIRect::DrawOpacity()), Flag.x, Flag.y, Flag.w, Flag.h);
+		GameClient()->m_CountryFlags.Render(CurrentClient.m_Country, ColorRGBA(1.0f, 1.0f, 1.0f, (Ui()->LucentStyle() ? .95f : .5f) * CUIRect::DrawOpacity()), Flag.x, Flag.y, Flag.w, Flag.h);
 	}
 
 	const int NewSelected = s_ListBox.DoEnd();

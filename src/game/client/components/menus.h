@@ -41,6 +41,7 @@ class CMenus : public CComponent
 	double m_LucentBrowserTime = 0;
 	bool m_LucentLegacyBrowser = false;
 	CLineInputBuffered<256> m_LucentDirectAddress;
+	CLineInputBuffered<64> m_LucentCountrySearch;
 	bool m_LucentPanelRendering = false;
 	bool m_LucentFiltersRendering = false;
 	int m_LucentFilterWheel = 0;
@@ -565,6 +566,7 @@ protected:
 		int m_Selection;
 		bool m_New;
 	};
+	static CUi::EPopupMenuFunctionResult PopupLucentCountrySelection(void *pContext, CUIRect View, bool Active);
 	static CUi::EPopupMenuFunctionResult PopupCountrySelection(void *pContext, CUIRect View, bool Active);
 	void RenderServerbrowserInfo(CUIRect View);
 	void RenderServerbrowserInfoScoreboard(CUIRect View, const CServerInfo *pSelectedServer);
