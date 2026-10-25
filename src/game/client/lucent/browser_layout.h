@@ -1,7 +1,8 @@
 #ifndef GAME_CLIENT_LUCENT_BROWSER_LAYOUT_H
 #define GAME_CLIENT_LUCENT_BROWSER_LAYOUT_H
-#include <algorithm>
 #include <game/client/ui_rect.h>
+
+#include <algorithm>
 
 // Shared scene anchors: artwork, title and interaction geometry use one space.
 struct CLucentBrowserSceneLayout
@@ -33,7 +34,8 @@ struct CLucentBrowserFilterLayout
 		const int Columns = Countries > 8 ? 5 : 4;
 		const float Grid = !HasGrid ? 0.f : CountriesTab ? ((Countries + Columns - 1) / Columns) * 22.f :
 								   ((Types + 2) / 3) * 17.f;
-		const float Height = Wide ? QuickHeight(Width) + std::max(350.f, 59.f + Grid) : QuickHeight(Width) + 392.f + (Ranks ? 21.f + (Finished ? 21.f : 28.f) : 0.f) + (HasGrid ? 25.f + Grid : 0.f);
+		// Exclusions precede all columns. The server column includes two stacked labels/inputs.
+		const float Height = Wide ? QuickHeight(Width) + 67.5f + std::max(380.f, 59.5f + Grid) : QuickHeight(Width) + 483.5f + (Ranks ? 21.f + (Finished ? 21.f : 28.f) : 0.f) + (HasGrid ? 25.f + Grid : 0.f);
 		return {Wide, Grid, Height};
 	}
 };

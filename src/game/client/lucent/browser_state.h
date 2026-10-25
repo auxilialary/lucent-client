@@ -1,5 +1,7 @@
 #ifndef GAME_CLIENT_LUCENT_BROWSER_STATE_H
 #define GAME_CLIENT_LUCENT_BROWSER_STATE_H
+#include "lucent_style.h"
+
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
@@ -20,7 +22,7 @@ public:
 		{
 			m_X = m_FromX = m_TargetX = X;
 			m_Width = m_FromWidth = m_TargetWidth = Width;
-			m_Time = .22f;
+			m_Time = LucentStyle::Motion::Selection;
 			m_Initialized = true;
 		}
 		if(X != m_TargetX || Width != m_TargetWidth)
@@ -31,8 +33,8 @@ public:
 			m_TargetWidth = Width;
 			m_Time = 0;
 		}
-		m_Time = std::clamp(m_Time + std::max(0.f, Dt), 0.f, .22f);
-		const float T = 1 - std::pow(1 - m_Time / .22f, 3.f);
+		m_Time = std::clamp(m_Time + std::max(0.f, Dt), 0.f, LucentStyle::Motion::Selection);
+		const float T = LucentStyle::Motion::CubicOut(m_Time / LucentStyle::Motion::Selection);
 		m_X = m_FromX + (m_TargetX - m_FromX) * T;
 		m_Width = m_FromWidth + (m_TargetWidth - m_FromWidth) * T;
 	}
@@ -59,7 +61,7 @@ struct CLucentBrowserContent
 		if(m_Alpha == 0)
 			m_Visible = m_Target;
 	}
-	float Opacity() const { return m_Alpha * m_Alpha * (3 - 2 * m_Alpha); }
+	float Opacity() const { return LucentStyle::Motion::Smooth(m_Alpha); }
 };
 
 // The highlighted search result is separate from the committed country filter.
@@ -209,30 +211,30 @@ public:
 	void Update(float Dt, bool Animate)
 	{
 		const float Step = std::clamp(Dt, 0.f, .1f);
-		m_Primary.Update(Step, Animate, .30f);
-		m_Scene.Update(Step, Animate, .36f);
+		m_Primary.Update(Step, Animate, LucentStyle::Motion::Primary);
+		m_Scene.Update(Step, Animate, LucentStyle::Motion::Scene);
 		if(m_Overlay.m_Visible == EOverlay::NONE && m_Overlay.m_Target != EOverlay::NONE)
 			m_Overlay.m_Visible = m_Overlay.m_Target;
 		if(m_Overlay.m_Target != EOverlay::NONE)
-			m_Overlay.Update(Step, Animate, .32f);
+			m_Overlay.Update(Step, Animate, LucentStyle::Motion::Overlay);
 		const auto Move = [&](float Value, bool Target, float Duration) {
 			return Animate ? std::clamp(Value + (Target ? Step : -Step) / Duration, 0.f, 1.f) : float(Target);
 		};
-		m_FiltersExpansion = Move(m_FiltersExpansion, m_Overlay.m_Target == EOverlay::FILTERS, .38f);
-		m_Expansion = Move(m_Expansion, m_Overlay.m_Target != EOverlay::NONE, .38f);
+		m_FiltersExpansion = Move(m_FiltersExpansion, m_Overlay.m_Target == EOverlay::FILTERS, LucentStyle::Motion::Expansion);
+		m_Expansion = Move(m_Expansion, m_Overlay.m_Target != EOverlay::NONE, LucentStyle::Motion::Expansion);
 		if(m_Expansion == 0 && m_Overlay.m_Target == EOverlay::NONE)
 		{
 			m_Overlay.m_Visible = EOverlay::NONE;
 			m_Overlay.m_Alpha = 1;
 		}
-		m_ScenePosition = Move(m_ScenePosition, m_Scene.m_Target != EScene::PREVIEW, .36f);
-		m_PlayersPosition = Move(m_PlayersPosition, m_Scene.m_Target == EScene::PLAYERS, .40f);
-		m_SelectionPulse = Animate ? std::max(0.f, m_SelectionPulse - Step / .36f) : 0;
+		m_ScenePosition = Move(m_ScenePosition, m_Scene.m_Target != EScene::PREVIEW, LucentStyle::Motion::Scene);
+		m_PlayersPosition = Move(m_PlayersPosition, m_Scene.m_Target == EScene::PLAYERS, LucentStyle::Motion::Players);
+		m_SelectionPulse = Animate ? std::max(0.f, m_SelectionPulse - Step / LucentStyle::Motion::Scene) : 0;
 	}
-	float FiltersExpansion() const { return m_FiltersExpansion * m_FiltersExpansion * (3 - 2 * m_FiltersExpansion); }
-	float Expansion() const { return m_Expansion * m_Expansion * (3 - 2 * m_Expansion); }
-	float PlayersPosition() const { return m_PlayersPosition * m_PlayersPosition * (3 - 2 * m_PlayersPosition); }
-	float ScenePosition() const { return m_ScenePosition * m_ScenePosition * (3 - 2 * m_ScenePosition); }
+	float FiltersExpansion() const { return LucentStyle::Motion::Smooth(m_FiltersExpansion); }
+	float Expansion() const { return LucentStyle::Motion::Smooth(m_Expansion); }
+	float PlayersPosition() const { return LucentStyle::Motion::Smooth(m_PlayersPosition); }
+	float ScenePosition() const { return LucentStyle::Motion::Smooth(m_ScenePosition); }
 	template<typename T>
 	static int FindSelection(int Count, std::string_view Address, T GetAddress)
 	{

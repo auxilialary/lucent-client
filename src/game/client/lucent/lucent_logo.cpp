@@ -1,29 +1,12 @@
 #include "lucent_logo.h"
 
 #include "lucent_menu_effects.h"
+#include "lucent_style.h"
 
 #include <game/client/ui_rect.h>
 
 #include <algorithm>
 #include <cmath>
-
-namespace
-{
-	constexpr float TAU = 6.28318530718f;
-
-	ColorRGBA Gradient(float Position, double Time)
-	{
-		const float Wave = 0.5f + 0.5f * std::sin(TAU * (Position - static_cast<float>(std::fmod(Time, 6.0) / 6.0)));
-		const ColorRGBA White(1.0f, 1.0f, 1.0f, 1.0f);
-		const ColorRGBA Rose(243.0f / 255.0f, 180.0f / 255.0f, 210.0f / 255.0f, 1.0f);
-		const ColorRGBA Pink(239.0f / 255.0f, 161.0f / 255.0f, 199.0f / 255.0f, 1.0f);
-		const ColorRGBA A = Wave < 0.5f ? White : Rose;
-		const ColorRGBA B = Wave < 0.5f ? Rose : Pink;
-		const float Blend = Wave < 0.5f ? Wave * 2.0f : Wave * 2.0f - 1.0f;
-		return ColorRGBA(mix(A.r, B.r, Blend), mix(A.g, B.g, Blend), mix(A.b, B.b, Blend), 1.0f);
-	}
-
-}
 
 void CLucentLogo::Reset(ITextRender *pTextRender)
 {
@@ -82,7 +65,7 @@ void CLucentLogo::Render(IGraphics *pGraphics, ITextRender *pTextRender, float C
 		if(End <= X)
 			continue;
 		pGraphics->ClipEnable(X, 0, End - X, pGraphics->ScreenHeight());
-		const ColorRGBA Color = Gradient((i + 0.5f) / Bands, Time).WithAlpha(Alpha);
+		const ColorRGBA Color = LucentStyle::Gradient::Sample((i + 0.5f) / Bands, LucentStyle::Motion::Clock().GradientTime()).WithAlpha(Alpha);
 		for(const auto &Text : m_aText)
 			if(Text.Valid())
 				pTextRender->RenderTextContainer(Text, Color, ColorRGBA(0, 0, 0, 0), Left, Top);

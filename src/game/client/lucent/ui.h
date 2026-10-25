@@ -1,8 +1,6 @@
 #ifndef GAME_CLIENT_LUCENT_UI_H
 #define GAME_CLIENT_LUCENT_UI_H
-#include <base/time.h>
-
-#include <engine/shared/config.h>
+#include "lucent_style.h"
 
 #include <game/client/ui.h>
 
@@ -11,49 +9,83 @@
 // Lucent surfaces share UI coordinates, so radii and hairlines follow UI scale.
 namespace LucentUi
 {
-	// Fixed storage avoids allocations and stale-pointer growth in immediate UI.
-	inline float Highlight(const void *pId, bool Target)
+	// Separate channels keep hover, activation and focus independently reversible.
+	enum class EChannel
+	{
+		HOVER,
+		ACTIVE,
+		FOCUS
+	};
+	inline float Highlight(const void *pId, bool Target, EChannel Channel = EChannel::HOVER)
 	{
 		struct CState
 		{
 			const void *m_pId = nullptr;
-			float m_Value = 0, m_From = 0, m_Elapsed = 0;
-			bool m_Target = false;
-			double m_Time = 0;
+			EChannel m_Channel = EChannel::HOVER;
+			LucentStyle::Motion::CTransition m_Transition;
+			double m_Last = -1;
 		};
-		static std::array<CState, 256> s_aStates;
-		const double Now = double(time_get()) / time_freq();
+		static std::array<CState, 768> s_aStates;
+		const auto &Clock = LucentStyle::Motion::Clock();
 		auto *pState = &s_aStates[0];
 		for(auto &State : s_aStates)
 		{
-			if(State.m_pId == pId)
+			if(State.m_pId == pId && State.m_Channel == Channel)
 			{
 				pState = &State;
 				break;
 			}
-			if(State.m_Time < pState->m_Time)
+			if(State.m_Last < pState->m_Last)
 				pState = &State;
 		}
-		if(pState->m_pId != pId)
+		if(pState->m_pId != pId || pState->m_Channel != Channel)
 		{
 			*pState = {};
 			pState->m_pId = pId;
-			pState->m_Time = Now;
+			pState->m_Channel = Channel;
 		}
-		if(Target != pState->m_Target)
-		{
-			pState->m_From = pState->m_Value;
-			pState->m_Target = Target;
-			pState->m_Elapsed = 0;
-		}
-		pState->m_Elapsed = std::min(.18f, pState->m_Elapsed + float(std::max(0.0, Now - pState->m_Time)));
-		const float T = g_Config.m_ClLucentLogoAnimation ? 1 - std::pow(1 - pState->m_Elapsed / .18f, 3.f) : 1;
-		pState->m_Value = pState->m_From + (float(Target) - pState->m_From) * T;
-		pState->m_Time = Now;
-		return pState->m_Value;
+		pState->m_Last = Clock.m_Now;
+		return pState->m_Transition.Update(Target, Clock.m_Now, Clock.m_Animate,
+			Channel == EChannel::FOCUS ? LucentStyle::Motion::Focus : LucentStyle::Motion::Hover);
 	}
-	constexpr float RADIUS = 3.0f;
-	inline ColorRGBA Accent(float Alpha) { return ColorRGBA(1, .82f, .91f, Alpha); }
+	constexpr float RADIUS = LucentStyle::Style::Radius;
+	inline ColorRGBA Accent(float Alpha) { return LucentStyle::Style::Accent.WithAlpha(Alpha); }
+	// Four vertex colors, one draw: no scissor bands or temporary textures for controls.
+	inline void GradientFill(const CUIRect &Rect, float Alpha, int Corners = IGraphics::CORNER_ALL, float Radius = RADIUS)
+	{
+		const double Time = LucentStyle::Motion::Clock().GradientTime();
+		const auto Left = LucentStyle::Gradient::Sample(0, Time).WithAlpha(Alpha);
+		const auto Right = LucentStyle::Gradient::Sample(.5f, Time).WithAlpha(Alpha);
+		Rect.Draw4(Left, Right, Left, Right, Corners, Radius);
+	}
+	inline void Divider(CUIRect Rect, float Alpha = .25f, bool Glow = false)
+	{
+		CUIRect Left, Right;
+		Rect.VSplitMid(&Left, &Right);
+		Left.Draw4(Accent(0), Accent(Alpha), Accent(0), Accent(Alpha), 0, 0);
+		Right.Draw4(Accent(Alpha), Accent(0), Accent(Alpha), Accent(0), 0, 0);
+		if(Glow)
+		{
+			Rect.y += Rect.h;
+			Rect.h = 4;
+			Rect.VSplitMid(&Left, &Right);
+			Left.Draw4(Accent(0), Accent(.025f), Accent(0), Accent(0), 0, 0);
+			Right.Draw4(Accent(.025f), Accent(0), Accent(0), Accent(0), 0, 0);
+		}
+	}
+	inline void InputFrame(const CUIRect &Rect, const void *pId, bool Filled, bool Focus, bool Hover, bool Enabled, int Corners)
+	{
+		const float Active = Highlight(pId, Enabled && Filled, EChannel::ACTIVE);
+		const float Focused = Highlight(pId, Enabled && Focus, EChannel::FOCUS);
+		const float Hot = Highlight(pId, Enabled && Hover);
+		const float Alpha = Enabled ? 1.f : LucentStyle::Style::Disabled;
+		Rect.Draw(Accent((LucentStyle::Style::BorderIdle + LucentStyle::Style::InputHover * Hot + LucentStyle::Style::InputFocus * Focused) * Alpha), Corners, RADIUS);
+		if(Active > .001f)
+			GradientFill(Rect, Active * (LucentStyle::Style::FilledBorder + (LucentStyle::Style::FocusBorder - LucentStyle::Style::FilledBorder) * Focused) * Alpha, Corners);
+		CUIRect Inner;
+		Rect.Margin(LucentStyle::Style::Hairline, &Inner);
+		Inner.Draw(LucentStyle::Style::Surface, Corners, RADIUS);
+	}
 	inline void Surface(const CUIRect &Rect, bool Focus = false, bool Hover = false, int Corners = IGraphics::CORNER_ALL, float Highlight = -1)
 	{
 		const float GlowAlpha = Highlight >= 0 ? Highlight : float(Focus || Hover);
@@ -61,28 +93,30 @@ namespace LucentUi
 		{
 			CUIRect Glow = Rect;
 			Glow.Margin(-1, &Glow);
-			Glow.Draw(Accent(GlowAlpha * .07f), Corners, RADIUS + 1);
+			Glow.Draw(Accent(GlowAlpha * LucentStyle::Style::SurfaceGlow), Corners, RADIUS + 1);
 		}
-		Rect.Draw(Accent(.12f + .28f * GlowAlpha),
+		Rect.Draw(Accent(LucentStyle::Style::BorderIdle + (LucentStyle::Style::BorderActive - LucentStyle::Style::BorderIdle) * GlowAlpha),
 			Corners, RADIUS);
 		CUIRect Inner;
-		Rect.Margin(.5f, &Inner);
-		Inner.Draw(ColorRGBA(.025f, .021f, .035f, .98f), Corners, RADIUS);
+		Rect.Margin(LucentStyle::Style::Hairline, &Inner);
+		Inner.Draw(LucentStyle::Style::Surface, Corners, RADIUS);
 	}
 	inline int CheckBox(CUi *pUi, const void *pId, const char *pText, const char *pMark, const CUIRect &Rect, unsigned Flags = BUTTONFLAG_LEFT)
 	{
 		CUIRect Box, Label;
-		Rect.VSplitLeft(14, &Box, &Label);
-		Box.HMargin((Box.h - 14) / 2, &Box);
-		Label.VSplitLeft(7, nullptr, &Label);
+		Rect.VSplitLeft(LucentStyle::Style::ControlSize, &Box, &Label);
+		Box.HMargin((Box.h - LucentStyle::Style::ControlSize) / 2, &Box);
+		Label.VSplitLeft(LucentStyle::Style::LabelGap, nullptr, &Label);
 		const float Light = Highlight(pId, *pMark || (pUi->Enabled() && pUi->MouseHovered(&Rect)));
 		Surface(Box, false, false, IGraphics::CORNER_ALL, Light);
-		if(*pMark)
+		const float Active = Highlight(pId, *pMark != 0, EChannel::ACTIVE);
+		if(Active > .001f)
 		{
-			Box.Margin(4, &Box);
+			Box.Margin(LucentStyle::Style::CheckInset, &Box);
+			// The mixed-state bar retains its shape while sharing the active gradient.
 			if(*pMark == 'O')
-				Box.HMargin((Box.h - 1.5f) / 2, &Box);
-			Box.Draw(Accent(.85f), IGraphics::CORNER_ALL, 1);
+				Box.HMargin((Box.h - LucentStyle::Style::MixedHeight) / 2, &Box);
+			GradientFill(Box, Active * (pUi->Enabled() ? LucentStyle::Style::CheckAlpha : LucentStyle::Style::Disabled), IGraphics::CORNER_ALL, LucentStyle::Style::CheckRadius);
 		}
 		SLabelProperties Props;
 		Props.m_MaxWidth = Label.w;
@@ -133,13 +167,13 @@ namespace LucentUi
 		const bool Hover = Interactive && pUi->MouseHovered(&Rect);
 		const float Light = Highlight(pId, Enabled && (Selected || Hover || (Interactive && pUi->CheckActiveItem(pId))));
 		if(Light > .001f)
-			Rect.Draw(Accent(Light * (Selected ? .13f : .045f) + (Interactive && pUi->CheckActiveItem(pId) ? .07f : 0.f)), 0, 0);
+			Rect.Draw(Accent(Light * (Selected ? LucentStyle::Style::Selected : LucentStyle::Style::Hover) + (Interactive && pUi->CheckActiveItem(pId) ? LucentStyle::Style::Pressed : 0.f)), 0, 0);
 		if(Selected)
 		{
 			CUIRect Underline = {Rect.x + 5, Rect.y + Rect.h - 1, std::max(0.f, Rect.w - 10), .6f};
-			Underline.Draw(Accent(.7f), 0, 0);
+			Underline.Draw(Accent(LucentStyle::Style::ButtonUnderline), 0, 0);
 		}
-		pTextRender->TextColor(Accent(Enabled ? 1.f : .35f));
+		pTextRender->TextColor(Accent(Enabled ? 1.f : LucentStyle::Style::Disabled));
 		const float Size = std::min(11.f, 11.f * std::max(1.f, Rect.w - 6) / std::max(1.f, pTextRender->TextWidth(11, pText)));
 		pUi->DoLabel(&Rect, pText, Size, TEXTALIGN_MC);
 		pTextRender->TextColor(pTextRender->DefaultTextColor());
@@ -152,11 +186,11 @@ namespace LucentUi
 		const bool Hover = Interactive && pUi->MouseHovered(&Rect);
 		const bool Pressed = Interactive && pUi->CheckActiveItem(pId);
 		const float Light = Highlight(pId, Hover || Pressed);
-		Surface(Rect, false, false, IGraphics::CORNER_ALL, .25f + .75f * Light);
+		Surface(Rect, false, false, IGraphics::CORNER_ALL, LucentStyle::Style::SceneBase + LucentStyle::Style::SceneHover * Light);
 		CUIRect Inner;
 		Rect.Margin(1, &Inner);
-		Inner.Draw(Accent((Pressed ? .10f : .025f) + .025f * Light), IGraphics::CORNER_ALL, RADIUS);
-		pTextRender->TextColor(Accent(Enabled ? 1.f : .35f));
+		Inner.Draw(Accent((Pressed ? LucentStyle::Style::ScenePressed : LucentStyle::Style::SceneIdle) + LucentStyle::Style::SceneIdle * Light), IGraphics::CORNER_ALL, RADIUS);
+		pTextRender->TextColor(Accent(Enabled ? 1.f : LucentStyle::Style::Disabled));
 		const float Size = std::min(12.f, 12.f * std::max(1.f, Rect.w - 12) / std::max(1.f, pTextRender->TextWidth(12, pText)));
 		pUi->DoLabel(&Rect, pText, Size, TEXTALIGN_MC);
 		pTextRender->TextColor(pTextRender->DefaultTextColor());
@@ -170,9 +204,9 @@ namespace LucentUi
 		if(Selected && Underline)
 		{
 			CUIRect Line = {Rect.x + 4, Rect.y + Rect.h - 2, std::max(0.f, Rect.w - 8), 1};
-			Line.Draw(Accent(Pressed ? .95f : .7f), 0, 0);
+			Line.Draw(Accent(Pressed ? LucentStyle::Style::PressedUnderline : LucentStyle::Style::ButtonUnderline), 0, 0);
 		}
-		pTextRender->TextColor(Selected ? Accent(Pressed ? .8f : 1.f) : ColorRGBA(.66f + .25f * Light, .63f + .20f * Light, .69f + .19f * Light, 1));
+		pTextRender->TextColor(Selected ? Accent(Pressed ? LucentStyle::Style::PressedText : 1.f) : LucentStyle::Gradient::Blend(LucentStyle::Style::NavigationText, LucentStyle::Style::NavigationHover, Light));
 		CUIRect Label = Rect;
 		if(pIcon)
 		{

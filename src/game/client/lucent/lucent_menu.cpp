@@ -3,6 +3,7 @@
 #include "lucent_menu.h"
 
 #include "lucent_menu_effects.h"
+#include "lucent_style.h"
 
 #include <base/time.h>
 
@@ -51,7 +52,7 @@ bool CLucentMenu::Button(int Index, const char *pLabel, const CUIRect &Rect, flo
 		SLabelProperties Props;
 		Props.m_MaxWidth = -1;
 		const ColorRGBA PreviousColor = TextRender()->GetTextColor();
-		TextRender()->TextColor(ColorRGBA(mix(Accent ? 0.96f : 0.88f, 1.0f, Highlight), mix(Accent ? 0.85f : 0.87f, 0.82f, Highlight), mix(0.92f, 0.9f, Highlight), Alpha * Opacity));
+		TextRender()->TextColor(LucentStyle::Gradient::Blend(Accent ? LucentStyle::Style::PrimaryText : LucentStyle::Style::Text, LucentStyle::Style::MenuHover, Highlight).WithAlpha(Alpha * Opacity));
 		const float FontSize = std::min(14.0f, 14.0f * (Label.w - 2) / std::max(1.0f, TextRender()->TextWidth(14.0f, pText)));
 		Ui()->DoLabel(&Label, pText, FontSize, TEXTALIGN_ML, Props);
 		TextRender()->TextColor(PreviousColor);
@@ -69,7 +70,7 @@ void CLucentMenu::RenderMainMenu(CUIRect MainView)
 {
 	GameClient()->m_MenuBackground.ChangePosition(CMenuBackground::POS_START);
 	// Cover the full viewport, including the vanilla menu margin.
-	Ui()->Screen()->Draw(ColorRGBA(0.018f, 0.015f, 0.027f, 1.0f), 0, 0);
+	Ui()->Screen()->Draw(LucentStyle::Style::MenuBackground, 0, 0);
 	const double Now = static_cast<double>(time_get()) / time_freq();
 	const bool Animate = g_Config.m_ClLucentLogoAnimation != 0;
 	const bool Focused = Kernel()->RequestInterface<IEngineGraphics>()->WindowActive() != 0 && !GameClient()->m_GameConsole.IsActive();
@@ -89,7 +90,7 @@ void CLucentMenu::RenderMainMenu(CUIRect MainView)
 	m_EffectTime = Animate ? Now - m_AnimationEpoch : 0;
 	const float Dt = m_LastFrame < 0 ? 0 : static_cast<float>(std::min(Now - m_LastFrame, 0.05));
 	m_LastFrame = Now;
-	const float Response = Animate ? 1 - std::exp(-Dt * 12) : 1;
+	const float Response = Animate ? LucentStyle::Motion::Response(Dt, LucentStyle::Motion::MenuResponse) : 1;
 	const float CenterX = MainView.x + MainView.w / 2;
 	const float CenterY = MainView.y + MainView.h * 0.43f;
 	const float LogoWidth = std::min(400.0f, MainView.w * 0.38f);
@@ -225,7 +226,7 @@ void CLucentMenu::RenderMainMenu(CUIRect MainView)
 		}
 		Open = Focused && m_Interaction.Update(Now, Mouse, Logo, Left, Right, OverControl, Keyboard || m_Focus >= 0, m_Progress > 0);
 		const float Target = Open ? 1.0f : 0.0f;
-		m_Progress = Animate ? std::clamp(m_Progress + (Open ? Dt : -Dt) / 0.35f, 0.0f, 1.0f) : Target;
+		m_Progress = Animate ? std::clamp(m_Progress + (Open ? Dt : -Dt) / LucentStyle::Motion::MenuReveal, 0.0f, 1.0f) : Target;
 		m_Secondary.Update(Dt, Animate, Open, m_Progress > 0, Focused);
 		m_ServerControls.Update(Dt, Animate, Open || m_Progress > 0, Focused);
 		if(!Open && m_Focus >= 7 && m_Focus < 12)
@@ -258,7 +259,7 @@ void CLucentMenu::RenderMainMenu(CUIRect MainView)
 		CLucentMenuEffects::Connection(Graphics(), vec2(CenterX, CenterY) + m_OrbitOffset, Scale, ConnectionTarget, i, m_Progress, m_aHighlight[i], Animate && m_aPulseStart[i] > 0 ? static_cast<float>(Now - m_aPulseStart[i]) : -1);
 	}
 	// Cached wordmark with local orbit reactions for each navigation direction.
-	const float Activation = 1 - std::pow(1 - m_Progress, 3.0f);
+	const float Activation = LucentStyle::Motion::CubicOut(m_Progress);
 	float aOrbitReaction[6];
 	for(int i = 0; i < 6; ++i)
 	{
@@ -269,9 +270,8 @@ void CLucentMenu::RenderMainMenu(CUIRect MainView)
 	const char *apLabels[] = {Localize("Play", "Start menu"), Localize("Demos"), Localize("Editor"), "Локальный сервер", Localize("Settings"), Localize("Quit")};
 	for(int i = 0; i < 6; ++i)
 	{
-		const float T = Animate ? std::clamp((m_Progress * 0.35f - 0.065f - (i % 3) * 0.02f) / 0.245f, 0.0f, 1.0f) : m_Progress;
-		const float Ease = 1 - std::pow(1 - T, 3.0f);
-		const float Offset = (i < 3 ? 1 : -1) * 32 * (1 - Ease);
+		const float Ease = Animate ? LucentStyle::Motion::Stagger(m_Progress * LucentStyle::Motion::MenuReveal, LucentStyle::Motion::MenuDelay + (i % 3) * LucentStyle::Motion::MenuStagger, LucentStyle::Motion::MenuItem) : LucentStyle::Motion::CubicOut(m_Progress);
+		const float Offset = (i < 3 ? 1 : -1) * LucentStyle::Motion::Slide(32, Ease);
 		// Button applies the same reveal/highlight displacement to input and drawing.
 		const bool Server = m_ServerControls.IsOpen();
 		const bool Enabled = Open && (i < 3 || (m_ServerControls.Interactive() && (!Server || CLucentServerControls::Action(i - 3, Running, Starting) != CLucentServerControls::EAction::NONE)));
@@ -390,7 +390,7 @@ void CLucentMenu::RenderMainMenu(CUIRect MainView)
 		static CButtonContainer s_ConsoleButton;
 		TextRender()->SetFontPreset(EFontPreset::ICON_FONT);
 		TextRender()->SetRenderFlags(ETextRenderFlags::TEXT_RENDER_FLAG_ONLY_ADVANCE_WIDTH | ETextRenderFlags::TEXT_RENDER_FLAG_NO_X_BEARING | ETextRenderFlags::TEXT_RENDER_FLAG_NO_Y_BEARING | ETextRenderFlags::TEXT_RENDER_FLAG_NO_PIXEL_ALIGNMENT | ETextRenderFlags::TEXT_RENDER_FLAG_NO_OVERSIZE);
-		if(GameClient()->m_Menus.DoButton_Menu(&s_ConsoleButton, FontIcon::TERMINAL, 0, &ConsoleButton, BUTTONFLAG_LEFT, nullptr, IGraphics::CORNER_ALL, 5.0f, 0.0f, ColorRGBA(0.0f, 0.0f, 0.0f, 0.1f)))
+		if(GameClient()->m_Menus.DoButton_Menu(&s_ConsoleButton, FontIcon::TERMINAL, 0, &ConsoleButton, BUTTONFLAG_LEFT, nullptr, IGraphics::CORNER_ALL, 5.0f, 0.0f, LucentStyle::Style::UtilitySurface.WithAlpha(.1f)))
 		{
 			GameClient()->m_GameConsole.Toggle(CGameConsole::CONSOLETYPE_LOCAL);
 		}
@@ -412,7 +412,7 @@ void CLucentMenu::RenderMainMenu(CUIRect MainView)
 		if(State == IUpdater::CLEAN && NeedUpdate)
 		{
 			static CButtonContainer s_VersionUpdate;
-			if(GameClient()->m_Menus.DoButton_Menu(&s_VersionUpdate, Localize("Update now"), 0, &UpdateButton, BUTTONFLAG_LEFT, 0, IGraphics::CORNER_ALL, 5.0f, 0.0f, ColorRGBA(0.0f, 0.0f, 0.0f, 0.25f)))
+			if(GameClient()->m_Menus.DoButton_Menu(&s_VersionUpdate, Localize("Update now"), 0, &UpdateButton, BUTTONFLAG_LEFT, 0, IGraphics::CORNER_ALL, 5.0f, 0.0f, LucentStyle::Style::UtilitySurface.WithAlpha(.25f)))
 			{
 				Updater()->InitiateUpdate();
 			}
@@ -420,7 +420,7 @@ void CLucentMenu::RenderMainMenu(CUIRect MainView)
 		else if(State == IUpdater::NEED_RESTART)
 		{
 			static CButtonContainer s_VersionUpdate;
-			if(GameClient()->m_Menus.DoButton_Menu(&s_VersionUpdate, Localize("Restart"), 0, &UpdateButton, BUTTONFLAG_LEFT, 0, IGraphics::CORNER_ALL, 5.0f, 0.0f, ColorRGBA(0.0f, 0.0f, 0.0f, 0.25f)))
+			if(GameClient()->m_Menus.DoButton_Menu(&s_VersionUpdate, Localize("Restart"), 0, &UpdateButton, BUTTONFLAG_LEFT, 0, IGraphics::CORNER_ALL, 5.0f, 0.0f, LucentStyle::Style::UtilitySurface.WithAlpha(.25f)))
 			{
 				Client()->Restart();
 			}
@@ -465,7 +465,7 @@ void CLucentMenu::RenderMainMenu(CUIRect MainView)
 			VersionUpdate.VSplitRight(10.0f, &VersionUpdate, nullptr);
 
 			static CButtonContainer s_DownloadButton;
-			if(GameClient()->m_Menus.DoButton_Menu(&s_DownloadButton, Localize("Download"), 0, &DownloadButton, BUTTONFLAG_LEFT, nullptr, IGraphics::CORNER_ALL, 5.0f, 0.0f, ColorRGBA(0.0f, 0.0f, 0.0f, 0.25f)))
+			if(GameClient()->m_Menus.DoButton_Menu(&s_DownloadButton, Localize("Download"), 0, &DownloadButton, BUTTONFLAG_LEFT, nullptr, IGraphics::CORNER_ALL, 5.0f, 0.0f, LucentStyle::Style::UtilitySurface.WithAlpha(.25f)))
 			{
 				Client()->ViewLink("https://ddnet.org/downloads/");
 			}
@@ -473,7 +473,7 @@ void CLucentMenu::RenderMainMenu(CUIRect MainView)
 			char aBuf[64];
 			str_format(aBuf, sizeof(aBuf), Localize("DDNet %s is out!"), Client()->LatestVersion());
 			SLabelProperties UpdateLabelProps;
-			UpdateLabelProps.SetColor(ColorRGBA(1.0f, 0.4f, 0.4f, 1.0f));
+			UpdateLabelProps.SetColor(LucentStyle::Style::ErrorText);
 			Ui()->DoLabel(&VersionUpdate, aBuf, 14.0f, TEXTALIGN_ML, UpdateLabelProps);
 		}
 #endif

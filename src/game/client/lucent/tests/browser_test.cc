@@ -15,6 +15,54 @@
 	} while(0)
 int main()
 {
+	// The same timestamps must produce the same activation at 60/144/240 FPS.
+	for(int Fps : {60, 144, 240})
+	{
+		LucentStyle::Motion::CTransition Filled, Focus;
+		LucentStyle::Motion::CClock Clock;
+		Clock.BeginFrame(100, true);
+		Filled.Update(true, 100, true);
+		Focus.Update(true, 100, true);
+		for(int Frame = 1; Frame <= Fps / 6; ++Frame)
+		{
+			const double Now = 100 + double(Frame) / Fps;
+			Clock.BeginFrame(Now, true);
+			Filled.Update(true, Now, true);
+		}
+		const double Now = 100 + 1.0 / 6;
+		CHECK(std::abs(Filled.Update(true, Now, true) - LucentStyle::Motion::CubicOut(float((1.0 / 6) / LucentStyle::Motion::Hover))) < .0001f);
+		const float Before = Filled.m_Value;
+		CHECK(Filled.Update(false, Now, true) == Before);
+		CHECK(Filled.Update(true, Now, true) == Before);
+		CHECK(Filled.Update(true, Now + .2, true) == 1);
+		// Losing focus leaves a populated field active; clearing it reverses smoothly.
+		CHECK(Focus.Update(true, Now + .2, true) == 1);
+		CHECK(Focus.Update(false, Now + .2, true) == 1);
+		CHECK(Focus.Update(false, Now + .4, true) == 0);
+		CHECK(Filled.m_Value == 1);
+		CHECK(Filled.Update(false, Now + .2, true) == 1);
+		CHECK(Filled.Update(false, Now + .4, true) == 0);
+		CHECK(Filled.Update(true, Now + .4, false) == 1);
+		CHECK(Filled.Update(true, Now + .401, true) == 1);
+		CHECK(Filled.Update(false, Now + .402, false) == 0);
+		CHECK(std::abs(Clock.GradientTime() - double(Fps / 6) / Fps) < .000001);
+		const double Phase = Clock.m_Time;
+		Clock.BeginFrame(101, false);
+		CHECK(Clock.GradientTime() == 0);
+		Clock.BeginFrame(102, true);
+		CHECK(Clock.GradientTime() == Phase);
+	}
+	// Exact logo stops, periodicity, reverse travel, and intensity.
+	const auto White = LucentStyle::Gradient::Sample(-.25f, 0);
+	const auto Rose = LucentStyle::Gradient::Sample(0, 0);
+	const auto Pink = LucentStyle::Gradient::Sample(.25f, 0);
+	CHECK(std::abs(White.g - 1) < .00001f);
+	CHECK(std::abs(Rose.g - 180.f / 255) < .00001f);
+	CHECK(std::abs(Pink.g - 161.f / 255) < .00001f);
+	CHECK(std::abs(LucentStyle::Gradient::Sample(.12f, 1).g - LucentStyle::Gradient::Sample(.12f, 7).g) < .00001f);
+	CHECK(LucentStyle::Gradient::Sample(.2f, 1, {6, 1, 0}).g == 1);
+	CHECK(std::abs(LucentStyle::Gradient::Sample(.2f, 1, {6, -1, 1}).g - LucentStyle::Gradient::Sample(.2f, -1).g) < .00001f);
+
 	// Supporting artwork must leave contextual text below it at every viewport.
 	for(float Width : {800.f, 1098.67f, 1280.f, 1706.67f})
 	{
@@ -51,7 +99,7 @@ int main()
 	CHECK(Countries.m_Wide && Countries.m_GridHeight == 21 * 22);
 	CHECK(Countries.m_ContentHeight >= Countries.m_GridHeight + 59);
 	const auto Types = CLucentBrowserFilterLayout::Measure(1000, 101, 3, false, true, true, true);
-	CHECK(Types.m_GridHeight == 17 && Types.m_ContentHeight == 408);
+	CHECK(Types.m_GridHeight == 17 && Types.m_ContentHeight == 505.5f);
 	const auto Narrow = CLucentBrowserFilterLayout::Measure(600, 8, 4, true, true, true, true);
 	CHECK(!Narrow.m_Wide && Narrow.m_GridHeight == 44);
 	CHECK(Narrow.m_ContentHeight > Types.m_ContentHeight);

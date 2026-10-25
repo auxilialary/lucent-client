@@ -1,6 +1,8 @@
 #ifndef GAME_CLIENT_LUCENT_RADIAL_TRANSITION_H
 #define GAME_CLIENT_LUCENT_RADIAL_TRANSITION_H
 
+#include "lucent_style.h"
+
 #include <base/vmath.h>
 
 #include <algorithm>
@@ -17,7 +19,7 @@ public:
 		ACTIVE,
 		COMPLETED
 	};
-	static constexpr double DURATION = 0.88;
+	static constexpr double DURATION = LucentStyle::Motion::Radial;
 	struct CMask
 	{
 		vec2 m_Origin;
@@ -26,7 +28,7 @@ public:
 		float Coverage(vec2 Point) const
 		{
 			const float T = std::clamp((m_Radius - distance(Point, m_Origin)) / m_Feather, 0.0f, 1.0f);
-			return T * T * (3 - 2 * T);
+			return LucentStyle::Motion::Smooth(T);
 		}
 	};
 
@@ -74,7 +76,7 @@ public:
 	float Radius(vec2 TopLeft, vec2 Size, float Feather) const
 	{
 		// Quadratic ease-out keeps the early expansion brisk without a cubic tail.
-		const float Ease = 1 - (1 - m_Progress) * (1 - m_Progress);
+		const float Ease = LucentStyle::Motion::QuadraticOut(m_Progress);
 		return Ease * (MaxRadius(TopLeft, Size) + Feather);
 	}
 	float Coverage(vec2 Point, vec2 TopLeft, vec2 Size, float Feather) const

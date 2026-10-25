@@ -120,9 +120,9 @@ void CMenus::RenderLucentBrowser(CUIRect Screen)
 	const char *pMapTitle = pSelected ? pSelected->m_aMap : "";
 	if(m_LucentBrowser.m_MapTitle.m_Target != pMapTitle)
 		m_LucentBrowser.m_MapTitle.m_Target = pMapTitle;
-	m_LucentBrowser.m_MapTitle.Update(Dt, Animate, .42f);
+	m_LucentBrowser.m_MapTitle.Update(Dt, Animate, LucentStyle::Motion::MapTitle);
 	m_LucentPreview.Update(pSelected, Now, Animate, Http(), Engine(), Graphics());
-	Screen.Draw(ColorRGBA(.010f, .009f, .014f, 1), 0, 0);
+	Screen.Draw(LucentStyle::Style::BrowserBackground, 0, 0);
 	static CLucentBrowserAmbient s_Ambient;
 	const vec2 Cursor((Ui()->MouseX() - Screen.x) / Screen.w * 2 - 1, (Ui()->MouseY() - Screen.y) / Screen.h * 2 - 1);
 	s_Ambient.Update(Dt, Animate, Cursor);
@@ -380,7 +380,7 @@ void CMenus::RenderLucentBrowser(CUIRect Screen)
 				Body.HSplitTop(22, &Meta, &Body);
 				char aMeta[128];
 				str_format(aMeta, sizeof(aMeta), "%s%s%d/%d %s · %s%d ms", pSelected->m_aCommunityCountry, pSelected->m_aCommunityCountry[0] ? " · " : "", pSelected->m_NumPlayers, pSelected->m_MaxPlayers, Localize("players"), pSelected->m_LatencyIsEstimated ? "~" : "", pSelected->m_Latency);
-				TextRender()->TextColor(ColorRGBA(.77f, .71f, .76f, 1));
+				TextRender()->TextColor(LucentStyle::Style::BrowserHint);
 				Ui()->DoLabel(&Meta, aMeta, 12, TEXTALIGN_ML, Props);
 				TextRender()->TextColor(TextRender()->DefaultTextColor());
 				Body.HSplitTop(12, nullptr, &Body);
@@ -461,7 +461,7 @@ void CMenus::RenderLucentBrowser(CUIRect Screen)
 		m_LucentLegacyBrowser = true;
 	char aStatus[192];
 	str_format(aStatus, sizeof(aStatus), "%d %s · %d %s   %s", ServerBrowser()->NumSortedServers(), Localize("servers"), ServerBrowser()->NumSortedPlayers(), Localize("players"), ServerBrowser()->IsRefreshing() || ServerBrowser()->IsGettingServerlist() ? Localize("Refreshing...") : "");
-	TextRender()->TextColor(ColorRGBA(.63f, .62f, .69f, 1));
+	TextRender()->TextColor(LucentStyle::Style::SecondaryText);
 	SLabelProperties StatusProps;
 	StatusProps.m_MaxWidth = Status.w;
 	StatusProps.m_StopAtEnd = true;
@@ -485,7 +485,7 @@ void CMenus::RenderLucentBrowser(CUIRect Screen)
 void CMenus::RenderLucentServerList(CUIRect View, bool &Activated)
 {
 	static CListBox s_List;
-	s_List.SetColors(ColorRGBA(1, .8f, .9f, 0), ColorRGBA(1, .9f, .95f, 0));
+	s_List.SetColors(LucentUi::Accent(0), LucentUi::Accent(0));
 	s_List.SetScrollbarWidth(10);
 	s_List.SetScrollbarMargin(2);
 	CUIRect Header;
@@ -616,7 +616,7 @@ void CMenus::RenderLucentServerList(CUIRect View, bool &Activated)
 				{
 					CUIRect Mode;
 					Cell.VSplitRight(ModeWidth, &Cell, &Mode);
-					TextRender()->TextColor(ColorRGBA(.64f, .58f, .64f, 1));
+					TextRender()->TextColor(LucentStyle::Style::UnavailableText);
 					Ui()->DoLabel(&Mode, pMode, 9, TEXTALIGN_MR);
 				}
 			}
@@ -624,11 +624,11 @@ void CMenus::RenderLucentServerList(CUIRect View, bool &Activated)
 			Props.m_MaxWidth = Cell.w;
 			Props.m_StopAtEnd = true;
 			Props.m_EnableWidthCheck = false;
-			TextRender()->TextColor(c == 1 ? ColorRGBA(.86f + .12f * std::max(Hover, Selection), .84f + .12f * std::max(Hover, Selection), .88f + .10f * std::max(Hover, Selection), 1) : ColorRGBA(.58f + .14f * Hover, .57f + .12f * Hover, .64f + .12f * Hover, 1));
+			TextRender()->TextColor(c == 1 ? LucentStyle::Gradient::Blend(LucentStyle::Style::ServerText, LucentStyle::Style::ServerHover, std::max(Hover, Selection)) : LucentStyle::Gradient::Blend(LucentStyle::Style::MetadataText, LucentStyle::Style::MetadataHover, Hover));
 			if(c == 0)
 			{
 				TextRender()->SetFontPreset(EFontPreset::ICON_FONT);
-				TextRender()->TextColor(ColorRGBA(.95f, .79f, .87f, 1));
+				TextRender()->TextColor(LucentStyle::Style::FavoriteText);
 			}
 			Ui()->DoLabelStreamed(*vpElements[i]->Rect(c), &Cell, apText[c], c == 1 ? 11.f : 9.f, c >= 4 ? TEXTALIGN_MR : TEXTALIGN_ML, Props);
 			if(c == 0)

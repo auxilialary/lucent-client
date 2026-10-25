@@ -1,5 +1,7 @@
 #ifndef GAME_CLIENT_LUCENT_LUCENT_MENU_INTERACTION_H
 #define GAME_CLIENT_LUCENT_LUCENT_MENU_INTERACTION_H
+#include "lucent_style.h"
+
 #include <base/vmath.h>
 
 #include <game/client/ui_rect.h>
@@ -54,12 +56,11 @@ public:
 		}
 		m_ParentOpen = ParentOpen;
 		const bool Open = IsOpen();
-		m_Time = Animate ? std::clamp(m_Time + (Open ? Dt : -Dt), 0.0f, 0.32f) : (Open ? 0.32f : 0.0f);
+		m_Time = Animate ? std::clamp(m_Time + (Open ? Dt : -Dt), 0.0f, LucentStyle::Motion::SecondaryReveal) : (Open ? LucentStyle::Motion::SecondaryReveal : 0.0f);
 	}
 	float Progress(int Row) const
 	{
-		const float T = std::clamp((m_Time - Row * 0.04f) / 0.16f, 0.0f, 1.0f);
-		return 1 - (1 - T) * (1 - T) * (1 - T);
+		return LucentStyle::Motion::Stagger(m_Time, Row * LucentStyle::Motion::SecondaryStagger, LucentStyle::Motion::SecondaryItem);
 	}
 	bool Interactive(int Row) const { return IsOpen() && Progress(Row) > 0.05f; }
 };

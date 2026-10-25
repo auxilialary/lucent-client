@@ -1,4 +1,5 @@
 #include "lucent_menu.h"
+#include "lucent_style.h"
 
 #include <base/dbg.h>
 #include <base/time.h>
@@ -31,6 +32,7 @@ void CLucentMenu::RenderStartMenu(CUIRect MainView)
 
 void CLucentMenu::BeginNavigationFrame(int Screen)
 {
+	LucentStyle::Motion::Clock().BeginFrame(double(time_get()) / time_freq(), g_Config.m_ClLucentLogoAnimation != 0);
 	m_RadialTransition.BeginFrame(Screen);
 	m_UiWasEnabled = Ui()->Enabled();
 	if(Screen == -3)

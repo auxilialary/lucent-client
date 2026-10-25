@@ -2864,3 +2864,6 @@ Search countries by code
 
 Unknown country
 == Страна не указана
+
+Exclusions
+== Исключения

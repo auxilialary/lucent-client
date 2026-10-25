@@ -43,20 +43,15 @@ void CMenus::RenderLucentContext(CUIRect View, CLucentBrowserState::EPanel Mode)
 	}
 	else if(Mode == EPanel::FILTERS)
 	{
-		CUIRect Heading, Back, Reset, ActiveStatus;
-		const bool CompactHeader = View.w < 480;
+		CUIRect Heading, Back, Reset, Actions;
 		View.HSplitTop(32, &Heading, &View);
-		if(CompactHeader)
-			View.HSplitTop(22, &ActiveStatus, &View);
-		Heading.VSplitRight(72, &Heading, &Back);
-		Heading.VSplitRight(110, &Heading, &Reset);
-		Ui()->DoLabel(&Heading, Localize("Filters"), 18, TEXTALIGN_ML);
-		if(LucentBrowserFiltersActive())
-		{
-			const float TitleWidth = TextRender()->TextWidth(18, Localize("Filters")) + 12;
-			CUIRect Active = CompactHeader ? ActiveStatus : CUIRect{Heading.x + TitleWidth, Heading.y, std::max(0.f, Heading.w - TitleWidth), Heading.h};
-			Ui()->DoLabel(&Active, Localize("Active filters"), 10, TEXTALIGN_ML);
-		}
+		Ui()->DoLabel(&Heading, Localize("Filters"), 18, TEXTALIGN_MC);
+		// A separate action row keeps the title centered at narrow widths too.
+		View.HSplitTop(22, &Actions, &View);
+		Actions.VSplitRight(182, nullptr, &Actions);
+		Actions.VSplitLeft(110, &Reset, &Back);
+		CUIRect ActionRule = {Back.x, Back.y + 5, LucentStyle::Style::Hairline, Back.h - 10};
+		ActionRule.Draw(LucentUi::Accent(.18f), 0, 0);
 		static int s_CloseFilters, s_ResetFilters;
 		if(LucentUi::TextButton(Ui(), TextRender(), &s_ResetFilters, Localize("Reset filter"), Reset, false, 11))
 			ResetServerbrowserFilters();
@@ -69,7 +64,7 @@ void CMenus::RenderLucentContext(CUIRect View, CLucentBrowserState::EPanel Mode)
 		}
 		CUIRect Rule;
 		View.HSplitTop(1, &Rule, &View);
-		Rule.Draw4(LucentUi::Accent(.35f), LucentUi::Accent(0), LucentUi::Accent(.35f), LucentUi::Accent(0), 0, 0);
+		LucentUi::Divider(Rule, .35f, true);
 		View.HSplitTop(12, nullptr, &View);
 		static CScrollRegion s_Scroll;
 		// Consume over the whole panel before the server list sees the wheel,
@@ -133,7 +128,7 @@ void CMenus::RenderLucentContext(CUIRect View, CLucentBrowserState::EPanel Mode)
 		if(LucentUi::SceneButton(Ui(), TextRender(), &s_Connect, Localize("Connect"), ConnectButton))
 			Connect(pServer->m_aAddress);
 		View.HSplitTop(12, nullptr, &View);
-		TextRender()->TextColor(ColorRGBA(.72f, .68f, .74f, 1));
+		TextRender()->TextColor(LucentStyle::Style::DetailText);
 		Label(pServer->m_aAddress, 22, 10);
 		Ui()->DoToolTip(&pServer->m_aAddress, &Row, pServer->m_aAddress);
 		str_format(aMeta, sizeof(aMeta), "%s: %s", Localize("Version"), pServer->m_aVersion);

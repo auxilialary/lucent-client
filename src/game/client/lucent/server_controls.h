@@ -1,5 +1,7 @@
 #ifndef GAME_CLIENT_LUCENT_SERVER_CONTROLS_H
 #define GAME_CLIENT_LUCENT_SERVER_CONTROLS_H
+#include "lucent_style.h"
+
 #include <algorithm>
 
 // Fixed-slot branch: intent changes immediately, the reversible reveal takes 280 ms.
@@ -20,14 +22,14 @@ public:
 			Reset();
 			return;
 		}
-		m_Time = Animate ? std::clamp(m_Time + (m_Requested ? Dt : -Dt), 0.0f, 0.28f) : (m_Requested ? 0.28f : 0.0f);
+		m_Time = Animate ? std::clamp(m_Time + (m_Requested ? Dt : -Dt), 0.0f, LucentStyle::Motion::Branch) : (m_Requested ? LucentStyle::Motion::Branch : 0.0f);
 	}
 	float Progress() const
 	{
-		const float T = m_Time / 0.28f;
-		return T * T * (3 - 2 * T);
+		const float T = m_Time / LucentStyle::Motion::Branch;
+		return LucentStyle::Motion::Smooth(T);
 	}
-	bool Interactive() const { return m_Requested ? m_Time == 0.28f : m_Time == 0; }
+	bool Interactive() const { return m_Requested ? m_Time == LucentStyle::Motion::Branch : m_Time == 0; }
 	enum class EAction
 	{
 		NONE,

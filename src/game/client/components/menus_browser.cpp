@@ -735,6 +735,19 @@ void CMenus::RenderServerbrowserFilters(CUIRect View, CScrollRegion *pScroll)
 					*apValues[i] ^= 1;
 			}
 		}
+		CUIRect Exclude, Label, ExclusionTitle;
+		View.HSplitTop(18, &ExclusionTitle, &View);
+		Ui()->DoLabel(&ExclusionTitle, Localize("Exclusions"), 11, TEXTALIGN_MC);
+		CUIRect ExclusionRule;
+		View.HSplitTop(LucentStyle::Style::Hairline, &ExclusionRule, &View);
+		LucentUi::Divider(ExclusionRule, .14f);
+		View.HSplitTop(18, &Label, &View);
+		Ui()->DoLabel(&Label, Localize("Exclude"), 11, TEXTALIGN_ML);
+		View.HSplitTop(21, &Exclude, &View);
+		View.HSplitTop(10, nullptr, &View);
+		static CLineInput s_Exclude(g_Config.m_BrExcludeString, sizeof(g_Config.m_BrExcludeString));
+		if(Ui()->DoClearableEditBox(&s_Exclude, &Exclude, 11))
+			Client()->ServerBrowserUpdate();
 		if(Wide)
 		{
 			const float Width = View.w / 3;
@@ -748,13 +761,6 @@ void CMenus::RenderServerbrowserFilters(CUIRect View, CScrollRegion *pScroll)
 			}
 			View = Columns[0];
 		}
-		CUIRect Exclude, Label;
-		View.HSplitTop(21.0f, &Exclude, &View);
-		Exclude.VSplitLeft(65.0f, &Label, &Exclude);
-		Ui()->DoLabel(&Label, Localize("Exclude"), 11, TEXTALIGN_ML);
-		static CLineInput s_Exclude(g_Config.m_BrExcludeString, sizeof(g_Config.m_BrExcludeString));
-		if(Ui()->DoClearableEditBox(&s_Exclude, &Exclude, 11))
-			Client()->ServerBrowserUpdate();
 	}
 
 	View.Margin(5.0f, &View);
@@ -769,11 +775,14 @@ void CMenus::RenderServerbrowserFilters(CUIRect View, CScrollRegion *pScroll)
 		CUIRect Heading;
 		View.HSplitTop(8, nullptr, &View);
 		View.HSplitTop(16, &Heading, &View);
-		TextRender()->TextColor(ColorRGBA(.64f, .60f, .67f, 1));
-		Ui()->DoLabel(&Heading, Localize(pText), 11, TEXTALIGN_ML);
+		TextRender()->TextColor(LucentStyle::Style::MutedText);
+		Ui()->DoLabel(&Heading, pText, 11, TEXTALIGN_MC);
+		CUIRect Rule;
+		View.HSplitTop(LucentStyle::Style::Hairline, &Rule, &View);
+		LucentUi::Divider(Rule, .14f);
 		TextRender()->TextColor(TextRender()->DefaultTextColor());
 	};
-	Section("Server preferences");
+	Section(Localize("Server preferences"));
 	if(!pScroll)
 	{
 		View.HSplitTop(RowHeight, &Button, &View);
@@ -820,10 +829,16 @@ void CMenus::RenderServerbrowserFilters(CUIRect View, CScrollRegion *pScroll)
 	View.HSplitTop(3.0f, nullptr, &View);
 	View.HSplitTop(RowHeight, &Button, &View);
 	CUIRect TypeLabel;
-	Button.VSplitRight(pScroll ? Button.w * .48f : 60.f, &TypeLabel, &Button);
+	if(pScroll)
+	{
+		TypeLabel = Button;
+		View.HSplitTop(RowHeight, &Button, &View);
+	}
+	else
+		Button.VSplitRight(60.f, &TypeLabel, &Button);
 	Ui()->DoLabel(&TypeLabel, Localize("Game types:"), FontSize, TEXTALIGN_ML);
 	static CLineInput s_GametypeInput(g_Config.m_BrFilterGametype, sizeof(g_Config.m_BrFilterGametype));
-	if(Ui()->DoEditBox(&s_GametypeInput, &Button, FontSize))
+	if(pScroll ? Ui()->DoClearableEditBox(&s_GametypeInput, &Button, FontSize) : Ui()->DoEditBox(&s_GametypeInput, &Button, FontSize))
 		Client()->ServerBrowserUpdate();
 
 	// server address
@@ -831,14 +846,20 @@ void CMenus::RenderServerbrowserFilters(CUIRect View, CScrollRegion *pScroll)
 	View.HSplitTop(RowHeight, &Button, &View);
 	View.HSplitTop(6.0f, nullptr, &View);
 	CUIRect AddressLabel;
-	Button.VSplitRight(pScroll ? Button.w * .48f : 60.f, &AddressLabel, &Button);
+	if(pScroll)
+	{
+		AddressLabel = Button;
+		View.HSplitTop(RowHeight, &Button, &View);
+	}
+	else
+		Button.VSplitRight(60.f, &AddressLabel, &Button);
 	Ui()->DoLabel(&AddressLabel, Localize("Server address:"), FontSize, TEXTALIGN_ML);
 	static CLineInput s_FilterServerAddressInput(g_Config.m_BrFilterServerAddress, sizeof(g_Config.m_BrFilterServerAddress));
-	if(Ui()->DoEditBox(&s_FilterServerAddressInput, &Button, FontSize))
+	if(pScroll ? Ui()->DoClearableEditBox(&s_FilterServerAddressInput, &Button, FontSize) : Ui()->DoEditBox(&s_FilterServerAddressInput, &Button, FontSize))
 		Client()->ServerBrowserUpdate();
 
 	// player country
-	Section("Players");
+	Section(Localize("Players"));
 	{
 		CUIRect Flag;
 		View.HSplitTop(RowHeight, &Button, &View);
@@ -882,7 +903,7 @@ void CMenus::RenderServerbrowserFilters(CUIRect View, CScrollRegion *pScroll)
 
 	if(Wide)
 		View = Columns[1];
-	Section("Map completion");
+	Section(Localize("Map completion"));
 	// map finish filters
 	if(ServerBrowser()->CommunityCache().AnyRanksAvailable())
 	{
@@ -916,7 +937,7 @@ void CMenus::RenderServerbrowserFilters(CUIRect View, CScrollRegion *pScroll)
 
 	if(Wide)
 		View = Columns[2];
-	Section("Countries and types");
+	Section(Localize("Countries and types"));
 	// countries and types filters
 	if(ServerBrowser()->CommunityCache().CountriesTypesFilterAvailable())
 	{
@@ -1700,7 +1721,7 @@ void CMenus::RenderServerbrowserFriends(CUIRect View)
 			Props.m_StopAtEnd = true;
 			Ui()->DoLabel(&GroupLabel, Localize(apGroups[FriendType]), FontSize, TEXTALIGN_ML, Props);
 			str_format(aBuf, sizeof(aBuf), "%d", int(m_avFriends[FriendType].size()));
-			TextRender()->TextColor(ColorRGBA(.64f, .60f, .67f, 1));
+			TextRender()->TextColor(LucentStyle::Style::MutedText);
 			Ui()->DoLabel(&Counter, aBuf, 9, TEXTALIGN_MR);
 			TextRender()->TextColor(TextRender()->DefaultTextColor());
 		}

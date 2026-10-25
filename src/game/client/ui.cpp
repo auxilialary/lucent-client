@@ -937,7 +937,7 @@ CLabelResult CUi::DoLabel_AutoLineSize(const char *pText, float FontSize, int Al
 	return DoLabel(&LabelRect, pText, FontSize, Align);
 }
 
-bool CUi::DoEditBox(CLineInput *pLineInput, const CUIRect *pRect, float FontSize, int Corners, const std::vector<STextColorSplit> &vColorSplits)
+bool CUi::DoEditBox(CLineInput *pLineInput, const CUIRect *pRect, float FontSize, int Corners, const std::vector<STextColorSplit> &vColorSplits, const CUIRect *pLucentFrame)
 {
 	const bool Inside = MouseHovered(pRect);
 	const bool Active = m_pLastActiveItem == pLineInput;
@@ -1021,7 +1021,7 @@ bool CUi::DoEditBox(CLineInput *pLineInput, const CUIRect *pRect, float FontSize
 
 	// Render
 	if(LucentStyle())
-		LucentUi::Surface(*pRect, Active, HotItem() == pLineInput, Corners, LucentUi::Highlight(pLineInput, Active || (Enabled() && HotItem() == pLineInput)));
+		LucentUi::InputFrame(pLucentFrame ? *pLucentFrame : *pRect, pLineInput, !pLineInput->IsEmpty(), Active, HotItem() == pLineInput, Enabled(), Corners);
 	else
 		pRect->Draw(ms_LightButtonColorFunction.GetColor(Active, HotItem() == pLineInput), Corners, 3.0f);
 	ClipEnable(pRect);
@@ -1052,11 +1052,9 @@ bool CUi::DoClearableEditBox(CLineInput *pLineInput, const CUIRect *pRect, float
 	CUIRect EditBox, ClearButton;
 	pRect->VSplitRight(pRect->h, &EditBox, &ClearButton);
 
-	bool ReturnValue = DoEditBox(pLineInput, &EditBox, FontSize, Corners & ~IGraphics::CORNER_R, vColorSplits);
+	bool ReturnValue = DoEditBox(pLineInput, &EditBox, FontSize, LucentStyle() ? Corners : Corners & ~IGraphics::CORNER_R, vColorSplits, LucentStyle() ? pRect : nullptr);
 
-	if(LucentStyle())
-		LucentUi::Surface(ClearButton, false, MouseHovered(&ClearButton), Corners & ~IGraphics::CORNER_L);
-	else
+	if(!LucentStyle())
 		ClearButton.Draw(ColorRGBA(1.0f, 1.0f, 1.0f, 0.33f * ButtonColorMul(pLineInput->GetClearButtonId())), Corners & ~IGraphics::CORNER_L, 3.0f);
 	TextRender()->SetRenderFlags(ETextRenderFlags::TEXT_RENDER_FLAG_ONLY_ADVANCE_WIDTH | ETextRenderFlags::TEXT_RENDER_FLAG_NO_X_BEARING | ETextRenderFlags::TEXT_RENDER_FLAG_NO_Y_BEARING | ETextRenderFlags::TEXT_RENDER_FLAG_NO_OVERSIZE);
 	DoLabel(&ClearButton, "×", ClearButton.h * CUi::ms_FontmodHeight * 0.8f, TEXTALIGN_MC);
