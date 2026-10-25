@@ -248,6 +248,12 @@ void CMenus::RenderLucentBrowser(CUIRect Screen)
 		CUIRect Title = FilterTitle;
 		Title.y += LucentStyle::Motion::Slide(LucentStyle::Motion::FilterRise, FiltersProgress);
 		Ui()->DoLabel(&Title, Localize("Filters"), 18, TEXTALIGN_ML);
+		CUIRect Reset = {Title.x + TextRender()->TextWidth(18, Localize("Filters")) + 10, Title.y, 22, Title.h};
+		static int s_ResetFilters;
+		LucentUi::CInteractionScope Interaction(Ui(), m_LucentBrowser.m_Overlay.m_Target == Overlay::FILTERS && m_LucentBrowser.FiltersOpacity() > .95f);
+		if(LucentUi::IconButton(Ui(), TextRender(), &s_ResetFilters, FontIcon::ARROWS_ROTATE, Localize("Reset filter (Ctrl+Shift+R)"), Reset) ||
+			(Ui()->Enabled() && Keyboard && Input()->ModifierIsPressed() && Input()->ShiftIsPressed() && Input()->KeyPress(KEY_R)))
+			ResetServerbrowserFilters();
 	}
 	const float DirectAnchor = Tools.x + 84;
 	static int s_aTools[4];
@@ -274,7 +280,7 @@ void CMenus::RenderLucentBrowser(CUIRect Screen)
 				Ui()->SetActiveItem(nullptr);
 			}
 		}
-		if(i == 1 && (Click || (Keyboard && (Input()->KeyPress(KEY_F5) || (Input()->ModifierIsPressed() && Input()->KeyPress(KEY_R))))))
+		if(i == 1 && (Click || (Keyboard && (Input()->KeyPress(KEY_F5) || (Input()->ModifierIsPressed() && !Input()->ShiftIsPressed() && Input()->KeyPress(KEY_R))))))
 			RefreshBrowserTab(true);
 		if(i == 2 && (Click || (Activate && m_LucentBrowser.m_Focus >= 5)))
 		{

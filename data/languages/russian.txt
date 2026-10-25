@@ -2867,3 +2867,18 @@ Unknown country
 
 Exclusions
 == Исключения
+
+Servers and maps
+== Серверы и карты
+
+Access and players
+== Доступ и игроки
+
+Text filters
+== Текстовые фильтры
+
+Reset filter (Ctrl+Shift+R)
+== Сбросить фильтры (Ctrl+Shift+R)
+
+Expand text filter (Ctrl+1/2/3)
+== Открыть текстовый фильтр (Ctrl+1/2/3)

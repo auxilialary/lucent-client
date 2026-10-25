@@ -43,28 +43,7 @@ void CMenus::RenderLucentContext(CUIRect View, CLucentBrowserState::EPanel Mode)
 	}
 	else if(Mode == EPanel::FILTERS)
 	{
-		CUIRect Back, Reset, Actions;
-		// A separate action row keeps the title centered at narrow widths too.
-		View.HSplitTop(22, &Actions, &View);
-		Actions.VSplitRight(182, nullptr, &Actions);
-		Actions.VSplitLeft(110, &Reset, &Back);
-		CUIRect ActionRule = {Back.x, Back.y + 5, LucentStyle::Style::Hairline, Back.h - 10};
-		ActionRule.Draw(LucentUi::Accent(.18f), 0, 0);
-		static int s_CloseFilters, s_ResetFilters;
-		if(LucentUi::TextButton(Ui(), TextRender(), &s_ResetFilters, Localize("Reset filter"), Reset, false, 11))
-			ResetServerbrowserFilters();
-		if(LucentUi::TextButton(Ui(), TextRender(), &s_CloseFilters, Localize("Back"), Back, false, 11))
-		{
-			m_LucentBrowser.m_Overlay.m_Target = CLucentBrowserState::EOverlay::NONE;
-			if(auto *pActive = CLineInput::GetActiveInput())
-				pActive->Deactivate();
-			Ui()->SetActiveItem(nullptr);
-		}
-		CUIRect Rule;
-		View.HSplitTop(1, &Rule, &View);
 		const float Reveal = m_LucentBrowser.FiltersOpacity();
-		Rule.VMargin(Rule.w * (1 - Reveal) / 2, &Rule);
-		LucentUi::Divider(Rule, .35f, true);
 		View.y += LucentStyle::Motion::Slide(LucentStyle::Motion::FilterRise, Reveal);
 		View.HSplitTop(12, nullptr, &View);
 		static CScrollRegion s_Scroll;

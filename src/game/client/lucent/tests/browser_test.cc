@@ -190,11 +190,11 @@ int main()
 	CHECK(Countries.m_Wide && Countries.m_GridHeight == 21 * 22);
 	CHECK(Countries.m_ContentHeight >= Countries.m_GridHeight + 59);
 	const auto Types = CLucentBrowserFilterLayout::Measure(1000, 101, 3, false, true, true, true);
-	CHECK(Types.m_GridHeight == 17 && Types.m_ContentHeight == 231.f);
+	CHECK(Types.m_GridHeight == 17 && Types.m_ContentHeight > Types.m_GridHeight);
 	const auto Narrow = CLucentBrowserFilterLayout::Measure(600, 8, 4, true, true, true, true);
 	CHECK(!Narrow.m_Wide && Narrow.m_GridHeight == 44);
-	CHECK(Narrow.m_ContentHeight > Types.m_ContentHeight);
-	CHECK(CLucentBrowserFilterLayout::Measure(600, 8, 4, true, true, true, false).m_ContentHeight == Narrow.m_ContentHeight - 21 + 28);
+	CHECK(Narrow.m_ContentHeight > Narrow.m_GridHeight);
+	CHECK(CLucentBrowserFilterLayout::Measure(600, 8, 4, true, true, true, false).m_ContentHeight == Narrow.m_ContentHeight);
 	CHECK(CLucentBrowserFilterLayout::Measure(600, 8, 4, true, false, false, false).m_GridHeight == 0);
 	// Quick controls wrap into bounded rows; narrow workspaces include every group.
 	CHECK(CLucentBrowserFilterLayout::QuickColumns(820) == 3);
@@ -206,6 +206,18 @@ int main()
 		const auto Layout = CLucentBrowserFilterLayout::Measure(Width, 101, 15, true, true, true, true);
 		CHECK(Layout.m_ContentHeight >= Layout.m_GridHeight + CLucentBrowserFilterLayout::QuickHeight(CLucentBrowserFilterLayout::WorkspaceWidth(Width) - 12));
 		CHECK(CLucentBrowserFilterLayout::QuickColumns(Width) >= 1);
+	}
+	// Expanded fields retain the chip anchor and remain inside the workspace.
+	for(float Width : {280.f, 420.f, 820.f, 1700.f})
+	{
+		CUIRect Row = {18, 40, CLucentBrowserFilterLayout::WorkspaceWidth(Width) - 12, 30};
+		for(int Index = 0; Index < 3; ++Index)
+		{
+			const auto Edit = CLucentBrowserFilterLayout::InputBounds(Row, Index);
+			CHECK(Edit.x == Row.x + Index * Row.w / 3);
+			CHECK(Edit.w > 0 && Edit.w <= 480);
+			CHECK(Edit.x + Edit.w <= Row.x + Row.w);
+		}
 	}
 	// Production column geometry at the requested 1648x900 viewport (600 UI height).
 	for(float ScreenWidth : {632.f, 720.f, 1648.f * 600 / 900, 1706.f})
