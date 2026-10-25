@@ -27,7 +27,7 @@ struct CLucentBrowserFilterLayout
 	float m_GridHeight;
 	float m_ContentHeight;
 	static constexpr float WideWidth = 620;
-	static constexpr float SectionDividerGap = 10, TabGridGap = 7;
+	static constexpr float SectionDividerGap = 10, SectionBottomGap = 7, TabGridGap = 7;
 	static float WorkspaceWidth(float Width) { return std::min(820.f, Width); }
 	static float ColumnGap(float Width) { return std::clamp(Width * .045f, 20.f, 36.f); }
 	static CUIRect Column(const CUIRect &Workspace, int Index)
@@ -68,7 +68,7 @@ struct CLucentBrowserFilterLayout
 		const int Columns = Countries > 8 ? 5 : 4;
 		const float Grid = !HasGrid ? 0.f : CountriesTab ? ((Countries + Columns - 1) / Columns) * 22.f :
 								   ((Types + 2) / 3) * 17.f;
-		const float Height = CheckboxHeight(Width, Minimum) + 26 + InputHeight(Width) + 10 + 24.5f + SectionDividerGap + 21 + (HasGrid ? 6 + 19 + TabGridGap + Grid : 0) + 8;
+		const float Height = CheckboxHeight(Width, Minimum) + 26 + InputHeight(Width) + 10 + 24.5f + SectionDividerGap + SectionBottomGap + 21 + (HasGrid ? 6 + 19 + TabGridGap + Grid : 0) + 8;
 		return {Wide, Grid, Height};
 	}
 };

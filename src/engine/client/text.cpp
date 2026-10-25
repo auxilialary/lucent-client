@@ -1848,6 +1848,9 @@ public:
 						}
 					}
 
+					if(IsRendered)
+						Color = pCursor->m_GlyphOpacity.Apply(pCursor->m_GlyphCount, Color);
+
 					// don't add text that isn't drawn, the color overwrite is used for that
 					if(Color.a != 0.f && IsRendered)
 					{

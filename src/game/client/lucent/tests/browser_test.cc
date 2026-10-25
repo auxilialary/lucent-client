@@ -197,6 +197,79 @@ int main()
 		CHECK(Caret.Position(3) == vec2(10, 32) && Caret.TrailAlpha(3) == 0);
 	}
 
+	// Fade only inserted decoded characters. A Cyrillic letter, emoji and a
+	// combining mark each occupy one position here, independent of UTF-8 bytes.
+	for(int Fps : {60, 144, 240})
+	{
+		CLucentTextAppear Appear;
+		Appear.Replace(3, 0, 1, 1);
+		CHECK(Appear.Alpha(2, 1) == 1 && Appear.Alpha(3, 1) == 0);
+		float Previous = 0;
+		for(int Frame = 0; Frame <= Fps; ++Frame)
+		{
+			const double Now = 1 + double(Frame) / Fps;
+			const float Alpha = Appear.Alpha(3, Now);
+			CHECK(Alpha >= Previous && Alpha <= 1);
+			CHECK(Appear.Alpha(2, Now) == 1);
+			Previous = Alpha;
+		}
+		CHECK(!Appear.Active(2));
+		Appear.Replace(4, 0, 1, 2);
+		Appear.Replace(5, 0, 1, 2.04);
+		CHECK(Appear.Alpha(3, 2.04) == 1);
+		CHECK(Appear.Alpha(4, 2.04) > Appear.Alpha(5, 2.04));
+		// Insert inside a still-fading paste: its two surviving parts retain age.
+		Appear.Reset();
+		Appear.Replace(2, 0, 4, 3);
+		Appear.Replace(4, 0, 1, 3.04);
+		CHECK(Appear.Alpha(3, 3.04) == Appear.Alpha(5, 3.04));
+		CHECK(Appear.Alpha(4, 3.04) == 0 && Appear.Alpha(7, 3.04) == 1);
+		// Backspace removes immediately and preserves the surviving suffix age.
+		Appear.Replace(3, 3, 0, 3.05);
+		CHECK(Appear.Alpha(2, 3.05) == Appear.Alpha(3, 3.05));
+		CHECK(Appear.Alpha(4, 3.05) == 1);
+		// IME preedit is fully visible and shifts only display indices.
+		CHECK(Appear.Alpha(3, 3.05, 3, 2) == 1);
+		CHECK(Appear.Alpha(5, 3.05, 3, 2) == Appear.Alpha(3, 3.05));
+		// Large paste/committed Unicode text is a single bounded range.
+		Appear.Reset();
+		Appear.Replace(7, 2, 100000, 4);
+		CHECK(Appear.Alpha(6, 4) == 1 && Appear.Alpha(100006, 4) == 0);
+		CHECK(Appear.Alpha(7, 4.06) > .49f && Appear.Alpha(7, 4.06) < .51f);
+		CHECK(Appear.Alpha(100007, 4) == 1);
+		Appear.Reset(); // Input switch, programmatic Set and disabled animations.
+		CHECK(!Appear.Active(4) && Appear.Alpha(7, 4) == 1);
+	}
+	{
+		// Exercise the renderer's glyph-alpha hook with the existing gradient.
+		const float Alpha = .35f;
+		const STextGlyphOpacity Opacity{&Alpha, [](int Index, const void *pContext) {
+							return Index == 2 ? *static_cast<const float *>(pContext) : 1.f;
+						}};
+		const ColorRGBA Base(.9f, .8f, .7f, .6f);
+		const auto Faded = Opacity.Apply(2, Base);
+		CHECK(Faded.r == Base.r && Faded.g == Base.g && Faded.b == Base.b);
+		CHECK(std::abs(Faded.a - .21f) < .00001f);
+		CHECK(Opacity.Apply(1, Base) == Base && STextGlyphOpacity{}.Apply(2, Base) == Base);
+		const auto Colored = LucentStyle::Gradient::TextSample(20, 100, 1, 1, Faded);
+		CHECK(Colored.a == Faded.a && Colored.g != Faded.g);
+	}
+	{
+		CLucentTextMotion Batch, Slow, Fast;
+		for(auto *pMotion : {&Batch, &Slow, &Fast})
+			pMotion->Update(vec2(100, 20), 12, 0, true, true);
+		Batch.Update(vec2(140, 20), 12, .04, true, false, 5);
+		CHECK(Batch.Position(.04).x > 140 && Batch.Position(.04).x <= 152);
+		Slow.Update(vec2(108, 20), 12, .2, true, false);
+		Fast.Update(vec2(108, 20), 12, .04, true, false);
+		CHECK(Fast.Position(.04).x - 108 > Slow.Position(.2).x - 108);
+		CHECK(Fast.TrailAlpha(.04) > Slow.TrailAlpha(.2));
+		// The first reversed step already has a leading head on the left.
+		Fast.Update(vec2(100, 20), 12, .08, true, false);
+		CHECK(Fast.Position(.08).x < 100 && Fast.Tail(.08, 12).x > Fast.Position(.08).x);
+		CHECK(Fast.Position(.30) == vec2(100, 20) && Fast.TrailAlpha(.30) == 0);
+	}
+
 	// A closing Filters workspace outlives the shorter generic overlay animation.
 	{
 		CLucentBrowserState Filters;
@@ -351,7 +424,7 @@ int main()
 					const float Right = CLucentBrowserFilterLayout::GroupHeight(GroupWidth, 5, Minimum);
 					const float Groups = Layout.m_Wide ? std::max(Left, Right) : Left + 8 + Right;
 					// Walk the same sections as rendering, through the bottom of the grid.
-					const float Bottom = Groups + 26 + CLucentBrowserFilterLayout::InputHeight(Workspace) + 5 + 24.5f + CLucentBrowserFilterLayout::SectionDividerGap + 21 + (HasGrid ? 25 + CLucentBrowserFilterLayout::TabGridGap + Layout.m_GridHeight : 0);
+					const float Bottom = Groups + 26 + CLucentBrowserFilterLayout::InputHeight(Workspace) + 5 + 24.5f + CLucentBrowserFilterLayout::SectionDividerGap + CLucentBrowserFilterLayout::SectionBottomGap + 21 + (HasGrid ? 25 + CLucentBrowserFilterLayout::TabGridGap + Layout.m_GridHeight : 0);
 					CHECK(std::abs(Layout.m_ContentHeight - Bottom - 13) < .001f);
 					CUIRect Row = {18, 40, Workspace, CLucentBrowserFilterLayout::InputHeight(Workspace)};
 					for(int i = 0; i < 3; ++i)

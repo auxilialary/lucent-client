@@ -836,6 +836,7 @@ void CMenus::RenderServerbrowserFilters(CUIRect View, CScrollRegion *pScroll)
 		CUIRect Line;
 		View.HSplitTop(LucentStyle::Style::Hairline, &Line, &View);
 		LucentUi::Divider(Line);
+		View.HSplitTop(CLucentBrowserFilterLayout::SectionBottomGap, nullptr, &View);
 		TextRender()->TextColor(TextRender()->DefaultTextColor());
 	};
 	LucentUi::COpacityScope BodyOpacity(TextRender(), pScroll ? LucentStyle::Motion::Smooth(std::clamp((m_LucentBrowser.FiltersOpacity() - LucentStyle::Motion::FilterBodyDelay) / (1 - LucentStyle::Motion::FilterBodyDelay), 0.f, 1.f)) : 1.f);

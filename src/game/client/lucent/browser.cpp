@@ -247,18 +247,12 @@ void CMenus::RenderLucentBrowser(CUIRect Screen)
 		LucentUi::COpacityScope Opacity(TextRender(), m_LucentBrowser.FiltersOpacity());
 		CUIRect Title = FilterTitle;
 		Title.y += LucentStyle::Motion::Slide(LucentStyle::Motion::FilterRise, FiltersProgress);
-		CUIRect Reset = {Title.x + TextRender()->TextWidth(18, Localize("Filters")) + 10, Title.y, 22, Title.h};
 		Title.x = Screen.x;
 		Title.w = Screen.w;
 		Ui()->DoLabel(&Title, Localize("Filters"), 18, TEXTALIGN_MC);
 		const float Width = CLucentBrowserFilterLayout::WorkspaceWidth(std::max(0.f, Screen.w - 24));
 		CUIRect Line = {Screen.x + (Screen.w - Width) / 2, Title.y + Title.h + 3, Width, LucentStyle::Style::Hairline};
 		LucentUi::Divider(Line);
-		static int s_ResetFilters;
-		LucentUi::CInteractionScope Interaction(Ui(), m_LucentBrowser.m_Overlay.m_Target == Overlay::FILTERS && m_LucentBrowser.FiltersOpacity() > .95f);
-		if(LucentUi::IconButton(Ui(), TextRender(), &s_ResetFilters, FontIcon::ARROWS_ROTATE, Localize("Reset filter (Ctrl+Shift+R)"), Reset) ||
-			(Ui()->Enabled() && Keyboard && Input()->ModifierIsPressed() && Input()->ShiftIsPressed() && Input()->KeyPress(KEY_R)))
-			ResetServerbrowserFilters();
 	}
 	const float DirectAnchor = Tools.x + 84;
 	static int s_aTools[4];

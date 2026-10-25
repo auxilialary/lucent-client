@@ -80,6 +80,9 @@ private:
 	bool m_WasChanged;
 	bool m_WasCursorChanged;
 	bool m_WasRendered;
+	// Event intent, consumed by Render; logical editing never waits for motion.
+	bool m_VisualSequentialEdit = false, m_VisualReposition = true;
+	int m_VisualEditCount = 0;
 
 	char m_ClearButtonId;
 

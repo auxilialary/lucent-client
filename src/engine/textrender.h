@@ -114,6 +114,20 @@ struct STextColorSplit
 		m_CharIndex(CharIndex), m_Length(Length), m_Color(Color) {}
 };
 
+// Optional decoded-character opacity. Borrowed only while creating glyph geometry;
+// no allocation, UI dependency, or changes to layout/selection and color splits.
+struct STextGlyphOpacity
+{
+	const void *m_pContext = nullptr;
+	float (*m_pfnSample)(int, const void *) = nullptr;
+	ColorRGBA Apply(int Character, ColorRGBA Color) const
+	{
+		if(m_pfnSample)
+			Color.a *= std::clamp(m_pfnSample(Character, m_pContext), 0.f, 1.f);
+		return Color;
+	}
+};
+
 class CTextCursor
 {
 public:
@@ -164,6 +178,7 @@ public:
 
 	// Color splits of the cursor to allow multicolored text
 	std::vector<STextColorSplit> m_vColorSplits;
+	STextGlyphOpacity m_GlyphOpacity;
 
 	float Height() const;
 	STextBoundingBox BoundingBox() const;

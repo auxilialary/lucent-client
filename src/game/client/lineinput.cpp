@@ -24,6 +24,18 @@ EInputPriority CLineInput::ms_ActiveInputPriority = EInputPriority::NONE;
 
 // Only the focused editor owns visual motion, including chat and both consoles.
 static CLucentTextMotion s_TextMotion;
+static CLucentTextAppear s_TextAppear;
+
+struct SInputGlyphOpacity
+{
+	double m_Now;
+	int m_CompositionBegin, m_CompositionLength;
+	static float Sample(int Character, const void *pContext)
+	{
+		const auto &Context = *static_cast<const SInputGlyphOpacity *>(pContext);
+		return s_TextAppear.Alpha(Character, Context.m_Now, Context.m_CompositionBegin, Context.m_CompositionLength);
+	}
+};
 static double s_CaretChanged = 0;
 static vec2 s_LastInputOrigin(0, 0);
 static float s_LastInputHeight = 0;
@@ -39,6 +51,10 @@ void CLineInput::SetBuffer(char *pStr, size_t MaxSize, size_t MaxChars)
 {
 	if(m_pStr && m_pStr == pStr)
 		return;
+	if(IsActive())
+		s_TextAppear.Reset();
+	m_VisualReposition = true;
+	m_VisualEditCount = 0;
 	const char *pLastStr = m_pStr;
 	m_pStr = pStr;
 	m_MaxSize = MaxSize;
@@ -61,12 +77,20 @@ void CLineInput::SetBuffer(char *pStr, size_t MaxSize, size_t MaxChars)
 
 void CLineInput::Clear()
 {
+	if(IsActive())
+		s_TextAppear.Reset();
+	m_VisualReposition = true;
+	m_VisualEditCount = 0;
 	mem_zero(m_pStr, m_MaxSize);
 	UpdateStrData();
 }
 
 void CLineInput::Set(const char *pString)
 {
+	if(IsActive())
+		s_TextAppear.Reset();
+	m_VisualReposition = true;
+	m_VisualEditCount = 0;
 	str_copy(m_pStr, pString, m_MaxSize);
 	UpdateStrData();
 	SetCursorOffset(m_Len);
@@ -87,6 +111,22 @@ void CLineInput::SetRange(const char *pString, size_t Begin, size_t End)
 
 	if(RemovedCharSize || AddedCharSize)
 	{
+		if(IsActive())
+		{
+			if(g_Config.m_ClLucentLogoAnimation)
+				s_TextAppear.Replace(int(str_utf8_offset_bytes_to_chars(m_pStr, Begin)), int(RemovedCharCount), int(AddedCharCount), double(time_get()) / time_freq());
+			else
+				s_TextAppear.Reset();
+		}
+		const int Delta = int(AddedCharCount) - int(RemovedCharCount);
+		if(m_VisualSequentialEdit && AddedCharCount + RemovedCharCount == 1 &&
+			(m_VisualEditCount == 0 || (m_VisualEditCount > 0) == (Delta > 0)))
+			m_VisualEditCount += Delta;
+		else
+		{
+			m_VisualReposition = true;
+			m_VisualEditCount = 0;
+		}
 		if(AddedCharSize < RemovedCharSize)
 		{
 			if(AddedCharSize)
@@ -121,7 +161,17 @@ void CLineInput::Append(const char *pString)
 
 void CLineInput::UpdateStrData()
 {
-	str_utf8_stats(m_pStr, m_MaxSize, m_MaxChars, &m_Len, &m_NumChars);
+	size_t Length, NumChars;
+	str_utf8_stats(m_pStr, m_MaxSize, m_MaxChars, &Length, &NumChars);
+	if(IsActive() && (Length != m_Len || NumChars != m_NumChars))
+	{
+		// Linked config buffers can also be changed outside the input API.
+		s_TextAppear.Reset();
+		m_VisualReposition = true;
+		m_VisualEditCount = 0;
+	}
+	m_Len = Length;
+	m_NumChars = NumChars;
 	if(!in_range<size_t>(m_CursorPos, 0, m_Len))
 		SetCursorOffset(m_CursorPos);
 	if(!in_range<size_t>(m_SelectionStart, 0, m_Len) || !in_range<size_t>(m_SelectionEnd, 0, m_Len))
@@ -172,12 +222,14 @@ void CLineInput::MoveCursor(EMoveDirection Direction, bool MoveWord, const char 
 
 void CLineInput::SetCursorOffset(size_t Offset)
 {
+	m_VisualReposition = true;
 	m_SelectionStart = m_SelectionEnd = m_LastCompositionCursorPos = m_CursorPos = std::clamp<size_t>(Offset, 0, m_Len);
 	m_WasCursorChanged = true;
 }
 
 void CLineInput::SetSelection(size_t Start, size_t End)
 {
+	m_VisualReposition = true;
 	dbg_assert(m_CursorPos == Start || m_CursorPos == End, "Selection and cursor offset got desynchronized");
 	if(Start > End)
 		std::swap(Start, End);
@@ -212,7 +264,9 @@ bool CLineInput::ProcessInput(const IInput::CEvent &Event)
 
 	if(Event.m_Flags & IInput::FLAG_TEXT)
 	{
+		m_VisualSequentialEdit = !SelectionLength && !Input()->HasComposition();
 		SetRange(Event.m_aText, m_SelectionStart, m_SelectionEnd);
+		m_VisualSequentialEdit = false;
 		KeyHandled = true;
 	}
 
@@ -229,6 +283,7 @@ bool CLineInput::ProcessInput(const IInput::CEvent &Event)
 
 		if(Event.m_Key == KEY_BACKSPACE)
 		{
+			m_VisualSequentialEdit = !SelectionLength && !MoveWord;
 			if(SelectionLength)
 			{
 				SetRange("", m_SelectionStart, m_SelectionEnd);
@@ -246,6 +301,7 @@ bool CLineInput::ProcessInput(const IInput::CEvent &Event)
 				}
 				m_SelectionStart = m_SelectionEnd = m_CursorPos;
 			}
+			m_VisualSequentialEdit = false;
 			KeyHandled = true;
 		}
 		else if(Event.m_Key == KEY_DELETE)
@@ -387,7 +443,13 @@ bool CLineInput::ProcessInput(const IInput::CEvent &Event)
 					if(FirstLine)
 						SetRange(Line.c_str(), m_SelectionStart, m_SelectionEnd);
 					else
+					{
 						Set(Line.c_str());
+						// Completed clipboard lines were sent to the console/chat callback;
+						// only the remaining editable line needs a bounded paste fade.
+						if(IsActive() && g_Config.m_ClLucentLogoAnimation)
+							s_TextAppear.Replace(0, 0, int(GetNumChars()), double(time_get()) / time_freq());
+					}
 				}
 				else
 				{
@@ -416,6 +478,10 @@ bool CLineInput::ProcessInput(const IInput::CEvent &Event)
 		}
 	}
 
+	if((Event.m_Flags & IInput::FLAG_PRESS) &&
+		(Event.m_Key == KEY_LEFT || Event.m_Key == KEY_RIGHT || Event.m_Key == KEY_HOME || Event.m_Key == KEY_END ||
+			(Input()->ModifierIsPressed() && (Event.m_Key == KEY_A || Event.m_Key == KEY_V || Event.m_Key == KEY_X))))
+		m_VisualReposition = true;
 	m_WasCursorChanged |= OldCursorPos != m_CursorPos;
 	m_WasCursorChanged |= SelectionLength != GetSelectionLength();
 	return KeyHandled;
@@ -461,6 +527,14 @@ STextBoundingBox CLineInput::Render(const CUIRect *pRect, float FontSize, int Al
 		Cursor.SetPosition(CursorPos);
 		Cursor.m_FontSize = FontSize;
 		const bool AnimateCaret = g_Config.m_ClLucentLogoAnimation != 0;
+		const double Now = double(time_get()) / time_freq();
+		if(!AnimateCaret)
+			s_TextAppear.Reset();
+		const SInputGlyphOpacity GlyphOpacity{Now,
+			int(str_utf8_offset_bytes_to_chars(pDisplayStr, DisplayCursorOffset)),
+			HasComposition ? int(str_utf8_offset_bytes_to_chars(Input()->GetComposition(), Input()->GetCompositionLength())) : 0};
+		if(s_TextAppear.Active(Now) && GetLength() > 0)
+			Cursor.m_GlyphOpacity = {&GlyphOpacity, SInputGlyphOpacity::Sample};
 		Cursor.m_RenderCursor = !AnimateCaret;
 		Cursor.m_LineWidth = LineWidth;
 		Cursor.m_ForceCursorRendering = Changed || !AnimateCaret;
@@ -531,20 +605,21 @@ STextBoundingBox CLineInput::Render(const CUIRect *pRect, float FontSize, int Al
 		}
 
 		m_CaretPosition = Cursor.m_CursorRenderedPosition;
-		const double Now = double(time_get()) / time_freq();
 		auto &Clock = LucentStyle::Motion::Clock();
 		Clock.BeginFrame(Now, AnimateCaret);
 		const int CursorChars = str_utf8_offset_bytes_to_chars(pDisplayStr, DisplayCursorOffset);
 		const int CharDelta = int(GetNumChars()) - int(s_LastInputChars);
 		const bool Editing = CharDelta != 0;
-		const bool Sequential = std::abs(CharDelta) == 1 && CursorChars - s_LastCursorChars == CharDelta;
-		const bool Reposition = HasComposition || s_pMotionInput != this || s_LastInputHeight != Cursor.m_AlignedFontSize ||
-			HasSelection() || s_LastSelection || m_MouseSelection.m_Selecting ||
-			(Editing ? !Sequential : CursorChars != s_LastCursorChars) ||
-			(Input()->ModifierIsPressed() && Input()->KeyPress(KEY_V));
+		const bool Sequential = m_VisualEditCount != 0 && CharDelta == m_VisualEditCount && CursorChars - s_LastCursorChars == CharDelta;
+		const bool Reposition = m_VisualReposition || HasComposition || s_pMotionInput != this || s_LastInputHeight != Cursor.m_AlignedFontSize ||
+					HasSelection() || s_LastSelection || m_MouseSelection.m_Selecting ||
+					(Editing ? !Sequential : CursorChars != s_LastCursorChars) ||
+					(Input()->ModifierIsPressed() && Input()->KeyPress(KEY_V));
 		if(!Reposition)
 			s_TextMotion.Translate(CursorPos - s_LastInputOrigin);
-		s_TextMotion.Update(m_CaretPosition, Cursor.m_AlignedFontSize, Now, AnimateCaret, Reposition);
+		s_TextMotion.Update(m_CaretPosition, Cursor.m_AlignedFontSize, Now, AnimateCaret, Reposition, std::abs(m_VisualEditCount));
+		m_VisualReposition = false;
+		m_VisualEditCount = 0;
 		s_LastInputChars = GetNumChars();
 		s_LastCursorChars = CursorChars;
 		s_LastSelection = HasSelection();
@@ -721,6 +796,9 @@ void CLineInput::Deactivate() const
 
 void CLineInput::OnActivate()
 {
+	m_VisualReposition = true;
+	m_VisualEditCount = 0;
+	s_TextAppear.Reset();
 	s_TextMotion.Reset();
 	s_CaretChanged = double(time_get()) / time_freq();
 	Input()->StartTextInput();
@@ -728,6 +806,7 @@ void CLineInput::OnActivate()
 
 void CLineInput::OnDeactivate()
 {
+	s_TextAppear.Reset();
 	s_TextMotion.Reset();
 	Input()->StopTextInput();
 	m_MouseSelection.m_Selecting = false;
