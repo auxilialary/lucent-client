@@ -52,12 +52,6 @@ int main()
 		CHECK(Caret.Position(2.09) == vec2(100, 50));
 		CHECK(Caret.Position(30) == vec2(100, 50) && Caret.TrailAlpha(30) == 0);
 	}
-	for(float Width : {320.f, 600.f, 1000.f})
-	{
-		const auto Closed = CLucentBrowserFilterLayout::Measure(Width, 0, 0, true, false, false, false);
-		const auto Open = CLucentBrowserFilterLayout::Measure(Width, 0, 0, true, false, false, false, 1);
-		CHECK(Open.m_ContentHeight == Closed.m_ContentHeight + 30);
-	}
 
 	// A closing Filters workspace outlives the shorter generic overlay animation.
 	{
@@ -208,16 +202,16 @@ int main()
 					for(float Expansion : {0.f, .5f, 1.f})
 					{
 						const float Workspace = CLucentBrowserFilterLayout::WorkspaceWidth(Width);
-						const auto Layout = CLucentBrowserFilterLayout::Measure(Width, 101, 15, CountriesTab, HasGrid, true, true, Expansion, Minimum);
+						const auto Layout = CLucentBrowserFilterLayout::Measure(Width, 101, 15, CountriesTab, HasGrid, true, true, Minimum);
 						const float GroupWidth = Layout.m_Wide ? (Workspace - CLucentBrowserFilterLayout::ColumnGap(Workspace)) / 2 : Workspace;
 						const float Left = CLucentBrowserFilterLayout::GroupHeight(GroupWidth, 4, Minimum);
 						const float Right = CLucentBrowserFilterLayout::GroupHeight(GroupWidth, 5, Minimum);
 						const float Groups = Layout.m_Wide ? std::max(Left, Right) : Left + 8 + Right;
 						// Walk the same sections as rendering, through the bottom of the grid.
-						const float Bottom = Groups + 26 + CLucentBrowserFilterLayout::InputHeight(Workspace) + 30 * Expansion + 5 + 28.5f + 21 + (HasGrid ? 25 + Layout.m_GridHeight : 0);
+						const float Bottom = Groups + 26 + CLucentBrowserFilterLayout::InputHeight(Workspace) + 5 + 28.5f + 21 + (HasGrid ? 25 + Layout.m_GridHeight : 0);
 						CHECK(std::abs(Layout.m_ContentHeight - Bottom - 13) < .001f);
-						const auto Closed = CLucentBrowserFilterLayout::Measure(Width, 101, 15, CountriesTab, HasGrid, true, true, 0, Minimum);
-						CHECK(std::abs(Layout.m_ContentHeight - Closed.m_ContentHeight - 30 * Expansion) < .001f);
+						const auto Closed = CLucentBrowserFilterLayout::Measure(Width, 101, 15, CountriesTab, HasGrid, true, true, Minimum);
+						CHECK(std::abs(Layout.m_ContentHeight - Closed.m_ContentHeight) < .001f);
 						CUIRect Row = {18, 40, Workspace, CLucentBrowserFilterLayout::InputHeight(Workspace)};
 						for(int i = 0; i < 3; ++i)
 						{
@@ -238,18 +232,6 @@ int main()
 			CHECK(Width <= Workspace && Width <= 300);
 			CHECK(Width / 5 >= 44); // Hit cells stay larger than the 32x16 flags.
 		}
-	// Expanded fields remain inside the workspace, including the rightmost chip.
-	for(float Width : {280.f, 420.f, 820.f, 1700.f})
-	{
-		CUIRect Row = {18, 40, CLucentBrowserFilterLayout::WorkspaceWidth(Width) - 12, 30};
-		for(int Index = 0; Index < 3; ++Index)
-		{
-			const auto Edit = CLucentBrowserFilterLayout::InputBounds(Row, Index);
-			CHECK(Edit.x >= Row.x);
-			CHECK(Edit.w > 0 && Edit.w <= 480);
-			CHECK(Edit.x + Edit.w <= Row.x + Row.w);
-		}
-	}
 	// Production column geometry at the requested 1648x900 viewport (600 UI height).
 	for(float ScreenWidth : {632.f, 720.f, 1648.f * 600 / 900, 1706.f})
 	{

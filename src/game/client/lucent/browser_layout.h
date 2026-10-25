@@ -49,33 +49,25 @@ struct CLucentBrowserFilterLayout
 		}
 		return GroupHeight(Width, 4, Minimum) + 8 + GroupHeight(Width, 5, Minimum);
 	}
-	static int InputColumns(float Width) { return Width >= 390 ? 3 : 1; }
-	static float InputHeight(float Width) { return (3 / InputColumns(Width)) * 30.f; }
+	static float InputHeight(float /*Width*/) { return 36.f; }
 	static CUIRect ChipBounds(const CUIRect &Row, int Index)
 	{
-		const int Columns = InputColumns(Row.w);
-		const float Width = (Row.w - (Columns - 1) * 6) / Columns;
-		return {Row.x + (Index % Columns) * (Width + 6), Row.y + (Index / Columns) * 30, Width, 24};
-	}
-	static CUIRect InputBounds(const CUIRect &Row, int Index)
-	{
-		const auto Chip = ChipBounds(Row, std::clamp(Index, 0, 2));
-		const float Width = std::min(480.f, Row.w);
-		return {std::min(Chip.x, Row.x + Row.w - Width), Row.y, Width, 23};
+		const float Width = (Row.w - 12) / 3;
+		return {Row.x + Index * (Width + 6), Row.y + 10, Width, 24};
 	}
 	static float GridWidth(float Width, int Countries, bool CountriesTab, float Minimum = 240)
 	{
 		const float ContentWidth = CountriesTab ? (Countries > 8 ? 5 : 4) * 44.f : 300.f;
 		return std::min(Width, std::max(Minimum, ContentWidth));
 	}
-	static CLucentBrowserFilterLayout Measure(float Width, int Countries, int Types, bool CountriesTab, bool HasGrid, bool /*Ranks*/, bool /*Finished*/, float InputExpansion = 0, float Minimum = 185)
+	static CLucentBrowserFilterLayout Measure(float Width, int Countries, int Types, bool CountriesTab, bool HasGrid, bool /*Ranks*/, bool /*Finished*/, float Minimum = 185)
 	{
 		Width = WorkspaceWidth(Width);
 		const bool Wide = Width >= WideWidth;
 		const int Columns = Countries > 8 ? 5 : 4;
 		const float Grid = !HasGrid ? 0.f : CountriesTab ? ((Countries + Columns - 1) / Columns) * 22.f :
 								   ((Types + 2) / 3) * 17.f;
-		const float Height = CheckboxHeight(Width, Minimum) + 26 + InputHeight(Width) + 30 * std::clamp(InputExpansion, 0.f, 1.f) + 10 + 28.5f + 21 + (HasGrid ? 6 + 19 + Grid : 0) + 8;
+		const float Height = CheckboxHeight(Width, Minimum) + 26 + InputHeight(Width) + 10 + 28.5f + 21 + (HasGrid ? 6 + 19 + Grid : 0) + 8;
 		return {Wide, Grid, Height};
 	}
 };

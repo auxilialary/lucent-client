@@ -704,18 +704,8 @@ void CMenus::RenderServerbrowserFilters(CUIRect View, CScrollRegion *pScroll)
 		CLineInput(g_Config.m_BrExcludeString, sizeof(g_Config.m_BrExcludeString)),
 		CLineInput(g_Config.m_BrFilterGametype, sizeof(g_Config.m_BrFilterGametype)),
 		CLineInput(g_Config.m_BrFilterServerAddress, sizeof(g_Config.m_BrFilterServerAddress))};
-	static int s_OpenInput = -1, s_VisibleInput = 0;
-	static int s_aCompactIds[3];
-	static LucentStyle::Motion::CTransition s_InputExpansion;
-	static LucentStyle::Motion::CTransition s_aInputAnchors[3];
+	static LucentStyle::Motion::CTransition s_aFloatingLabels[3];
 	const auto &Clock = LucentStyle::Motion::Clock();
-	if(pScroll && s_OpenInput >= 0 && !s_CompactInputs[s_OpenInput].IsActive() &&
-		Ui()->ActiveItem() != &s_aCompactIds[0] && Ui()->ActiveItem() != &s_aCompactIds[1] && Ui()->ActiveItem() != &s_aCompactIds[2] &&
-		!Input()->HasComposition() && !Ui()->IsPopupOpen())
-	{
-		s_OpenInput = -1;
-	}
-	const float InputExpansion = pScroll ? s_InputExpansion.Update(s_OpenInput >= 0, Clock.m_Now, Clock.m_Animate, LucentStyle::Motion::FilterInput) : 0;
 	if(pScroll)
 	{
 		const int Counts[] = {4, 5};
@@ -733,7 +723,7 @@ void CMenus::RenderServerbrowserFilters(CUIRect View, CScrollRegion *pScroll)
 				ServerBrowser()->CommunityCache().SelectableTypes().size(),
 				LayoutTab == FILTERTAB_COUNTRIES,
 				ServerBrowser()->CommunityCache().CountriesTypesFilterAvailable(),
-				ServerBrowser()->CommunityCache().AnyRanksAvailable(), LayoutFinished, InputExpansion, Minimum);
+				ServerBrowser()->CommunityCache().AnyRanksAvailable(), LayoutFinished, Minimum);
 		};
 		auto Layout = Measure(View.w);
 		if(std::ceil(Layout.m_ContentHeight) > View.h)
@@ -788,86 +778,41 @@ void CMenus::RenderServerbrowserFilters(CUIRect View, CScrollRegion *pScroll)
 		CUIRect Compact;
 		View.HSplitTop(CLucentBrowserFilterLayout::InputHeight(View.w), &Compact, &View);
 		const char *apNames[] = {"Exclusions", "Game types:", "Server address:"};
+		if(!Input()->HasComposition() && Ui()->Enabled())
+			for(int i = 0; i < 3; ++i)
+				if(s_CompactInputs[i].IsActive() && Ui()->ConsumeHotkey(CUi::HOTKEY_TAB))
+				{
+					const int Next = (i + (Input()->ShiftIsPressed() ? 2 : 1)) % 3;
+					s_CompactInputs[i].Deactivate();
+					Ui()->SetActiveItem(&s_CompactInputs[Next]);
+					break;
+				}
 		for(int i = 0; i < 3; ++i)
 		{
-			CUIRect Chip = CLucentBrowserFilterLayout::ChipBounds(Compact, i);
-			const bool Filled = s_CompactInputs[i].GetString()[0] != 0;
-			LucentUi::InputFrame(Chip, &s_aCompactIds[i], Filled, s_OpenInput == i, Ui()->MouseHovered(&Chip), Ui()->Enabled(), IGraphics::CORNER_ALL);
-			CUIRect Icon, Label;
-			Chip.VSplitLeft(18, &Icon, &Label);
-			TextRender()->SetFontPreset(EFontPreset::ICON_FONT);
-			Ui()->DoLabel(&Icon, s_OpenInput == i ? FontIcon::CHEVRON_UP : FontIcon::CHEVRON_DOWN, 8, TEXTALIGN_MC);
-			TextRender()->SetFontPreset(EFontPreset::DEFAULT_FONT);
+			CUIRect Edit = CLucentBrowserFilterLayout::ChipBounds(Compact, i);
+			auto &Field = s_CompactInputs[i];
+			const float Floating = s_aFloatingLabels[i].Update(!Field.IsEmpty(), Clock.m_Now, Clock.m_Animate, LucentStyle::Motion::FilterInput);
+			Field.SetEmptyText(nullptr);
+			if(Ui()->DoEditBox(&Field, &Edit, 11))
+				Client()->ServerBrowserUpdate();
+			// The label lives outside the edit box's text clip. Reserve its space in the row.
+			CUIRect Label = {Edit.x + 5, Edit.y + 4 - 14 * Floating, Edit.w - 10, 14 - 4 * Floating};
 			SLabelProperties Props;
-			Props.m_MaxWidth = Label.w - 4;
+			Props.m_MaxWidth = Label.w;
 			Props.m_EllipsisAtEnd = true;
 			Props.m_EnableWidthCheck = false;
-			CUIRect Name, Preview;
-			Label.HSplitTop(Filled ? 12 : Label.h, &Name, &Preview);
-			LucentUi::CTextScope Text(TextRender(), Label.w, Filled ? 1.f : 0.f, 0, Ui()->Enabled());
-			Ui()->DoLabel(&Name, Localize(apNames[i]), 10, TEXTALIGN_ML, Props);
-			if(Filled)
+			LucentUi::CTextScope Text(TextRender(), Label.w, Floating, 0, Ui()->Enabled());
+			LucentUi::COpacityScope Opacity(TextRender(), .55f + .45f * Floating);
+			Ui()->DoLabel(&Label, Localize(apNames[i]), 11 - 2.5f * Floating, TEXTALIGN_ML, Props);
+			if(Field.IsActive() && !Input()->HasComposition() &&
+				(Ui()->ConsumeHotkey(CUi::HOTKEY_ENTER) || Ui()->ConsumeHotkey(CUi::HOTKEY_ESCAPE)))
 			{
-				LucentUi::COpacityScope PreviewOpacity(TextRender(), s_OpenInput == i ? 1.f : .65f);
-				Ui()->DoLabel(&Preview, s_CompactInputs[i].GetString(), 9, TEXTALIGN_ML, Props);
-			}
-			Ui()->DoToolTip(&s_aCompactIds[i], &Chip, Localize("Expand text filter (Ctrl+1/2/3)"));
-			if((Ui()->DoButtonLogic(&s_aCompactIds[i], 0, &Chip, BUTTONFLAG_LEFT) || (Ui()->Enabled() && Input()->ModifierIsPressed() && Input()->KeyPress(KEY_1 + i))) && !Input()->HasComposition())
-			{
-				if(s_OpenInput >= 0)
-					s_CompactInputs[s_OpenInput].Deactivate();
-				s_OpenInput = s_OpenInput == i ? -1 : i;
-				if(s_OpenInput >= 0)
-				{
-					s_VisibleInput = s_OpenInput;
-					Ui()->SetActiveItem(&s_CompactInputs[i]);
-					s_CompactInputs[i].Activate(EInputPriority::UI);
-				}
-				else
-					Ui()->SetActiveItem(nullptr);
-			}
-		}
-		CUIRect Reveal;
-		View.HSplitTop(30 * InputExpansion, &Reveal, &View);
-		if(InputExpansion > .001f || s_OpenInput >= 0)
-		{
-			Ui()->ClipEnable(&Reveal);
-			CUIRect EditBounds = CLucentBrowserFilterLayout::InputBounds(Reveal, s_VisibleInput);
-			float Weight = 0, X = 0, Width = 0;
-			for(int i = 0; i < 3; ++i)
-			{
-				const float Blend = s_aInputAnchors[i].Update(i == s_VisibleInput, Clock.m_Now, Clock.m_Animate, LucentStyle::Motion::FilterInput);
-				const auto Bounds = CLucentBrowserFilterLayout::InputBounds(Reveal, i);
-				Weight += Blend;
-				X += Bounds.x * Blend;
-				Width += Bounds.w * Blend;
-			}
-			if(Weight > .001f)
-			{
-				EditBounds.x = X / Weight;
-				EditBounds.w = Width / Weight;
-			}
-			CUIRect Edit = {EditBounds.x, Reveal.y + LucentStyle::Motion::Slide(LucentStyle::Motion::FilterInputRise, InputExpansion), EditBounds.w, 23};
-			LucentUi::COpacityScope Opacity(TextRender(), InputExpansion);
-			auto &InputField = s_CompactInputs[s_VisibleInput];
-			const bool WasActive = InputField.IsActive();
-			{
-				LucentUi::CInteractionScope Interaction(Ui(), s_OpenInput >= 0);
-				if(Ui()->DoEditBox(&InputField, &Edit, 11))
-					Client()->ServerBrowserUpdate();
-			}
-			if(s_OpenInput >= 0 && Ui()->Enabled() && !Input()->HasComposition() &&
-				(Ui()->ConsumeHotkey(CUi::HOTKEY_ENTER) || Ui()->ConsumeHotkey(CUi::HOTKEY_ESCAPE) ||
-					(WasActive && !InputField.IsActive() && !Ui()->MouseHovered(&Compact)) ||
-					(Ui()->MouseButtonClicked(0) && !Ui()->MouseHovered(&Edit) && !Ui()->MouseHovered(&Compact))))
-			{
-				// Filters apply live, so Escape preserves the already applied value.
-				InputField.Deactivate();
+				Field.Deactivate();
+				Ui()->SetActiveItem(&s_aFloatingLabels);
 				Ui()->SetActiveItem(nullptr);
-				s_OpenInput = -1;
 			}
-			Ui()->ClipDisable();
 		}
+
 	}
 
 	View.Margin(5.0f, &View);
