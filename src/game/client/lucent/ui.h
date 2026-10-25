@@ -178,7 +178,7 @@ namespace LucentUi
 		{
 			const void *m_pId = nullptr;
 			double m_Last = -1;
-			LucentStyle::Motion::CTransition m_Fill, m_Mark, m_Press, m_Hover;
+			LucentStyle::Motion::CTransition m_Fill, m_Hover;
 		};
 		static std::array<CState, 128> s_aStates;
 		const auto &Clock = LucentStyle::Motion::Clock();
@@ -198,56 +198,61 @@ namespace LucentUi
 			*pState = {};
 			pState->m_pId = pId;
 			pState->m_Fill.Update(Checked, Clock.m_Now, false);
-			pState->m_Mark.Update(Checked, Clock.m_Now, false);
 		}
 		pState->m_Last = Clock.m_Now;
 		const bool Enabled = pUi->Enabled();
 		const float Fill = pState->m_Fill.Update(Checked, Clock.m_Now, Clock.m_Animate, LucentStyle::Checkbox::FillDuration);
-		const float Mark = pState->m_Mark.Update(Checked, Clock.m_Now, Clock.m_Animate, LucentStyle::Checkbox::MarkDuration);
-		const float Press = pState->m_Press.Update(Enabled && pUi->CheckActiveItem(pId), Clock.m_Now, Clock.m_Animate, LucentStyle::Checkbox::PressDuration);
 		const float Hot = pState->m_Hover.Update(Enabled && pUi->MouseHovered(&Rect), Clock.m_Now, Clock.m_Animate);
 		const float Alpha = Enabled ? 1.f : LucentStyle::Style::Disabled;
 		// Padding belongs to the indicator, not the Filters layout or row hitbox.
 		const vec2 Center = CheckboxCenter(vec2(Rect.x, Rect.y), Rect.h);
-		const float Size = LucentStyle::Checkbox::Size * LucentStyle::Motion::Lerp(1, LucentStyle::Checkbox::PressScale, Press);
 		auto *pGraphics = pUi->Graphics();
 		const float Pixel = pGraphics->GetScreen().Width() / pGraphics->ScreenWidth();
-		const float Feather = Pixel / 2;
+		const float Feather = std::min(Pixel / 2, LucentStyle::Checkbox::Border * .45f);
 		const float Opacity = Alpha * CUIRect::DrawOpacity();
-		const auto Rounded = [&](float Half, float Radius, auto Color) {
-			CheckboxMesh(pGraphics, Center,
-				CheckboxBoundary(Center, Half - Feather, std::max(0.f, Radius - Feather)),
-				CheckboxBoundary(Center, Half + Feather, Radius + Feather), Color);
+		const float Radius = LucentStyle::Checkbox::Size / 2;
+		// Both shapes sample one fixed spatial field and the shared clock. Neither
+		// hover nor the dot's changing radius can reset or shift the gradient phase.
+		const auto Gradient = [&](vec2 Point) {
+			return LucentStyle::Gradient::Sample(LucentStyle::Gradient::ControlOrigin + LucentStyle::Gradient::ControlSpan *
+				((Point.x - Center.x) / (2 * Radius) + .5f + LucentStyle::Checkbox::GradientTilt * (Point.y - Center.y) / (2 * Radius)),
+				Clock.GradientTime(), {LucentStyle::Checkbox::Period});
 		};
-		const float Radius = LucentStyle::Checkbox::Radius * Size / LucentStyle::Checkbox::Size;
-		const auto BorderColor = LucentStyle::Gradient::Blend(LucentStyle::Checkbox::BorderIdle, LucentStyle::Checkbox::BorderHover, Hot).WithAlpha(Opacity);
-		Rounded(Size / 2, Radius, [&](vec2) { return BorderColor; });
-		const auto SurfaceColor = LucentStyle::Gradient::Blend(LucentStyle::Style::Surface, LucentStyle::Style::Accent, Hot * LucentStyle::Checkbox::HoverTint).WithAlpha(Opacity);
-		const float Border = LucentStyle::Checkbox::Border * Size / LucentStyle::Checkbox::Size;
-		Rounded(Size / 2 - Border, Radius - Border, [&](vec2) { return SurfaceColor; });
+		const auto Idle = LucentStyle::Gradient::Blend(LucentStyle::Checkbox::BorderIdle, LucentStyle::Checkbox::BorderHover, Hot);
+		const auto RingColor = [&](vec2 Point) {
+			return LucentStyle::Gradient::Blend(Idle, Gradient(Point), Fill)
+				.WithAlpha(Opacity * LucentStyle::Motion::Lerp(1, LucentStyle::Checkbox::RingIntensity, Fill));
+		};
+		// A true annulus keeps the hole transparent; coverage fades on both edges.
+		const float InnerRadius = Radius - LucentStyle::Checkbox::Border;
+		const std::array Contours = {
+			CheckboxBoundary(Center, InnerRadius - Feather), CheckboxBoundary(Center, InnerRadius + Feather),
+			CheckboxBoundary(Center, Radius - Feather), CheckboxBoundary(Center, Radius + Feather)};
+		pGraphics->TextureClear();
+		pGraphics->QuadsBegin();
+		for(size_t Band = 0; Band < 3; ++Band)
+			for(size_t I = 0; I < Contours[0].size(); ++I)
+			{
+				const size_t J = (I + 1) % Contours[0].size();
+				const auto A = Contours[Band][I], B = Contours[Band + 1][I];
+				const auto C = Contours[Band][J], D = Contours[Band + 1][J];
+				const auto InnerColor = [&](vec2 P) { return RingColor(P).WithAlpha(Band == 0 ? 0.f : RingColor(P).a); };
+				const auto OuterColor = [&](vec2 P) { return RingColor(P).WithAlpha(Band == 2 ? 0.f : RingColor(P).a); };
+				pGraphics->SetColor4(InnerColor(A), OuterColor(B), InnerColor(C), OuterColor(D));
+				const IGraphics::CFreeformItem Quad(A, B, C, D);
+				pGraphics->QuadsDrawFreeform(&Quad, 1);
+			}
+		pGraphics->QuadsEnd();
 		if(Fill > .001f)
 		{
-			const float Half = Size * .5f * LucentStyle::Motion::Lerp(LucentStyle::Checkbox::FillScale, 1, Fill);
-			Rounded(Half, Radius * Half / (Size * .5f), [&](vec2 Point) {
-				return LucentStyle::Gradient::Sample(LucentStyle::Gradient::ControlOrigin + LucentStyle::Gradient::ControlSpan *
-														    ((Point.x - Center.x) / (2 * Half) + .5f + LucentStyle::Checkbox::GradientTilt * (Point.y - Center.y) / (2 * Half)),
-					Clock.GradientTime(), {LucentStyle::Checkbox::Period})
-					.WithAlpha(Fill * Opacity);
-			});
-		}
-		if(Mark > .001f)
-		{
-			const float Scale = Size * LucentStyle::Motion::Lerp(LucentStyle::Checkbox::MarkScale, 1, Mark);
-			const float StrokeRadius = LucentStyle::Checkbox::Stroke * Scale / LucentStyle::Checkbox::Size / 2;
-			// Clamp coverage width only when a very small projection makes the stroke subpixel.
-			const float Edge = std::min(Feather, StrokeRadius * .9f);
-			const auto Points = CheckboxMark(Center, Scale);
-			CheckboxMesh(pGraphics, Points[1], CheckboxMarkBoundary(Center, Scale, StrokeRadius - Edge),
-				CheckboxMarkBoundary(Center, Scale, StrokeRadius + Edge),
-				[&](vec2) { return LucentStyle::Checkbox::Ink.WithAlpha(Mark * Opacity); });
+			const float DotRadius = LucentStyle::Checkbox::DotSize / 2 * Fill;
+			const float Edge = std::min(Pixel / 2, DotRadius * .9f);
+			CheckboxMesh(pGraphics, Center, CheckboxBoundary(Center, DotRadius - Edge),
+				CheckboxBoundary(Center, DotRadius + Edge),
+				[&](vec2 Point) { return Gradient(Point).WithAlpha(Fill * Opacity); });
 		}
 		CUIRect Label = Rect;
-		Label.VSplitLeft(LucentStyle::Style::ControlSize + LucentStyle::Style::LabelGap, nullptr, &Label);
+		Label.VSplitLeft(LucentStyle::Checkbox::LabelOffset, nullptr, &Label);
 		SLabelProperties Props;
 		Props.m_MaxWidth = Label.w;
 		Props.m_StopAtEnd = true;

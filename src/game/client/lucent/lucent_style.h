@@ -42,13 +42,12 @@ namespace LucentStyle
 	}
 	namespace Checkbox
 	{
-		constexpr float Size = 15, Radius = 3.75f, Border = .9f, LeftInset = 4.5f;
+		constexpr float Size = 18, Border = 1.35f, DotSize = 9.5f, LeftInset = 3;
+		constexpr float LabelOffset = LeftInset + Size + Style::LabelGap;
 		constexpr float TextIdle = .80f, TextHover = .95f, TextChecked = 1.f;
-		constexpr float FillDuration = .19f, MarkDuration = .16f, PressDuration = .11f;
-		constexpr float PressScale = .95f, FillScale = .94f, MarkScale = .88f, Stroke = 1.8f;
-		constexpr float HoverTint = .035f, GradientTilt = .2f;
+		constexpr float FillDuration = .20f;
+		constexpr float RingIntensity = .85f, GradientTilt = .2f;
 		constexpr double Period = 5;
-		inline const ColorRGBA Ink(.055f, .035f, .055f, 1);
 		inline const ColorRGBA BorderIdle(.22f, .20f, .25f, 1);
 		inline const ColorRGBA BorderHover(.48f, .35f, .43f, 1);
 	}

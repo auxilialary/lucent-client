@@ -19,64 +19,52 @@
 	} while(0)
 int main()
 {
-	// Independently verify the rounded mesh and optical checkmark at UI scales.
-	for(float Scale : {.5f, 1.f, 2.f})
+	// Circle radii, area, winding and concentricity at fractional UI scales.
+	for(float Scale : {.5f, .75f, 1.f, 1.25f, 2.f, 3.f})
 	{
-		const float Half = LucentStyle::Checkbox::Size * Scale / 2;
-		const float Radius = LucentStyle::Checkbox::Radius * Scale;
-		const auto Boundary = LucentUi::CheckboxBoundary(vec2(0, 0), Half, Radius);
-		float Area = 0;
-		for(size_t Index = 0; Index < Boundary.size(); ++Index)
+		using namespace LucentStyle;
+		const vec2 Center(17.25f, 41.75f);
+		for(float Radius : {Checkbox::Size * Scale / 2, (Checkbox::Size / 2 - Checkbox::Border) * Scale, Checkbox::DotSize * Scale / 2})
 		{
-			const auto A = Boundary[Index], B = Boundary[(Index + 1) % Boundary.size()];
-			CHECK(std::abs(A.x) <= Half + .0001f && std::abs(A.y) <= Half + .0001f);
-			const vec2 Corner(std::max(0.f, std::abs(A.x) - Half + Radius), std::max(0.f, std::abs(A.y) - Half + Radius));
-			CHECK(length(Corner) <= Radius + .0001f);
-			CHECK(A.x * B.y - A.y * B.x > 0);
-			Area += (A.x * B.y - A.y * B.x) / 2;
+			const auto Boundary = LucentUi::CheckboxBoundary(Center, Radius);
+			float Area = 0;
+			vec2 Mean(0, 0);
+			for(size_t I = 0; I < Boundary.size(); ++I)
+			{
+				const vec2 A = Boundary[I] - Center, B = Boundary[(I + 1) % Boundary.size()] - Center;
+				CHECK(std::abs(length(A) - Radius) < .0001f);
+				CHECK(A.x * B.y - A.y * B.x > 0);
+				Area += (A.x * B.y - A.y * B.x) / 2;
+				Mean += A / float(Boundary.size());
+			}
+			CHECK(length(Mean) < .0001f);
+			CHECK(std::abs(Area - pi * Radius * Radius) < .001f * pi * Radius * Radius);
 		}
-		CHECK(std::abs(Area - (4 * Half * Half - (4 - pi) * Radius * Radius)) < Scale * Scale);
-		const auto Mark = LucentUi::CheckboxMark(vec2(0, 0), Half * 2);
-		CHECK(Mark[0].x < Mark[1].x && Mark[1].x < Mark[2].x);
-		CHECK(Mark[1].y > Mark[0].y && Mark[1].y > Mark[2].y);
-		for(const auto &Point : Mark)
-			CHECK(std::abs(Point.x) + LucentStyle::Checkbox::Stroke * Scale / 2 < Half && std::abs(Point.y) + LucentStyle::Checkbox::Stroke * Scale / 2 < Half);
 	}
-	// The complete AA fringe must fit the unchanged row even at fractional
-	// projections, during press/fill/mark transitions, and at translated origins.
+	// Coverage stays inside actual 21 UI Filters rows and clear of the label.
 	for(float PixelsPerUnit : {.5f, .75f, 1.f, 1.25f, 1.5f, 2.f, 3.f})
-		for(float Progress : {0.f, .25f, .5f, .75f, 1.f})
+		for(float Progress : {0.f, .01f, .25f, .5f, .75f, 1.f})
 		{
 			using namespace LucentStyle;
 			const vec2 Origin(17.25f, 41.75f);
-			const vec2 Center = LucentUi::CheckboxCenter(Origin, 22);
-			const float Feather = .5f / PixelsPerUnit;
-			const float Size = Checkbox::Size * Motion::Lerp(1, Checkbox::PressScale, Progress);
-			const float Half = Size / 2;
-			const auto Outer = LucentUi::CheckboxBoundary(Center, Half + Feather, Checkbox::Radius * Size / Checkbox::Size + Feather);
+			const vec2 Center = LucentUi::CheckboxCenter(Origin, 21);
+			const float Feather = std::min(.5f / PixelsPerUnit, Checkbox::Border * .45f);
+			const float Half = Checkbox::Size / 2;
+			const auto Outer = LucentUi::CheckboxBoundary(Center, Half + Feather);
 			for(const auto &Point : Outer)
 			{
-				CHECK(Point.x > Origin.x && Point.y > Origin.y && Point.y < Origin.y + 22);
-				CHECK(Point.x < Origin.x + Style::ControlSize + Style::LabelGap);
+				CHECK(Point.x > Origin.x && Point.y > Origin.y && Point.y < Origin.y + 21);
+				CHECK(Point.x < Origin.x + Checkbox::LabelOffset);
 			}
-			CHECK(std::abs(Center.y - (Origin.y + 11.f)) < .0001f);
-			const float MarkSize = Size * Motion::Lerp(Checkbox::MarkScale, 1, Progress);
-			const float StrokeRadius = Checkbox::Stroke * MarkSize / Checkbox::Size / 2;
-			const float Edge = std::min(Feather, StrokeRadius * .9f);
-			const auto Points = LucentUi::CheckboxMark(Center, MarkSize);
-			for(float Radius : {StrokeRadius - Edge, StrokeRadius + Edge})
-			{
-				const auto Outline = LucentUi::CheckboxMarkBoundary(Center, MarkSize, Radius);
-				for(size_t I = 0; I < Outline.size(); ++I)
-				{
-					const vec2 A = Outline[I] - Points[1], B = Outline[(I + 1) % Outline.size()] - Points[1];
-					// Consistent fan winding proves no overlapping triangles at the inner join.
-					CHECK(A.x * B.y - A.y * B.x < 0);
-					CHECK(std::abs(Outline[I].x - Center.x) < Half);
-					CHECK(std::abs(Outline[I].y - Center.y) < Half);
-				}
-			}
+			CHECK(std::abs(Center.x - (Origin.x + 12.f)) < .0001f);
+			CHECK(std::abs(Center.y - (Origin.y + 10.5f)) < .0001f);
+			CHECK(Checkbox::LabelOffset - (Center.x - Origin.x + Half) == 7.f);
+			const float DotRadius = Checkbox::DotSize / 2 * Progress;
+			const float DotEdge = std::min(.5f / PixelsPerUnit, DotRadius * .9f);
+			CHECK(DotRadius - DotEdge >= 0);
+			CHECK(DotRadius + DotEdge < Half - Checkbox::Border - Feather);
 		}
+
 	{
 		using namespace LucentStyle;
 		const auto Idle = Style::Text.WithAlpha(Checkbox::TextIdle);
@@ -92,18 +80,16 @@ int main()
 
 	for(int Fps : {60, 144, 240})
 	{
-		LucentStyle::Motion::CTransition Fill, Mark, Press;
+		LucentStyle::Motion::CTransition Fill;
 		Fill.Update(true, 0, true, LucentStyle::Checkbox::FillDuration);
-		Mark.Update(true, 0, true, LucentStyle::Checkbox::MarkDuration);
-		Press.Update(true, 0, true, LucentStyle::Checkbox::PressDuration);
+		float Previous = 0;
 		for(int Frame = 1; Frame <= Fps; ++Frame)
 		{
-			const double Now = double(Frame) / Fps;
-			CHECK(Fill.Update(true, Now, true, LucentStyle::Checkbox::FillDuration) >= 0);
-			Mark.Update(true, Now, true, LucentStyle::Checkbox::MarkDuration);
-			Press.Update(true, Now, true, LucentStyle::Checkbox::PressDuration);
+			const float Value = Fill.Update(true, double(Frame) / Fps, true, LucentStyle::Checkbox::FillDuration);
+			CHECK(Value >= Previous && Value <= 1);
+			Previous = Value;
 		}
-		CHECK(Fill.m_Value == 1 && Mark.m_Value == 1 && Press.m_Value == 1);
+		CHECK(Fill.m_Value == 1);
 	}
 	// Checkbox reversal preserves the visible value, including rapid retargets.
 	{
@@ -134,8 +120,8 @@ int main()
 		CHECK(std::abs(A.g - B.g) > .2f);
 		const auto Loop = Gradient::Sample(-.25f, Checkbox::Period, {Checkbox::Period});
 		CHECK(std::abs(A.g - Loop.g) < .0001f);
-		CHECK(Checkbox::Radius < Checkbox::Size / 2);
-		CHECK(Checkbox::Stroke > 1.7f && Checkbox::Stroke < 1.9f);
+		CHECK(Checkbox::Size == 18 && Checkbox::DotSize >= 9 && Checkbox::DotSize <= 10);
+		CHECK(Checkbox::Border >= 1.2f && Checkbox::Border <= 1.5f);
 	}
 
 	// Replay the same edit events at each refresh rate. Motion uses event time,
