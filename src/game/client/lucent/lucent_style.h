@@ -42,7 +42,7 @@ namespace LucentStyle
 	}
 	namespace Checkbox
 	{
-		constexpr float Size = 18, Border = 1.35f, DotSize = 9.5f, LeftInset = 3;
+		constexpr float Size = 14, Border = 1.1f, DotSize = 7, LeftInset = 5;
 		constexpr float LabelOffset = LeftInset + Size + Style::LabelGap;
 		constexpr float TextIdle = .80f, TextHover = .95f, TextChecked = 1.f;
 		constexpr float FillDuration = .20f;

@@ -19,6 +19,15 @@
 	} while(0)
 int main()
 {
+	// Optical placement follows font baseline/cap metrics, not row height.
+	for(float Baseline : {11.25f, 13.f, 15.5f})
+		for(float CapHeight : {6.f, 8.f, 9.25f})
+		{
+			const auto Center = LucentUi::CheckboxCenter(vec2(3, 7), Baseline, CapHeight);
+			CHECK(Center.y == 7 + Baseline - CapHeight / 2);
+			CHECK(Center.x == 15);
+		}
+
 	// Circle radii, area, winding and concentricity at fractional UI scales.
 	for(float Scale : {.5f, .75f, 1.f, 1.25f, 2.f, 3.f})
 	{
@@ -47,8 +56,9 @@ int main()
 		{
 			using namespace LucentStyle;
 			const vec2 Origin(17.25f, 41.75f);
-			const vec2 Center = LucentUi::CheckboxCenter(Origin, 21);
-			const float Feather = std::min(.5f / PixelsPerUnit, Checkbox::Border * .45f);
+			const vec2 Center = LucentUi::CheckboxCenter(Origin, 14.f, 8.f);
+			const auto Coverage = LucentUi::CheckboxRingCoverage(1.f / PixelsPerUnit);
+			const float Feather = .5f / PixelsPerUnit;
 			const float Half = Checkbox::Size / 2;
 			const auto Outer = LucentUi::CheckboxBoundary(Center, Half + Feather);
 			for(const auto &Point : Outer)
@@ -57,12 +67,19 @@ int main()
 				CHECK(Point.x < Origin.x + Checkbox::LabelOffset);
 			}
 			CHECK(std::abs(Center.x - (Origin.x + 12.f)) < .0001f);
-			CHECK(std::abs(Center.y - (Origin.y + 10.5f)) < .0001f);
+			CHECK(std::abs(Center.y - (Origin.y + 10.f)) < .0001f);
 			CHECK(Checkbox::LabelOffset - (Center.x - Origin.x + Half) == 7.f);
 			const float DotRadius = Checkbox::DotSize / 2 * Progress;
 			const float DotEdge = std::min(.5f / PixelsPerUnit, DotRadius * .9f);
 			CHECK(DotRadius - DotEdge >= 0);
-			CHECK(DotRadius + DotEdge < Half - Checkbox::Border - Feather);
+			CHECK(DotRadius + DotEdge < Half - Checkbox::Border);
+			CHECK(Coverage.m_Radii[0] < Coverage.m_Radii[1]);
+			CHECK(Coverage.m_Radii[1] <= Coverage.m_Radii[2]);
+			CHECK(Coverage.m_Radii[2] < Coverage.m_Radii[3]);
+			CHECK(std::abs((Coverage.m_Radii[0] + Coverage.m_Radii[3]) / 2 - (Half - Checkbox::Border / 2)) < .0001f);
+			CHECK(Coverage.m_Peak > 0 && Coverage.m_Peak <= 1);
+			if(PixelsPerUnit * Checkbox::Border < 1)
+				CHECK(Coverage.m_Peak < 1);
 		}
 
 	{
@@ -120,8 +137,8 @@ int main()
 		CHECK(std::abs(A.g - B.g) > .2f);
 		const auto Loop = Gradient::Sample(-.25f, Checkbox::Period, {Checkbox::Period});
 		CHECK(std::abs(A.g - Loop.g) < .0001f);
-		CHECK(Checkbox::Size == 18 && Checkbox::DotSize >= 9 && Checkbox::DotSize <= 10);
-		CHECK(Checkbox::Border >= 1.2f && Checkbox::Border <= 1.5f);
+		CHECK(Checkbox::Size == 14 && Checkbox::DotSize == 7);
+		CHECK(Checkbox::Border == 1.1f);
 	}
 
 	// Replay the same edit events at each refresh rate. Motion uses event time,

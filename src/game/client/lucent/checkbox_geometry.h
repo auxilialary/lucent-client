@@ -8,9 +8,24 @@
 
 namespace LucentUi
 {
-	inline vec2 CheckboxCenter(vec2 RowOrigin, float RowHeight)
+	inline vec2 CheckboxCenter(vec2 RowOrigin, float Baseline, float CapHeight)
 	{
-		return RowOrigin + vec2(LucentStyle::Checkbox::LeftInset + LucentStyle::Checkbox::Size / 2, RowHeight / 2);
+		return RowOrigin + vec2(LucentStyle::Checkbox::LeftInset + LucentStyle::Checkbox::Size / 2, Baseline - CapHeight / 2);
+	}
+
+	struct CCheckboxRingCoverage
+	{
+		std::array<float, 4> m_Radii;
+		float m_Peak;
+	};
+	inline CCheckboxRingCoverage CheckboxRingCoverage(float Pixel)
+	{
+		const float Outer = LucentStyle::Checkbox::Size / 2;
+		const float Border = LucentStyle::Checkbox::Border;
+		const float Feather = Pixel / 2;
+		const float Middle = Outer - Border / 2;
+		const float Plateau = std::max(0.f, Border - Pixel) / 2;
+		return {{Outer - Border - Feather, Middle - Plateau, Middle + Plateau, Outer + Feather}, std::min(1.f, Border / Pixel)};
 	}
 
 	// Uniform angular spacing gives a smooth, consistently wound circle at all scales.

@@ -164,7 +164,8 @@ namespace LucentUi
 			pGraphics->SetColor4(Color(Center), Color(Inner[I]), Color(Inner[J]), Color(Inner[J]));
 			const IGraphics::CFreeformItem Triangle(Center, Inner[I], Inner[J], Inner[J]);
 			pGraphics->QuadsDrawFreeform(&Triangle, 1);
-			pGraphics->SetColor4(Color(Inner[I]), Color(Outer[I]).WithAlpha(0), Color(Inner[J]), Color(Outer[J]).WithAlpha(0));
+			// SetColor4 takes TL, TR, BL, BR; freeform points are TL, TR, BR, BL.
+			pGraphics->SetColor4(Color(Inner[I]), Color(Outer[I]).WithAlpha(0), Color(Outer[J]).WithAlpha(0), Color(Inner[J]));
 			const IGraphics::CFreeformItem Edge(Inner[I], Outer[I], Inner[J], Outer[J]);
 			pGraphics->QuadsDrawFreeform(&Edge, 1);
 		}
@@ -204,11 +205,29 @@ namespace LucentUi
 		const float Fill = pState->m_Fill.Update(Checked, Clock.m_Now, Clock.m_Animate, LucentStyle::Checkbox::FillDuration);
 		const float Hot = pState->m_Hover.Update(Enabled && pUi->MouseHovered(&Rect), Clock.m_Now, Clock.m_Animate);
 		const float Alpha = Enabled ? 1.f : LucentStyle::Style::Disabled;
-		// Padding belongs to the indicator, not the Filters layout or row hitbox.
-		const vec2 Center = CheckboxCenter(vec2(Rect.x, Rect.y), Rect.h);
+		CUIRect Label = Rect;
+		Label.VSplitLeft(LucentStyle::Checkbox::LabelOffset, nullptr, &Label);
+		SLabelProperties Props;
+		Props.m_MaxWidth = Label.w;
+		Props.m_StopAtEnd = true;
+		Props.m_EnableWidthCheck = false;
+		// Match DoLabel's single-line cursor placement and TextEx's pixel-aligned
+		// baseline. Cap height supplies a stable optical center across translations.
+		float TextHeight = 0, MaxHeight = 0, CapHeight = 0, AlignedSize = 0;
+		STextSizeProperties Metrics{};
+		Metrics.m_pHeight = &TextHeight;
+		Metrics.m_pMaxCharacterHeightInLine = &MaxHeight;
+		Metrics.m_pAlignedFontSize = &AlignedSize;
+		const float TextWidth = pUi->TextRender()->TextWidth(11, pText, -1, Label.w, TEXTFLAG_STOP_AT_END, Metrics);
+		STextSizeProperties CapMetrics{};
+		CapMetrics.m_pMaxCharacterHeightInLine = &CapHeight;
+		pUi->TextRender()->TextWidth(11, "H", -1, -1, 0, CapMetrics);
 		auto *pGraphics = pUi->Graphics();
-		const float Pixel = pGraphics->GetScreen().Width() / pGraphics->ScreenWidth();
-		const float Feather = std::min(Pixel / 2, LucentStyle::Checkbox::Border * .45f);
+		const float Pixel = pGraphics->GetScreen().Height() / pGraphics->ScreenHeight();
+		const vec2 Cursor = CUi::CalcAlignedCursorPos(&Label, vec2(TextWidth, TextHeight), TEXTALIGN_ML, &MaxHeight);
+		const float Baseline = round_to_int(Cursor.y / Pixel) * Pixel + AlignedSize;
+		const vec2 Center = CheckboxCenter(vec2(Rect.x, Rect.y), Baseline - Rect.y, CapHeight);
+		const auto Coverage = CheckboxRingCoverage(Pixel);
 		const float Opacity = Alpha * CUIRect::DrawOpacity();
 		const float Radius = LucentStyle::Checkbox::Size / 2;
 		// Both shapes sample one fixed spatial field and the shared clock. Neither
@@ -224,10 +243,9 @@ namespace LucentUi
 				.WithAlpha(Opacity * LucentStyle::Motion::Lerp(1, LucentStyle::Checkbox::RingIntensity, Fill));
 		};
 		// A true annulus keeps the hole transparent; coverage fades on both edges.
-		const float InnerRadius = Radius - LucentStyle::Checkbox::Border;
 		const std::array Contours = {
-			CheckboxBoundary(Center, InnerRadius - Feather), CheckboxBoundary(Center, InnerRadius + Feather),
-			CheckboxBoundary(Center, Radius - Feather), CheckboxBoundary(Center, Radius + Feather)};
+			CheckboxBoundary(Center, Coverage.m_Radii[0]), CheckboxBoundary(Center, Coverage.m_Radii[1]),
+			CheckboxBoundary(Center, Coverage.m_Radii[2]), CheckboxBoundary(Center, Coverage.m_Radii[3])};
 		pGraphics->TextureClear();
 		pGraphics->QuadsBegin();
 		for(size_t Band = 0; Band < 3; ++Band)
@@ -236,9 +254,9 @@ namespace LucentUi
 				const size_t J = (I + 1) % Contours[0].size();
 				const auto A = Contours[Band][I], B = Contours[Band + 1][I];
 				const auto C = Contours[Band][J], D = Contours[Band + 1][J];
-				const auto InnerColor = [&](vec2 P) { return RingColor(P).WithAlpha(Band == 0 ? 0.f : RingColor(P).a); };
-				const auto OuterColor = [&](vec2 P) { return RingColor(P).WithAlpha(Band == 2 ? 0.f : RingColor(P).a); };
-				pGraphics->SetColor4(InnerColor(A), OuterColor(B), InnerColor(C), OuterColor(D));
+				const auto InnerColor = [&](vec2 P) { return RingColor(P).WithAlpha(Band == 0 ? 0.f : RingColor(P).a * Coverage.m_Peak); };
+				const auto OuterColor = [&](vec2 P) { return RingColor(P).WithAlpha(Band == 2 ? 0.f : RingColor(P).a * Coverage.m_Peak); };
+				pGraphics->SetColor4(InnerColor(A), OuterColor(B), OuterColor(D), InnerColor(C));
 				const IGraphics::CFreeformItem Quad(A, B, C, D);
 				pGraphics->QuadsDrawFreeform(&Quad, 1);
 			}
@@ -251,12 +269,6 @@ namespace LucentUi
 				CheckboxBoundary(Center, DotRadius + Edge),
 				[&](vec2 Point) { return Gradient(Point).WithAlpha(Fill * Opacity); });
 		}
-		CUIRect Label = Rect;
-		Label.VSplitLeft(LucentStyle::Checkbox::LabelOffset, nullptr, &Label);
-		SLabelProperties Props;
-		Props.m_MaxWidth = Label.w;
-		Props.m_StopAtEnd = true;
-		Props.m_EnableWidthCheck = false;
 		const float TextAlpha = LucentStyle::Motion::Lerp(
 			LucentStyle::Motion::Lerp(LucentStyle::Checkbox::TextIdle, LucentStyle::Checkbox::TextHover, Hot),
 			LucentStyle::Checkbox::TextChecked, Fill);
