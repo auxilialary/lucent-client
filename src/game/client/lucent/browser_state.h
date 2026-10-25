@@ -115,10 +115,11 @@ public:
 	CLucentBrowserContent<EScene> m_Scene;
 	CLucentBrowserContent<std::string> m_MapTitle;
 	CLucentBrowserContent<EOverlay> m_Overlay;
-	CLucentBrowserIndicator m_Navigation, m_DetailNavigation;
+	CLucentBrowserIndicator m_Navigation, m_DetailNavigation, m_RowIndicator;
 	float m_Expansion = 0;
 	float m_FiltersExpansion = 0;
 	float m_ScenePosition = 0;
+	float m_PlayersPosition = 0;
 	std::string m_LastSelection;
 	std::string m_LastPreview;
 	std::string m_ServerSelection;
@@ -149,7 +150,7 @@ public:
 		if(Address != m_LastSelection)
 		{
 			m_LastSelection.assign(Address);
-			m_SelectionPulse = Animate && !Address.empty() && (PreviewKey.empty() || PreviewKey != m_LastPreview) ? 1.f : 0.f;
+			m_SelectionPulse = Animate && !Address.empty() ? 1.f : 0.f;
 			m_LastPreview.assign(PreviewKey);
 		}
 		if(!Animate)
@@ -225,10 +226,12 @@ public:
 			m_Overlay.m_Alpha = 1;
 		}
 		m_ScenePosition = Move(m_ScenePosition, m_Scene.m_Target != EScene::PREVIEW, .36f);
+		m_PlayersPosition = Move(m_PlayersPosition, m_Scene.m_Target == EScene::PLAYERS, .40f);
 		m_SelectionPulse = Animate ? std::max(0.f, m_SelectionPulse - Step / .36f) : 0;
 	}
 	float FiltersExpansion() const { return m_FiltersExpansion * m_FiltersExpansion * (3 - 2 * m_FiltersExpansion); }
 	float Expansion() const { return m_Expansion * m_Expansion * (3 - 2 * m_Expansion); }
+	float PlayersPosition() const { return m_PlayersPosition * m_PlayersPosition * (3 - 2 * m_PlayersPosition); }
 	float ScenePosition() const { return m_ScenePosition * m_ScenePosition * (3 - 2 * m_ScenePosition); }
 	template<typename T>
 	static int FindSelection(int Count, std::string_view Address, T GetAddress)

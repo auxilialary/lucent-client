@@ -740,6 +740,12 @@ void CMenus::RenderServerbrowserFilters(CUIRect View, CScrollRegion *pScroll)
 			const float Width = View.w / 3;
 			for(int i = 0; i < 3; ++i)
 				Columns[i] = {View.x + i * Width + 8, View.y, Width - 24, View.h};
+			// One shared baseline; restrained separators organize the advanced workspace.
+			for(int i = 1; i < 3; ++i)
+			{
+				CUIRect Rule = {View.x + i * Width - 4, View.y + 12, .5f, std::min(260.f, View.h - 12)};
+				Rule.Draw(LucentUi::Accent(.10f), 0, 0);
+			}
 			View = Columns[0];
 		}
 		CUIRect Exclude, Label;

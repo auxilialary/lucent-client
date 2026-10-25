@@ -39,7 +39,7 @@ void CLucentBrowserAmbient::Render(IGraphics *pGraphics, const CUIRect &Screen, 
 		const float Header = std::clamp((V - .10f) / .12f, 0.f, 1.f);
 		const float Field = std::exp(-X * X * 16 - Y * Y * 7);
 		const float Local = std::exp(-std::pow((U - .51f) * 15, 2.f) - std::pow((V - .45f) * 5, 2.f));
-		return ColorRGBA(.91f, .68f, .80f, (.055f * Field + .028f * Local * Pulse) * Boundary * Header * Opacity);
+		return ColorRGBA(.91f, .68f, .80f, (.072f * Field + .045f * Local * Pulse) * Boundary * Header * Opacity);
 	};
 	for(int Y = 0; Y < YSteps; ++Y)
 		for(int X = 0; X < XSteps; ++X)
@@ -51,23 +51,12 @@ void CLucentBrowserAmbient::Render(IGraphics *pGraphics, const CUIRect &Screen, 
 			pGraphics->QuadsDrawTL(&Tile, 1);
 		}
 	pGraphics->QuadsEnd();
-	// Two short open curves live only in the gutter and outer scene margin.
-	// SelectionTransfer uses the menu's coverage-fringed cubic stroke and astroid.
-	for(int I = 0; I < 2; ++I)
-	{
-		const float X = I == 0 ? .445f : .94f;
-		const float Drift = 3 * std::sin(Time * .045f + I * 2) + m_Cursor.x * 1.5f;
-		const vec2 A(Screen.x + Screen.w * X + Drift, Screen.y + Screen.h * .27f);
-		const vec2 B = A + vec2(I == 0 ? 15 : -16, Screen.h * .25f);
-		CLucentMenuEffects::SelectionTransfer(pGraphics, A, B, .48f, .11f * Opacity);
-		if(I == 0)
-		{
-			// One brief light pass follows the gutter curve, with a long quiet interval.
-			const float Phase = std::fmod(Time + 3, 20.0) / 6.f;
-			if(Phase < 1)
-				CLucentMenuEffects::SelectionTransfer(pGraphics, A, B, Phase, .20f * Opacity);
-		}
-	}
+	// Asymmetric fragments compose the upper scene and its lower outer edge.
+	// Reuse the menu's Bezier/stroke renderer, without a closed orbit or frame.
+	const float Drift = 3 * std::sin(Time * .045f) + m_Cursor.x * 1.5f;
+	const auto Point = [&](float X, float Y) { return vec2(Screen.x + Screen.w * X + Drift, Screen.y + Screen.h * Y); };
+	CLucentMenuEffects::SceneCurve(pGraphics, Point(.48f, .24f), Point(.55f, .10f), Point(.82f, .095f), Point(.94f, .19f), .28f * Opacity);
+	CLucentMenuEffects::SceneCurve(pGraphics, Point(.83f, .72f), Point(.96f, .69f), Point(.99f, .53f), Point(.96f, .45f), .21f * Opacity);
 	// Sparse elongated vector stars sit outside artwork/title/control bounds.
 	for(int I = 0; I < 3; ++I)
 	{

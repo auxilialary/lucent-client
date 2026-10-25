@@ -15,6 +15,28 @@
 	} while(0)
 int main()
 {
+	// Supporting artwork must leave contextual text below it at every viewport.
+	for(float Width : {800.f, 1098.67f, 1280.f, 1706.67f})
+	{
+		const CUIRect Screen = {0, 0, Width, 600};
+		for(float Players : {0.f, 1.f})
+		{
+			const auto Context = CLucentBrowserSceneLayout::Measure(Screen, 1, Players);
+			CHECK(Context.m_Artwork.y + Context.m_Artwork.h <= Context.m_TitleY + .01f);
+			CHECK(Context.m_Artwork.x + Context.m_Artwork.w <= Width);
+			const auto Preview = CLucentBrowserSceneLayout::Measure(Screen, 0, Players);
+			CHECK(Preview.m_Artwork.w > Context.m_Artwork.w * 2);
+		}
+	}
+	CLucentBrowserState Retarget;
+	Retarget.m_Scene.m_Target = CLucentBrowserState::EScene::PLAYERS;
+	Retarget.Update(.1f, true);
+	const float Position = Retarget.ScenePosition();
+	Retarget.m_Scene.m_Target = CLucentBrowserState::EScene::PREVIEW;
+	Retarget.Update(0, true);
+	CHECK(Retarget.ScenePosition() == Position);
+	Retarget.Update(0, false);
+	CHECK(Retarget.ScenePosition() == 0 && Retarget.PlayersPosition() == 0);
 	CHECK(CLucentBrowserState::Descriptor("DDNet RUS - Brutal") == "Brutal");
 	CHECK(CLucentBrowserState::Descriptor("DDNet GER - Moderate") == "Moderate");
 	CHECK(CLucentBrowserState::Descriptor("DDNet RUS - Custom") == "DDNet RUS - Custom");
@@ -246,7 +268,7 @@ int main()
 	CHECK(SharedMap.m_SelectionPulse == 1);
 	SharedMap.Update(.1f, true);
 	SharedMap.Select("two:8303", true, "map|crc|size");
-	CHECK(SharedMap.m_SelectionPulse == 0);
+	CHECK(SharedMap.m_SelectionPulse == 1);
 	SharedMap.Select("three:8303", true, "map|new-crc|size");
 	CHECK(SharedMap.m_SelectionPulse == 1);
 	int Sort = 3, Order = 0;

@@ -1,4 +1,5 @@
 #include "browser_ambient.h"
+#include "browser_layout.h"
 #include "lucent_menu_effects.h"
 #include "ui.h"
 
@@ -126,7 +127,7 @@ void CMenus::RenderLucentBrowser(CUIRect Screen)
 	const vec2 Cursor((Ui()->MouseX() - Screen.x) / Screen.w * 2 - 1, (Ui()->MouseY() - Screen.y) / Screen.h * 2 - 1);
 	s_Ambient.Update(Dt, Animate, Cursor);
 	s_Ambient.Render(Graphics(), Screen, m_LucentBrowser.m_SelectionPulse, m_LucentBrowser.BrowserOpacity());
-	m_LucentPreview.Render(Graphics(), Screen, Now, Animate, m_LucentBrowser.BrowserOpacity());
+	m_LucentPreview.Render(Graphics(), Screen, Now, Animate, m_LucentBrowser.BrowserOpacity(), m_LucentBrowser.ScenePosition(), m_LucentBrowser.PlayersPosition());
 	Ui()->MapScreen();
 	if(m_LucentLegacyBrowser)
 	{
@@ -284,8 +285,8 @@ void CMenus::RenderLucentBrowser(CUIRect Screen)
 	}
 	// Fixed regions share the background, with independent contextual state.
 	CUIRect Atmosphere;
-	Screen.VSplitLeft(Screen.w * .41f, &List, &Atmosphere);
-	Atmosphere.VSplitLeft(38, nullptr, &Atmosphere);
+	Screen.VSplitLeft(Screen.w * .38f, &List, &Atmosphere);
+	Atmosphere.VSplitLeft(Ui()->Screen()->w * .05f, nullptr, &Atmosphere);
 	CUIRect OverlayBounds = {Screen.x, Top.y + Top.h + 4, Screen.w, 0};
 	const auto VisibleOverlay = m_LucentBrowser.m_Overlay.m_Visible;
 	const bool Workspace = m_LucentBrowser.FiltersWorkspace();
@@ -348,24 +349,26 @@ void CMenus::RenderLucentBrowser(CUIRect Screen)
 		}
 		if(m_LucentBrowser.m_Primary.m_Visible == Primary::SERVERS && m_LucentBrowser.m_SelectionY > 0)
 		{
-			const vec2 From(List.x + List.w - 3, m_LucentBrowser.m_SelectionY);
-			const vec2 To(Atmosphere.x + 42, mix(From.y, Atmosphere.y + Atmosphere.h * .45f, .2f));
+			m_LucentBrowser.m_RowIndicator.Update(m_LucentBrowser.m_SelectionY, 12, Dt, Animate);
+			const float MarkerY = std::clamp(m_LucentBrowser.m_RowIndicator.X(), List.y + 25, List.y + List.h - 6);
+			CUIRect Marker = {List.x, MarkerY - 6, 1, 12};
+			Marker.Draw(LucentUi::Accent(.85f), 0, 0);
+			const vec2 From(List.x + List.w - 3, MarkerY);
+			const vec2 To(Atmosphere.x + 12, Ui()->Screen()->y + Ui()->Screen()->h * .40f);
 			CLucentMenuEffects::SelectionTransfer(Graphics(), From, To, 1 - m_LucentBrowser.m_SelectionPulse, BrowserAlpha);
 		}
 		if(pSelected)
 		{
 			// The same map title travels between preview and context, never duplicated.
 			const float Position = m_LucentBrowser.ScenePosition();
-			// A spatial scrim subdues the same artwork beneath contextual text.
-			Atmosphere.Draw4(ColorRGBA(.010f, .009f, .016f, .83f * Position), ColorRGBA(.010f, .009f, .016f, .57f * Position), ColorRGBA(.010f, .009f, .016f, .96f * Position), ColorRGBA(.010f, .009f, .016f, .76f * Position), 0, 0);
-			const float PreviewY = Screen.y + Screen.h * .56f;
-			CUIRect Title = {Atmosphere.x, PreviewY + (Atmosphere.y - PreviewY) * Position, Atmosphere.w, 38};
+			const auto SceneLayout = CLucentBrowserSceneLayout::Measure(*Ui()->Screen(), Position, m_LucentBrowser.PlayersPosition());
+			CUIRect Title = {Atmosphere.x, SceneLayout.m_TitleY, Atmosphere.w, 34};
 			SLabelProperties Props;
 			Props.m_MaxWidth = Title.w;
 			Props.m_StopAtEnd = true;
 			{
-				LucentUi::COpacityScope SelectionOpacity(TextRender(), m_LucentBrowser.m_Scene.m_Visible == Scene::PREVIEW ? m_LucentBrowser.m_MapTitle.Opacity() : 1.f);
-				Ui()->DoLabel(&Title, m_LucentBrowser.m_Scene.m_Visible == Scene::PREVIEW ? m_LucentBrowser.m_MapTitle.m_Visible.c_str() : pSelected->m_aMap, 28 - 5 * Position, TEXTALIGN_ML, Props);
+				LucentUi::COpacityScope SelectionOpacity(TextRender(), m_LucentBrowser.m_MapTitle.Opacity());
+				Ui()->DoLabel(&Title, m_LucentBrowser.m_MapTitle.m_Visible.c_str(), 25 - 3 * Position, TEXTALIGN_ML, Props);
 			}
 			CUIRect Body = {Atmosphere.x, Title.y + Title.h + 8, Atmosphere.w, std::max(0.f, Atmosphere.y + Atmosphere.h - Title.y - Title.h - 8)};
 
@@ -399,6 +402,7 @@ void CMenus::RenderLucentBrowser(CUIRect Screen)
 				CUIRect Tabs, Back, Details, Players;
 				Body.HSplitTop(25, &Tabs, &Body);
 				Tabs.VSplitLeft(28, &Back, &Tabs);
+				Tabs.w = std::min(Tabs.w, 260.f);
 				Tabs.VSplitMid(&Details, &Players);
 				static int s_Back, s_Details, s_Players;
 				if(LucentUi::IconButton(Ui(), TextRender(), &s_Back, FontIcon::CHEVRON_LEFT, Localize("Back"), Back))
@@ -572,8 +576,6 @@ void CMenus::RenderLucentServerList(CUIRect View, bool &Activated)
 		if(Selection > .001f)
 		{
 			Item.m_Rect.Draw4(LucentUi::Accent(.025f * Selection), LucentUi::Accent(.07f * Selection), LucentUi::Accent(.025f * Selection), LucentUi::Accent(.015f * Selection), 0, 0);
-			CUIRect Marker = {Item.m_Rect.x, Item.m_Rect.y + 3, 1, Item.m_Rect.h - 6};
-			Marker.Draw(LucentUi::Accent(.85f * Selection), 0, 0);
 			if(i == Selected && m_LucentBrowser.m_SelectionPulse > 0)
 			{
 				CUIRect Echo = {Item.m_Rect.x + Item.m_Rect.w - 18, Item.m_Rect.y + 3, 18, Item.m_Rect.h - 6};
@@ -581,7 +583,9 @@ void CMenus::RenderLucentServerList(CUIRect View, bool &Activated)
 				Echo.Draw4(LucentUi::Accent(0), LucentUi::Accent(.09f * Pulse), LucentUi::Accent(0), LucentUi::Accent(.09f * Pulse), 0, 0);
 			}
 		}
-		Item.m_Rect.Draw(ColorRGBA(1, .9f, .95f, .045f * Hover), IGraphics::CORNER_ALL, 2);
+		CUIRect HoverLight = Item.m_Rect;
+		HoverLight.w *= .72f;
+		HoverLight.Draw4(LucentUi::Accent(.045f * Hover), LucentUi::Accent(0), LucentUi::Accent(.045f * Hover), LucentUi::Accent(0), 0, 0);
 		if(i == Selected)
 			m_LucentBrowser.m_SelectionY = Item.m_Rect.y + Item.m_Rect.h * .5f;
 		if(!vpElements[i])

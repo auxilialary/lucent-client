@@ -1,6 +1,23 @@
 #ifndef GAME_CLIENT_LUCENT_BROWSER_LAYOUT_H
 #define GAME_CLIENT_LUCENT_BROWSER_LAYOUT_H
 #include <algorithm>
+#include <game/client/ui_rect.h>
+
+// Shared scene anchors: artwork, title and interaction geometry use one space.
+struct CLucentBrowserSceneLayout
+{
+	CUIRect m_Artwork;
+	float m_TitleY;
+	static CLucentBrowserSceneLayout Measure(const CUIRect &Screen, float Context, float Players)
+	{
+		const float Left = Screen.x + 18 + (Screen.w - 36) * .38f + Screen.w * .05f;
+		const float Width = Screen.x + Screen.w - 24 - Left;
+		const CUIRect Preview = {Left, Screen.y + Screen.h * .15f, Width, Screen.h * .51f};
+		const CUIRect Supporting = {Left + Width * (.56f + .08f * Players), Screen.y + Screen.h * .13f, Width * (.44f - .08f * Players), Screen.h * .19f};
+		const auto Blend = [Context](float A, float B) { return A + (B - A) * Context; };
+		return {{Blend(Preview.x, Supporting.x), Blend(Preview.y, Supporting.y), Blend(Preview.w, Supporting.w), Blend(Preview.h, Supporting.h)}, Blend(Screen.y + Screen.h * .62f, Screen.y + Screen.h * .32f)};
+	}
+};
 
 // One measured scroll region, including complete country/type grids.
 struct CLucentBrowserFilterLayout

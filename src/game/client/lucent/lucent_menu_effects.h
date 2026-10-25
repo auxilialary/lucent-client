@@ -10,6 +10,7 @@ class IGraphics;
 // Fixed geometry caches, bounded tessellation and no per-frame resource creation.
 namespace CLucentMenuEffects
 {
+	void SceneCurve(IGraphics *pGraphics, vec2 A, vec2 B, vec2 C, vec2 D, float Alpha);
 	void SelectionTransfer(IGraphics *pGraphics, vec2 From, vec2 To, float Progress, float Alpha);
 	void FocusStar(IGraphics *pGraphics, vec2 Center, float Scale, float Alpha);
 	void Orbit(IGraphics *pGraphics, vec2 Center, float Scale, double Time, const float *pHighlight, bool Foreground, float Energy = 0, float Alpha = 1);

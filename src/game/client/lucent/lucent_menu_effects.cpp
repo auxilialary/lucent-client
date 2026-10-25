@@ -303,6 +303,20 @@ namespace
 
 // A short orbit-relative cubic carries selection light into the scene. The
 // astroid has four tapered cusps and concave sides, with a DPI-sized alpha fringe.
+void CLucentMenuEffects::SceneCurve(IGraphics *pGraphics, vec2 A, vec2 B, vec2 C, vec2 D, float Alpha)
+{
+	pGraphics->TextureClear();
+	pGraphics->QuadsBegin();
+	constexpr int Steps = 64;
+	for(int i = 0; i < Steps; ++i)
+	{
+		const float T = float(i) / Steps, U = float(i + 1) / Steps;
+		const float Light = std::pow(std::sin((T + U) * .25f * TAU), 2.f) * Alpha;
+		Stroke(pGraphics, Bezier(A, B, C, D, T), Bezier(A, B, C, D, U), .35f, ColorRGBA(1, .81f, .91f, Light));
+	}
+	pGraphics->QuadsEnd();
+}
+
 void CLucentMenuEffects::SelectionTransfer(IGraphics *pGraphics, vec2 From, vec2 To, float Progress, float Alpha)
 {
 	if(Progress <= 0 || Progress >= 1 || Alpha <= 0)

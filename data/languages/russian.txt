@@ -2858,3 +2858,9 @@ No countries found
 
 Unknown
 == Неизвестно
+
+Search countries by code
+== Поиск страны по коду
+
+Unknown country
+== Страна не указана

@@ -67,6 +67,10 @@ void CMenus::RenderLucentContext(CUIRect View, CLucentBrowserState::EPanel Mode)
 				pActive->Deactivate();
 			Ui()->SetActiveItem(nullptr);
 		}
+		CUIRect Rule;
+		View.HSplitTop(1, &Rule, &View);
+		Rule.Draw4(LucentUi::Accent(.35f), LucentUi::Accent(0), LucentUi::Accent(.35f), LucentUi::Accent(0), 0, 0);
+		View.HSplitTop(12, nullptr, &View);
 		static CScrollRegion s_Scroll;
 		// Consume over the whole panel before the server list sees the wheel,
 		// including the fixed header and padding on the first hover frame.
@@ -91,6 +95,7 @@ void CMenus::RenderLucentContext(CUIRect View, CLucentBrowserState::EPanel Mode)
 		}
 		if(Mode == EPanel::PLAYERS)
 		{
+			View.w = std::min(View.w, 360.f);
 			RenderServerbrowserInfoScoreboard(View, pServer);
 			return;
 		}
@@ -99,7 +104,7 @@ void CMenus::RenderLucentContext(CUIRect View, CLucentBrowserState::EPanel Mode)
 		DetailsParams.m_ScrollbarThickness = 8;
 		DetailsParams.m_ScrollbarMargin = 1;
 		s_DetailsScroll.Begin(&View, &DetailsParams);
-		CUIRect Content = {View.x, View.y, View.w, std::max(345.f, View.h)};
+		CUIRect Content = {View.x, View.y, View.w, std::max(305.f, View.h)};
 		s_DetailsScroll.AddRect(Content);
 		View = Content;
 		// Complete identity remains available even when the list emphasizes the map.
@@ -112,7 +117,7 @@ void CMenus::RenderLucentContext(CUIRect View, CLucentBrowserState::EPanel Mode)
 			Props.m_EnableWidthCheck = false;
 			Ui()->DoLabel(&Row, pText, Size, TEXTALIGN_ML, Props);
 		};
-		Label(pServer->m_aName, 32, 13);
+		Label(pServer->m_aName, 26, 13);
 		Ui()->DoToolTip(&pServer->m_aName, &Row, pServer->m_aName);
 
 		char aMeta[128];
@@ -127,7 +132,7 @@ void CMenus::RenderLucentContext(CUIRect View, CLucentBrowserState::EPanel Mode)
 		static int s_Connect;
 		if(LucentUi::SceneButton(Ui(), TextRender(), &s_Connect, Localize("Connect"), ConnectButton))
 			Connect(pServer->m_aAddress);
-		View.HSplitTop(18, nullptr, &View);
+		View.HSplitTop(12, nullptr, &View);
 		TextRender()->TextColor(ColorRGBA(.72f, .68f, .74f, 1));
 		Label(pServer->m_aAddress, 22, 10);
 		Ui()->DoToolTip(&pServer->m_aAddress, &Row, pServer->m_aAddress);
@@ -146,6 +151,7 @@ void CMenus::RenderLucentContext(CUIRect View, CLucentBrowserState::EPanel Mode)
 		View.HSplitTop(14, nullptr, &View);
 		CUIRect Actions, CopyAction;
 		View.HSplitTop(28, &Actions, &View);
+		Actions.w = std::min(Actions.w, 240.f);
 		Actions.VSplitMid(&Row, &CopyAction, 8);
 		static int s_Favorite;
 		if(LucentUi::TextButton(Ui(), TextRender(), &s_Favorite, Localize("Favorite"), Row, pServer->m_Favorite != TRISTATE::NONE, 10, TEXTALIGN_ML, true, FontIcon::STAR))
@@ -204,7 +210,7 @@ CUi::EPopupMenuFunctionResult CMenus::PopupLucentCountrySelection(void *pContext
 	}
 	CUIRect Search;
 	View.HSplitTop(24, &Search, &View);
-	pMenus->m_LucentCountrySearch.SetEmptyText(Localize("Search country code"));
+	pMenus->m_LucentCountrySearch.SetEmptyText(Localize("Search countries by code"));
 	const bool Changed = pUi->DoClearableEditBox(&pMenus->m_LucentCountrySearch, &Search, 11);
 	View.HSplitTop(8, nullptr, &View);
 	// Country codes have a bounded protocol range; avoid per-frame allocation.
@@ -213,7 +219,7 @@ CUi::EPopupMenuFunctionResult CMenus::PopupLucentCountrySelection(void *pContext
 	for(size_t i = 0; i < pMenus->GameClient()->m_CountryFlags.Num(); ++i)
 	{
 		const auto &Entry = pMenus->GameClient()->m_CountryFlags.GetByIndex(i);
-		const char *pLabel = Entry.m_CountryCode == CountryCode::DEFAULT ? Localize("Unknown") : Entry.m_aCountryCodeString;
+		const char *pLabel = Entry.m_CountryCode == CountryCode::DEFAULT ? Localize("Unknown country") : Entry.m_aCountryCodeString;
 		if(!str_utf8_find_nocase(pLabel, pMenus->m_LucentCountrySearch.GetString()))
 			continue;
 		if(Entry.m_CountryCode == Context.m_Selection)
@@ -248,7 +254,7 @@ CUi::EPopupMenuFunctionResult CMenus::PopupLucentCountrySelection(void *pContext
 		SLabelProperties Props;
 		Props.m_MaxWidth = Label.w;
 		Props.m_StopAtEnd = true;
-		pUi->DoLabel(&Label, Entry.m_CountryCode == CountryCode::DEFAULT ? Localize("Unknown") : Entry.m_aCountryCodeString, 10, TEXTALIGN_ML, Props);
+		pUi->DoLabel(&Label, Entry.m_CountryCode == CountryCode::DEFAULT ? Localize("Unknown country") : Entry.m_aCountryCodeString, 10, TEXTALIGN_ML, Props);
 		if(Entry.m_CountryCode == Context.m_Selection)
 		{
 			CUIRect Mark = {Item.m_Rect.x + 2, Item.m_Rect.y + Item.m_Rect.h - 2, Item.m_Rect.w - 4, .6f};

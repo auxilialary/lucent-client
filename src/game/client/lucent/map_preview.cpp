@@ -1,5 +1,7 @@
 #include "map_preview.h"
 
+#include "browser_layout.h"
+
 #include <base/str.h>
 
 #include <engine/engine.h>
@@ -42,8 +44,7 @@ class CLucentMapPreview::CDecodeJob : public IJob
 			for(size_t x = 0; x < m_Image.m_Width; ++x)
 			{
 				const auto C = Source.PixelColor(std::min(size_t(W - 1), x * W / m_Image.m_Width), std::min(size_t(H - 1), y * H / m_Image.m_Height));
-				const float Grey = C.r * .2126f + C.g * .7152f + C.b * .0722f;
-				m_Image.SetPixelColor(x, y, ColorRGBA(Grey * .18f + C.r * .82f, Grey * .18f + C.g * .82f, Grey * .18f + C.b * .82f, C.a));
+				m_Image.SetPixelColor(x, y, C);
 			}
 	}
 
@@ -193,7 +194,7 @@ void CLucentMapPreview::Update(const CServerInfo *pServer, double Now, bool Anim
 	pHttp->Run(m_pRequest);
 }
 
-void CLucentMapPreview::Render(IGraphics *pGraphics, const CUIRect &Screen, double Now, bool Animate, float Opacity)
+void CLucentMapPreview::Render(IGraphics *pGraphics, const CUIRect &Screen, double Now, bool Animate, float Opacity, float Context, float Players)
 {
 	const float T = Animate ? std::clamp(float((Now - m_FadeStart) / .42), 0.f, 1.f) : 1;
 	const float Fade = T * T * (3 - 2 * T);
@@ -206,23 +207,21 @@ void CLucentMapPreview::Render(IGraphics *pGraphics, const CUIRect &Screen, doub
 		pGraphics->SetColor(1, 1, 1, Alpha * .85f);
 		const auto &Entry = m_aCache[Index];
 		const float Settle = Animate ? std::pow(1.f - std::clamp(float((Now - Entry.m_RevealStart) / 3.5), 0.f, 1.f), 3.f) : 0.f;
-		const float Scale = LucentPreview::FrameScale(Entry.m_Width, Entry.m_Height, Screen.w, Screen.h) * (Atmospheric ? 1.16f : 1.f) * (1.f - .015f * Settle);
+		const auto Layout = CLucentBrowserSceneLayout::Measure(Screen, Context, Players);
+		const float Scale = std::min({Layout.m_Artwork.w / Entry.m_Width, Layout.m_Artwork.h / Entry.m_Height, 2.f}) * (Atmospheric ? 1.16f : 1.f) * (1.f - .015f * Settle);
 		const float Width = Entry.m_Width * Scale, Height = Entry.m_Height * Scale;
-		// Match the browser's list split and scene gutter. The atmospheric
-		// layer expands symmetrically around this shared artwork alignment.
-		const float SceneLeft = Screen.x + 18 + (Screen.w - 36) * .41f + 38;
-		const float X = SceneLeft - (Atmospheric ? Width * .069f : 0.f);
-		const float Y = Screen.y + Screen.h * .59f - Height;
-		// Feather all four edges in texture space. Geometry stays identical through fades.
+		const float X = Layout.m_Artwork.x + (Layout.m_Artwork.w - Width) * .5f;
+		const float Y = Layout.m_Artwork.y + (Layout.m_Artwork.h - Height) * .5f;
+		// Preserve the image center; dissolve mostly into the lower title boundary.
 		constexpr int Steps = 24;
 		for(int y = 0; y < Steps; ++y)
 			for(int x = 0; x < Steps; ++x)
 			{
 				const auto Mask = [&](float u, float v) {
-					const float Edge = std::clamp(std::min({u, v, 1 - u, 1 - v}) * 6.f, 0.f, 1.f);
+					const float Edge = std::clamp(std::min({u * 10.f, v * 14.f, (1 - u) * 16.f, (1 - v) * 7.f}), 0.f, 1.f);
 					const float Feather = Edge * Edge * (3 - 2 * Edge);
-					const float LowerFade = 1 - std::clamp((v - .72f) / .28f, 0.f, 1.f);
-					const float A = (Atmospheric ? .055f : .90f) * Feather * LowerFade * Opacity;
+					const float LowerFade = 1 - std::clamp((v - .82f) / .18f, 0.f, 1.f);
+					const float A = (Atmospheric ? .045f : .98f) * Feather * LowerFade * Opacity;
 					// Compensate alpha-over so equally framed images keep constant
 					// brightness and the outgoing image vanishes without a final jump.
 					return LucentPreview::FadeAlpha(A, Fade, Previous, m_Current >= 0);
