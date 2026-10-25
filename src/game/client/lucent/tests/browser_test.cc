@@ -42,6 +42,54 @@ int main()
 		for(const auto &Point : Mark)
 			CHECK(std::abs(Point.x) + LucentStyle::Checkbox::Stroke * Scale / 2 < Half && std::abs(Point.y) + LucentStyle::Checkbox::Stroke * Scale / 2 < Half);
 	}
+	// The complete AA fringe must fit the unchanged row even at fractional
+	// projections, during press/fill/mark transitions, and at translated origins.
+	for(float PixelsPerUnit : {.5f, .75f, 1.f, 1.25f, 1.5f, 2.f, 3.f})
+		for(float Progress : {0.f, .25f, .5f, .75f, 1.f})
+		{
+			using namespace LucentStyle;
+			const vec2 Origin(17.25f, 41.75f);
+			const vec2 Center = LucentUi::CheckboxCenter(Origin, 22);
+			const float Feather = .5f / PixelsPerUnit;
+			const float Size = Checkbox::Size * Motion::Lerp(1, Checkbox::PressScale, Progress);
+			const float Half = Size / 2;
+			const auto Outer = LucentUi::CheckboxBoundary(Center, Half + Feather, Checkbox::Radius * Size / Checkbox::Size + Feather);
+			for(const auto &Point : Outer)
+			{
+				CHECK(Point.x > Origin.x && Point.y > Origin.y && Point.y < Origin.y + 22);
+				CHECK(Point.x < Origin.x + Style::ControlSize + Style::LabelGap);
+			}
+			CHECK(std::abs(Center.y - (Origin.y + 11.f)) < .0001f);
+			const float MarkSize = Size * Motion::Lerp(Checkbox::MarkScale, 1, Progress);
+			const float StrokeRadius = Checkbox::Stroke * MarkSize / Checkbox::Size / 2;
+			const float Edge = std::min(Feather, StrokeRadius * .9f);
+			const auto Points = LucentUi::CheckboxMark(Center, MarkSize);
+			for(float Radius : {StrokeRadius - Edge, StrokeRadius + Edge})
+			{
+				const auto Outline = LucentUi::CheckboxMarkBoundary(Center, MarkSize, Radius);
+				for(size_t I = 0; I < Outline.size(); ++I)
+				{
+					const vec2 A = Outline[I] - Points[1], B = Outline[(I + 1) % Outline.size()] - Points[1];
+					// Consistent fan winding proves no overlapping triangles at the inner join.
+					CHECK(A.x * B.y - A.y * B.x < 0);
+					CHECK(std::abs(Outline[I].x - Center.x) < Half);
+					CHECK(std::abs(Outline[I].y - Center.y) < Half);
+				}
+			}
+		}
+	{
+		using namespace LucentStyle;
+		const auto Idle = Style::Text.WithAlpha(Checkbox::TextIdle);
+		const auto Inactive = Gradient::TextSample(0, 100, 2, 0, Idle);
+		CHECK(Inactive.r == Idle.r && Inactive.a == .8f);
+		const auto Left = Gradient::TextSample(0, 100, 0, 1, Idle);
+		const auto Right = Gradient::TextSample(100, 100, 0, 1, Idle);
+		CHECK(std::abs(Left.g - Right.g) > .2f);
+		const auto Surface = Gradient::Sample(Gradient::ControlOrigin, 2, {Checkbox::Period});
+		const auto Text = Gradient::TextSample(0, 100, 2, 1, Idle, {Checkbox::Period});
+		CHECK(std::abs(Surface.g - Text.g) < .0001f);
+	}
+
 	for(int Fps : {60, 144, 240})
 	{
 		LucentStyle::Motion::CTransition Fill, Mark, Press;
@@ -87,7 +135,7 @@ int main()
 		const auto Loop = Gradient::Sample(-.25f, Checkbox::Period, {Checkbox::Period});
 		CHECK(std::abs(A.g - Loop.g) < .0001f);
 		CHECK(Checkbox::Radius < Checkbox::Size / 2);
-		CHECK(Checkbox::Stroke > 2 && Checkbox::Stroke < 2.4f);
+		CHECK(Checkbox::Stroke > 1.7f && Checkbox::Stroke < 1.9f);
 	}
 
 	// Replay the same edit events at each refresh rate. Motion uses event time,

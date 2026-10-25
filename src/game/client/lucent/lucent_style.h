@@ -42,9 +42,10 @@ namespace LucentStyle
 	}
 	namespace Checkbox
 	{
-		constexpr float Size = 18, Radius = 4.5f, Border = .8f;
+		constexpr float Size = 15, Radius = 3.75f, Border = .9f, LeftInset = 4.5f;
+		constexpr float TextIdle = .80f, TextHover = .95f, TextChecked = 1.f;
 		constexpr float FillDuration = .19f, MarkDuration = .16f, PressDuration = .11f;
-		constexpr float PressScale = .95f, FillScale = .94f, MarkScale = .88f, Stroke = 2.2f;
+		constexpr float PressScale = .95f, FillScale = .94f, MarkScale = .88f, Stroke = 1.8f;
 		constexpr float HoverTint = .035f, GradientTilt = .2f;
 		constexpr double Period = 5;
 		inline const ColorRGBA Ink(.055f, .035f, .055f, 1);
@@ -151,9 +152,9 @@ namespace LucentStyle
 			return Blend(White, Color, std::clamp(Parameters.m_Intensity, 0.f, 1.f));
 		}
 		// One half-wave across each label: spatial color without brightness pulsing.
-		inline ColorRGBA TextSample(float X, float Width, double Time, float Active, ColorRGBA Idle)
+		inline ColorRGBA TextSample(float X, float Width, double Time, float Active, ColorRGBA Idle, CParameters Parameters = {})
 		{
-			const auto Color = Blend(Idle, Sample(ControlOrigin + ControlSpan * X / std::max(1.f, Width), Time), Active);
+			const auto Color = Blend(Idle, Sample(ControlOrigin + ControlSpan * X / std::max(1.f, Width), Time, Parameters), Active);
 			return Color.WithAlpha(Idle.a);
 		}
 	}
