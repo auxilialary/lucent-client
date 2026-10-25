@@ -2,6 +2,7 @@
 
 #include <game/client/lucent/browser_layout.h>
 #include <game/client/lucent/browser_state.h>
+#include <game/client/lucent/checkbox_geometry.h>
 #include <game/client/lucent/lucent_text_motion.h>
 #include <game/client/lucent/preview_policy.h>
 
@@ -18,6 +19,77 @@
 	} while(0)
 int main()
 {
+	// Independently verify the rounded mesh and optical checkmark at UI scales.
+	for(float Scale : {.5f, 1.f, 2.f})
+	{
+		const float Half = LucentStyle::Checkbox::Size * Scale / 2;
+		const float Radius = LucentStyle::Checkbox::Radius * Scale;
+		const auto Boundary = LucentUi::CheckboxBoundary(vec2(0, 0), Half, Radius);
+		float Area = 0;
+		for(size_t Index = 0; Index < Boundary.size(); ++Index)
+		{
+			const auto A = Boundary[Index], B = Boundary[(Index + 1) % Boundary.size()];
+			CHECK(std::abs(A.x) <= Half + .0001f && std::abs(A.y) <= Half + .0001f);
+			const vec2 Corner(std::max(0.f, std::abs(A.x) - Half + Radius), std::max(0.f, std::abs(A.y) - Half + Radius));
+			CHECK(length(Corner) <= Radius + .0001f);
+			CHECK(A.x * B.y - A.y * B.x > 0);
+			Area += (A.x * B.y - A.y * B.x) / 2;
+		}
+		CHECK(std::abs(Area - (4 * Half * Half - (4 - pi) * Radius * Radius)) < Scale * Scale);
+		const auto Mark = LucentUi::CheckboxMark(vec2(0, 0), Half * 2);
+		CHECK(Mark[0].x < Mark[1].x && Mark[1].x < Mark[2].x);
+		CHECK(Mark[1].y > Mark[0].y && Mark[1].y > Mark[2].y);
+		for(const auto &Point : Mark)
+			CHECK(std::abs(Point.x) + LucentStyle::Checkbox::Stroke * Scale / 2 < Half && std::abs(Point.y) + LucentStyle::Checkbox::Stroke * Scale / 2 < Half);
+	}
+	for(int Fps : {60, 144, 240})
+	{
+		LucentStyle::Motion::CTransition Fill, Mark, Press;
+		Fill.Update(true, 0, true, LucentStyle::Checkbox::FillDuration);
+		Mark.Update(true, 0, true, LucentStyle::Checkbox::MarkDuration);
+		Press.Update(true, 0, true, LucentStyle::Checkbox::PressDuration);
+		for(int Frame = 1; Frame <= Fps; ++Frame)
+		{
+			const double Now = double(Frame) / Fps;
+			CHECK(Fill.Update(true, Now, true, LucentStyle::Checkbox::FillDuration) >= 0);
+			Mark.Update(true, Now, true, LucentStyle::Checkbox::MarkDuration);
+			Press.Update(true, Now, true, LucentStyle::Checkbox::PressDuration);
+		}
+		CHECK(Fill.m_Value == 1 && Mark.m_Value == 1 && Press.m_Value == 1);
+	}
+	// Checkbox reversal preserves the visible value, including rapid retargets.
+	{
+		using namespace LucentStyle;
+		Motion::CTransition Fill;
+		CHECK(Fill.Update(false, 0, true) == 0);
+		Fill.Update(true, 0, true, Checkbox::FillDuration);
+		const float Partial = Fill.Update(true, .06, true, Checkbox::FillDuration);
+		CHECK(Partial > 0 && Partial < 1);
+		CHECK(Fill.Update(false, .06, true, Checkbox::FillDuration) == Partial);
+		const float Falling = Fill.Update(false, .08, true, Checkbox::FillDuration);
+		CHECK(Falling < Partial);
+		CHECK(Fill.Update(true, .08, true, Checkbox::FillDuration) == Falling);
+		CHECK(Fill.Update(true, 1, true, Checkbox::FillDuration) == 1);
+		CHECK(Fill.Update(false, 1, false) == 0);
+		CHECK(Fill.Update(true, 1, false) == 1);
+		Motion::CClock Clock;
+		Clock.BeginFrame(0, true);
+		Clock.BeginFrame(.05, true);
+		const double Phase = Clock.GradientTime();
+		CHECK(Phase == .05);
+		Clock.BeginFrame(2, false);
+		CHECK(Clock.GradientTime() == 0);
+		Clock.BeginFrame(4, true);
+		CHECK(Clock.GradientTime() == Phase);
+		const auto A = Gradient::Sample(-.25f, 0, {Checkbox::Period});
+		const auto B = Gradient::Sample(.25f, 0, {Checkbox::Period});
+		CHECK(std::abs(A.g - B.g) > .2f);
+		const auto Loop = Gradient::Sample(-.25f, Checkbox::Period, {Checkbox::Period});
+		CHECK(std::abs(A.g - Loop.g) < .0001f);
+		CHECK(Checkbox::Radius < Checkbox::Size / 2);
+		CHECK(Checkbox::Stroke > 2 && Checkbox::Stroke < 2.4f);
+	}
+
 	// Replay the same edit events at each refresh rate. Motion uses event time,
 	// never frame count, and cannot accumulate lag during held Backspace.
 	{

@@ -40,6 +40,18 @@ namespace LucentStyle
 		constexpr float SceneBase = .25f, SceneHover = .75f, ScenePressed = .10f, SceneIdle = .025f;
 		constexpr float Disabled = .35f, Selected = .13f, Hover = .045f, Pressed = .07f;
 	}
+	namespace Checkbox
+	{
+		constexpr float Size = 18, Radius = 4.5f, Border = .8f;
+		constexpr float FillDuration = .19f, MarkDuration = .16f, PressDuration = .11f;
+		constexpr float PressScale = .95f, FillScale = .94f, MarkScale = .88f, Stroke = 2.2f;
+		constexpr float HoverTint = .035f, GradientTilt = .2f;
+		constexpr double Period = 5;
+		inline const ColorRGBA Ink(.055f, .035f, .055f, 1);
+		inline const ColorRGBA BorderIdle(.22f, .20f, .25f, 1);
+		inline const ColorRGBA BorderHover(.48f, .35f, .43f, 1);
+	}
+
 	namespace Motion
 	{
 		constexpr float Hover = .18f, Focus = .18f, Selection = .22f, Branch = .28f;

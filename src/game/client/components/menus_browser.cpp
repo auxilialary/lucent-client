@@ -686,7 +686,7 @@ void CMenus::RenderServerbrowserFilters(CUIRect View, CScrollRegion *pScroll)
 	const auto CheckBox = [&](const void *pId, const char *pText, int Checked, const CUIRect *pRect) {
 		if(!pScroll)
 			return DoButton_CheckBox(pId, pText, Checked, pRect);
-		return LucentUi::CheckBox(Ui(), pId, pText, Checked ? "X" : "", *pRect);
+		return LucentUi::FilledCheckBox(Ui(), pId, pText, Checked != 0, *pRect);
 	};
 	const float FontSize = pScroll ? 11.f : (18.0f - 4.0f) * CUi::ms_FontmodHeight; // based on DoButton_CheckBox
 

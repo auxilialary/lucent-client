@@ -1,5 +1,6 @@
 #ifndef GAME_CLIENT_LUCENT_UI_H
 #define GAME_CLIENT_LUCENT_UI_H
+#include "checkbox_geometry.h"
 #include "lucent_style.h"
 
 #include <game/client/ui.h>
@@ -149,6 +150,101 @@ namespace LucentUi
 		CTextScope Text(pUi->TextRender(), std::min(Label.w, pUi->TextRender()->TextWidth(11, pText)), Active, Light, pUi->Enabled());
 		pUi->DoLabel(&Label, pText, 11, TEXTALIGN_ML, Props);
 		return pUi->DoButtonLogic(pId, 0, &Rect, Flags);
+	}
+	// Dedicated Filters presentation; input and the full row hitbox stay in CUi.
+	inline int FilledCheckBox(CUi *pUi, const void *pId, const char *pText, bool Checked, const CUIRect &Rect)
+	{
+		struct CState
+		{
+			const void *m_pId = nullptr;
+			double m_Last = -1;
+			LucentStyle::Motion::CTransition m_Fill, m_Mark, m_Press, m_Hover;
+		};
+		static std::array<CState, 128> s_aStates;
+		const auto &Clock = LucentStyle::Motion::Clock();
+		auto *pState = &s_aStates[0];
+		for(auto &State : s_aStates)
+		{
+			if(State.m_pId == pId)
+			{
+				pState = &State;
+				break;
+			}
+			if(State.m_Last < pState->m_Last)
+				pState = &State;
+		}
+		if(pState->m_pId != pId)
+		{
+			*pState = {};
+			pState->m_pId = pId;
+			pState->m_Fill.Update(Checked, Clock.m_Now, false);
+			pState->m_Mark.Update(Checked, Clock.m_Now, false);
+		}
+		pState->m_Last = Clock.m_Now;
+		const bool Enabled = pUi->Enabled();
+		const float Fill = pState->m_Fill.Update(Checked, Clock.m_Now, Clock.m_Animate, LucentStyle::Checkbox::FillDuration);
+		const float Mark = pState->m_Mark.Update(Checked, Clock.m_Now, Clock.m_Animate, LucentStyle::Checkbox::MarkDuration);
+		const float Press = pState->m_Press.Update(Enabled && pUi->CheckActiveItem(pId), Clock.m_Now, Clock.m_Animate, LucentStyle::Checkbox::PressDuration);
+		const float Hot = pState->m_Hover.Update(Enabled && pUi->MouseHovered(&Rect), Clock.m_Now, Clock.m_Animate);
+		const float Alpha = Enabled ? 1.f : LucentStyle::Style::Disabled;
+		// Keep the old right edge, label gap and row hitbox; grow to the left.
+		const vec2 Center(Rect.x + LucentStyle::Style::ControlSize - LucentStyle::Checkbox::Size / 2, Rect.y + Rect.h / 2);
+		const float Size = LucentStyle::Checkbox::Size * LucentStyle::Motion::Lerp(1, LucentStyle::Checkbox::PressScale, Press);
+		CUIRect Box = {Center.x - Size / 2, Center.y - Size / 2, Size, Size};
+		Box.Draw(LucentStyle::Gradient::Blend(LucentStyle::Checkbox::BorderIdle, LucentStyle::Checkbox::BorderHover, Hot).WithAlpha(Alpha), IGraphics::CORNER_ALL, LucentStyle::Checkbox::Radius);
+		CUIRect Inner;
+		Box.Margin(LucentStyle::Checkbox::Border, &Inner);
+		Inner.Draw(LucentStyle::Gradient::Blend(LucentStyle::Style::Surface, LucentStyle::Style::Accent, Hot * LucentStyle::Checkbox::HoverTint).WithAlpha(Alpha), IGraphics::CORNER_ALL, LucentStyle::Checkbox::Radius - LucentStyle::Checkbox::Border);
+		auto *pGraphics = pUi->Graphics();
+		if(Fill > .001f)
+		{
+			// A convex rounded fan samples the same spatial field at every vertex.
+			// Unlike Draw4's solid corner wedges, this has no color seams.
+			const float Half = Size * .5f * LucentStyle::Motion::Lerp(LucentStyle::Checkbox::FillScale, 1, Fill);
+			const float Radius = LucentStyle::Checkbox::Radius * Half / (Size * .5f);
+			const auto aBoundary = CheckboxBoundary(Center, Half, Radius);
+			const auto Color = [&](vec2 Point) {
+				return LucentStyle::Gradient::Sample((Point.x - Center.x) / (2 * Half) + LucentStyle::Checkbox::GradientTilt * (Point.y - Center.y) / (2 * Half), Clock.GradientTime(), {LucentStyle::Checkbox::Period}).WithAlpha(Fill * Alpha * CUIRect::DrawOpacity());
+			};
+			pGraphics->TextureClear();
+			pGraphics->QuadsBegin();
+			for(size_t Index = 0; Index < aBoundary.size(); ++Index)
+			{
+				const vec2 A = aBoundary[Index], B = aBoundary[(Index + 1) % aBoundary.size()];
+				pGraphics->SetColor4(Color(Center), Color(A), Color(B), Color(B));
+				const IGraphics::CFreeformItem Triangle(Center, A, B, B);
+				pGraphics->QuadsDrawFreeform(&Triangle, 1);
+			}
+			pGraphics->QuadsEnd();
+		}
+		if(Mark > .001f)
+		{
+			const float Scale = Size * LucentStyle::Motion::Lerp(LucentStyle::Checkbox::MarkScale, 1, Mark);
+			const auto aPoints = CheckboxMark(Center, Scale);
+			const float Radius = LucentStyle::Checkbox::Stroke * Scale / LucentStyle::Checkbox::Size / 2;
+			pGraphics->TextureClear();
+			pGraphics->QuadsBegin();
+			pGraphics->SetColor(LucentStyle::Checkbox::Ink.WithAlpha(Mark * Alpha * CUIRect::DrawOpacity()));
+			for(int Segment = 0; Segment < 2; ++Segment)
+			{
+				const vec2 D = normalize(aPoints[Segment + 1] - aPoints[Segment]);
+				const vec2 N(-D.y * Radius, D.x * Radius);
+				const IGraphics::CFreeformItem Quad(aPoints[Segment] + N, aPoints[Segment] - N, aPoints[Segment + 1] + N, aPoints[Segment + 1] - N);
+				pGraphics->QuadsDrawFreeform(&Quad, 1);
+			}
+			for(const auto &Point : aPoints)
+				pGraphics->DrawCircle(Point.x, Point.y, Radius, 16);
+			pGraphics->QuadsEnd();
+		}
+		CUIRect Label = Rect;
+		Label.VSplitLeft(LucentStyle::Style::ControlSize + LucentStyle::Style::LabelGap, nullptr, &Label);
+		SLabelProperties Props;
+		Props.m_MaxWidth = Label.w;
+		Props.m_StopAtEnd = true;
+		Props.m_EnableWidthCheck = false;
+		CTextScope Text(pUi->TextRender(), Label.w, 0, Hot, Enabled);
+		pUi->DoLabel(&Label, pText, 11, TEXTALIGN_ML, Props);
+		return pUi->DoButtonLogic(pId, 0, &Rect, BUTTONFLAG_LEFT);
 	}
 	class CScope
 	{
