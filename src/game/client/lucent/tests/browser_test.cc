@@ -196,25 +196,56 @@ int main()
 	CHECK(Narrow.m_ContentHeight > Narrow.m_GridHeight);
 	CHECK(CLucentBrowserFilterLayout::Measure(600, 8, 4, true, true, true, false).m_ContentHeight == Narrow.m_ContentHeight);
 	CHECK(CLucentBrowserFilterLayout::Measure(600, 8, 4, true, false, false, false).m_GridHeight == 0);
-	// Quick controls wrap into bounded rows; narrow workspaces include every group.
-	CHECK(CLucentBrowserFilterLayout::QuickColumns(820) == 3);
+	// Shared geometry fits at desktop aspect ratios and at larger UI scales.
+	CHECK(CLucentBrowserFilterLayout::QuickColumns(820) == 2);
 	CHECK(CLucentBrowserFilterLayout::QuickColumns(420) == 2);
 	CHECK(CLucentBrowserFilterLayout::QuickColumns(300) == 1);
-	CHECK(CLucentBrowserFilterLayout::QuickHeight(300) > CLucentBrowserFilterLayout::QuickHeight(420));
-	for(float Width : {300.f, 420.f, 600.f, 631.f, 632.f, 720.f, 820.f, 1098.67f})
-	{
-		const auto Layout = CLucentBrowserFilterLayout::Measure(Width, 101, 15, true, true, true, true);
-		CHECK(Layout.m_ContentHeight >= Layout.m_GridHeight + CLucentBrowserFilterLayout::QuickHeight(CLucentBrowserFilterLayout::WorkspaceWidth(Width) - 12));
-		CHECK(CLucentBrowserFilterLayout::QuickColumns(Width) >= 1);
-	}
-	// Expanded fields retain the chip anchor and remain inside the workspace.
+	CHECK(CLucentBrowserFilterLayout::QuickColumns(420, 220) == 1);
+	for(float Width : {280.f, 389.f, 390.f, 420.f, 619.f, 620.f, 720.f, 820.f, 1920.f * 600 / 1080, 2560.f * 600 / 1440, 1280.f * 600 / 720})
+		for(float Minimum : {150.f, 185.f, 240.f})
+			for(bool CountriesTab : {false, true})
+				for(bool HasGrid : {false, true})
+					for(float Expansion : {0.f, .5f, 1.f})
+					{
+						const float Workspace = CLucentBrowserFilterLayout::WorkspaceWidth(Width);
+						const auto Layout = CLucentBrowserFilterLayout::Measure(Width, 101, 15, CountriesTab, HasGrid, true, true, Expansion, Minimum);
+						const float GroupWidth = Layout.m_Wide ? (Workspace - CLucentBrowserFilterLayout::ColumnGap(Workspace)) / 2 : Workspace;
+						const float Left = CLucentBrowserFilterLayout::GroupHeight(GroupWidth, 4, Minimum);
+						const float Right = CLucentBrowserFilterLayout::GroupHeight(GroupWidth, 5, Minimum);
+						const float Groups = Layout.m_Wide ? std::max(Left, Right) : Left + 8 + Right;
+						// Walk the same sections as rendering, through the bottom of the grid.
+						const float Bottom = Groups + 26 + CLucentBrowserFilterLayout::InputHeight(Workspace) + 30 * Expansion + 5 + 28.5f + 21 + (HasGrid ? 25 + Layout.m_GridHeight : 0);
+						CHECK(std::abs(Layout.m_ContentHeight - Bottom - 13) < .001f);
+						const auto Closed = CLucentBrowserFilterLayout::Measure(Width, 101, 15, CountriesTab, HasGrid, true, true, 0, Minimum);
+						CHECK(std::abs(Layout.m_ContentHeight - Closed.m_ContentHeight - 30 * Expansion) < .001f);
+						CUIRect Row = {18, 40, Workspace, CLucentBrowserFilterLayout::InputHeight(Workspace)};
+						for(int i = 0; i < 3; ++i)
+						{
+							const auto Chip = CLucentBrowserFilterLayout::ChipBounds(Row, i);
+							CHECK(Chip.x >= Row.x && Chip.x + Chip.w <= Row.x + Row.w + .001f);
+							CHECK(Chip.y + Chip.h <= Row.y + Row.h);
+							if(i > 0)
+							{
+								const auto Previous = CLucentBrowserFilterLayout::ChipBounds(Row, i - 1);
+								CHECK(Chip.x >= Previous.x + Previous.w || Chip.y >= Previous.y + Previous.h);
+							}
+						}
+					}
+	for(float Workspace : {240.f, 420.f, 620.f, 820.f})
+		for(bool CountriesTab : {false, true})
+		{
+			const float Width = CLucentBrowserFilterLayout::GridWidth(Workspace, 101, CountriesTab);
+			CHECK(Width <= Workspace && Width <= 300);
+			CHECK(Width / 5 >= 44); // Hit cells stay larger than the 32x16 flags.
+		}
+	// Expanded fields remain inside the workspace, including the rightmost chip.
 	for(float Width : {280.f, 420.f, 820.f, 1700.f})
 	{
 		CUIRect Row = {18, 40, CLucentBrowserFilterLayout::WorkspaceWidth(Width) - 12, 30};
 		for(int Index = 0; Index < 3; ++Index)
 		{
 			const auto Edit = CLucentBrowserFilterLayout::InputBounds(Row, Index);
-			CHECK(Edit.x == Row.x + Index * Row.w / 3);
+			CHECK(Edit.x >= Row.x);
 			CHECK(Edit.w > 0 && Edit.w <= 480);
 			CHECK(Edit.x + Edit.w <= Row.x + Row.w);
 		}
@@ -231,8 +262,8 @@ int main()
 		CHECK(std::abs(Right.x + Right.w - (Workspace.x + Workspace.w)) < .001f);
 		CHECK(Left.w < Workspace.w * .5f);
 	}
-	CHECK(!CLucentBrowserFilterLayout::Measure(631, 0, 0, true, false, false, false).m_Wide);
-	CHECK(CLucentBrowserFilterLayout::Measure(632, 0, 0, true, false, false, false).m_Wide);
+	CHECK(!CLucentBrowserFilterLayout::Measure(619, 0, 0, true, false, false, false).m_Wide);
+	CHECK(CLucentBrowserFilterLayout::Measure(620, 0, 0, true, false, false, false).m_Wide);
 
 	CLucentCountryPickerState Picker;
 	CHECK(Picker.Reconcile(200, 127, false) && Picker.m_Cursor == 127);

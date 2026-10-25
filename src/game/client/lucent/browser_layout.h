@@ -35,26 +35,47 @@ struct CLucentBrowserFilterLayout
 		const float Width = (Workspace.w - Gap) / 2;
 		return {Workspace.x + Index * (Width + Gap), Workspace.y, Width, Workspace.h};
 	}
-	static int QuickColumns(float Width) { return std::clamp(int((Width - 14) / 185), 1, 3); }
-	static float QuickHeight(float Width) { return ((5 + QuickColumns(Width) - 1) / QuickColumns(Width)) * 25.f + 8; }
+	static int QuickColumns(float Width, float Minimum = 185) { return Width >= 2 * Minimum + 8 ? 2 : 1; }
+	static float GroupHeight(float Width, int Count, float Minimum = 185)
+	{
+		return 28 + ((Count + QuickColumns(Width, Minimum) - 1) / QuickColumns(Width, Minimum)) * 25.f;
+	}
+	static float CheckboxHeight(float Width, float Minimum = 185)
+	{
+		if(Width >= WideWidth)
+		{
+			const float GroupWidth = (Width - ColumnGap(Width)) / 2;
+			return std::max(GroupHeight(GroupWidth, 4, Minimum), GroupHeight(GroupWidth, 5, Minimum));
+		}
+		return GroupHeight(Width, 4, Minimum) + 8 + GroupHeight(Width, 5, Minimum);
+	}
+	static int InputColumns(float Width) { return Width >= 390 ? 3 : 1; }
+	static float InputHeight(float Width) { return (3 / InputColumns(Width)) * 30.f; }
+	static CUIRect ChipBounds(const CUIRect &Row, int Index)
+	{
+		const int Columns = InputColumns(Row.w);
+		const float Width = (Row.w - (Columns - 1) * 6) / Columns;
+		return {Row.x + (Index % Columns) * (Width + 6), Row.y + (Index / Columns) * 30, Width, 24};
+	}
 	static CUIRect InputBounds(const CUIRect &Row, int Index)
 	{
-		const float ChipWidth = Row.w / 3 - 6;
-		const float X = Row.x + std::clamp(Index, 0, 2) * Row.w / 3;
-		return {X, Row.y, std::min({480.f, std::max(ChipWidth, 320.f), Row.x + Row.w - X - 6}), 23};
+		const auto Chip = ChipBounds(Row, std::clamp(Index, 0, 2));
+		const float Width = std::min(480.f, Row.w);
+		return {std::min(Chip.x, Row.x + Row.w - Width), Row.y, Width, 23};
 	}
-	static CLucentBrowserFilterLayout Measure(float Width, int Countries, int Types, bool CountriesTab, bool HasGrid, bool /*Ranks*/, bool /*Finished*/, float InputExpansion = 0)
+	static float GridWidth(float Width, int Countries, bool CountriesTab, float Minimum = 240)
+	{
+		const float ContentWidth = CountriesTab ? (Countries > 8 ? 5 : 4) * 44.f : 300.f;
+		return std::min(Width, std::max(Minimum, ContentWidth));
+	}
+	static CLucentBrowserFilterLayout Measure(float Width, int Countries, int Types, bool CountriesTab, bool HasGrid, bool /*Ranks*/, bool /*Finished*/, float InputExpansion = 0, float Minimum = 185)
 	{
 		Width = WorkspaceWidth(Width);
-		Width -= 12; // Forced 8-unit scrollbar and 4-unit content inset.
 		const bool Wide = Width >= WideWidth;
 		const int Columns = Countries > 8 ? 5 : 4;
 		const float Grid = !HasGrid ? 0.f : CountriesTab ? ((Countries + Columns - 1) / Columns) * 22.f :
 								   ((Types + 2) / 3) * 17.f;
-		const int OptionColumns = QuickColumns(Width);
-		const float Checkboxes = 44 + (((4 + OptionColumns - 1) / OptionColumns) + ((5 + OptionColumns - 1) / OptionColumns)) * 25.f;
-		const float Height = Checkboxes + 26 + 30 + 30 * std::clamp(InputExpansion, 0.f, 1.f) + 10 + (8 + 16 + .5f) + 21 + (HasGrid ? 6 + 19 + Grid : 0);
-
+		const float Height = CheckboxHeight(Width, Minimum) + 26 + InputHeight(Width) + 30 * std::clamp(InputExpansion, 0.f, 1.f) + 10 + 28.5f + 21 + (HasGrid ? 6 + 19 + Grid : 0) + 8;
 		return {Wide, Grid, Height};
 	}
 };

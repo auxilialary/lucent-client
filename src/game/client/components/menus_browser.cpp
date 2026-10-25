@@ -718,39 +718,57 @@ void CMenus::RenderServerbrowserFilters(CUIRect View, CScrollRegion *pScroll)
 	const float InputExpansion = pScroll ? s_InputExpansion.Update(s_OpenInput >= 0, Clock.m_Now, Clock.m_Animate, LucentStyle::Motion::FilterInput) : 0;
 	if(pScroll)
 	{
-		const auto Layout = CLucentBrowserFilterLayout::Measure(View.w,
-			ServerBrowser()->CommunityCache().SelectableCountries().size(),
-			ServerBrowser()->CommunityCache().SelectableTypes().size(),
-			LayoutTab == FILTERTAB_COUNTRIES,
-			ServerBrowser()->CommunityCache().CountriesTypesFilterAvailable(),
-			ServerBrowser()->CommunityCache().AnyRanksAvailable(), LayoutFinished, InputExpansion);
-		GridHeight = Layout.m_GridHeight;
-		const float ContentHeight = Layout.m_ContentHeight;
-		CScrollRegionParams Params;
-		Params.m_ScrollbarThickness = 8.0f;
-		Params.m_ScrollbarMargin = 1.0f;
-		Params.m_ForceShowScrollbar = true;
-		Params.m_ManualScrollInput = true;
-		Params.m_ScrollUnit = 3 * RowHeight;
-		pScroll->Begin(&View, &Params, ContentHeight);
-		View.VSplitRight(4.0f, &View, nullptr);
-		View.h = ContentHeight;
-		pScroll->AddRect(View);
-		// Two semantic groups share the existing checkbox renderer.
 		const int Counts[] = {4, 5};
 		int *apValues[] = {&g_Config.m_BrFilterEmpty, &g_Config.m_BrFilterFull, &g_Config.m_BrFilterUnfinishedMap, &g_Config.m_BrFilterGametypeStrict,
 			&g_Config.m_BrFilterPw, &g_Config.m_BrFilterLogin, &g_Config.m_BrFilterFriends, &g_Config.m_BrFilterConnectingPlayers, &g_Config.m_BrFilterSpectators};
 		const char *apLabels[] = {"Has people playing", "Server not full", "Unfinished map", "Strict gametype filter",
 			"No password", "No login required", "Show friends only", "Filter connecting players", "Count players only"};
 		const char *apGroups[] = {"Servers and maps", "Access and players"};
+		float Minimum = 0;
+		for(const char *pLabel : apLabels)
+			Minimum = std::max(Minimum, TextRender()->TextWidth(11, Localize(pLabel)) + LucentStyle::Style::ControlSize + LucentStyle::Style::LabelGap + 8);
+		const auto Measure = [&](float Width) {
+			return CLucentBrowserFilterLayout::Measure(Width,
+				ServerBrowser()->CommunityCache().SelectableCountries().size(),
+				ServerBrowser()->CommunityCache().SelectableTypes().size(),
+				LayoutTab == FILTERTAB_COUNTRIES,
+				ServerBrowser()->CommunityCache().CountriesTypesFilterAvailable(),
+				ServerBrowser()->CommunityCache().AnyRanksAvailable(), LayoutFinished, InputExpansion, Minimum);
+		};
+		auto Layout = Measure(View.w);
+		if(std::ceil(Layout.m_ContentHeight) > View.h)
+			Layout = Measure(View.w - 8);
+		GridHeight = Layout.m_GridHeight;
+		CScrollRegionParams Params;
+		Params.m_ScrollbarThickness = 8.0f;
+		Params.m_ScrollbarMargin = 1.0f;
+		Params.m_ManualScrollInput = true;
+		Params.m_ScrollUnit = 3 * RowHeight;
+		pScroll->Begin(&View, &Params, std::ceil(Layout.m_ContentHeight));
+		View.h = Layout.m_ContentHeight;
+		pScroll->AddRect(View);
+		CUIRect Groups;
+		View.HSplitTop(CLucentBrowserFilterLayout::CheckboxHeight(View.w, Minimum), &Groups, &View);
 		int Offset = 0;
-		const int Columns = CLucentBrowserFilterLayout::QuickColumns(View.w);
 		for(int Group = 0; Group < 2; ++Group)
 		{
-			CUIRect Heading, Options;
-			View.HSplitTop(22, &Heading, &View);
-			Ui()->DoLabel(&Heading, Localize(apGroups[Group]), 11, TEXTALIGN_ML);
-			View.HSplitTop(((Counts[Group] + Columns - 1) / Columns) * 25.f, &Options, &View);
+			CUIRect Block = Groups;
+			if(Layout.m_Wide)
+				Block = CLucentBrowserFilterLayout::Column(Groups, Group);
+			else
+			{
+				Groups.HSplitTop(CLucentBrowserFilterLayout::GroupHeight(Groups.w, Counts[Group], Minimum), &Block, &Groups);
+				if(Group == 0)
+					Groups.HSplitTop(8, nullptr, &Groups);
+			}
+			CUIRect Heading, Line, Options;
+			Block.HSplitTop(18, &Heading, &Block);
+			Ui()->DoLabel(&Heading, Localize(apGroups[Group]), 11, TEXTALIGN_MC);
+			Block.HSplitTop(4, nullptr, &Block);
+			Block.HSplitTop(.5f, &Line, &Block);
+			LucentUi::Divider(Line);
+			Block.HSplitTop(5.5f, nullptr, &Options);
+			const int Columns = CLucentBrowserFilterLayout::QuickColumns(Options.w, Minimum);
 			for(int i = 0; i < Counts[Group]; ++i)
 			{
 				const int Index = Offset + i;
@@ -766,13 +784,13 @@ void CMenus::RenderServerbrowserFilters(CUIRect View, CScrollRegion *pScroll)
 		}
 		CUIRect TextHeading;
 		View.HSplitTop(26, &TextHeading, &View);
-		Ui()->DoLabel(&TextHeading, Localize("Text filters"), 11, TEXTALIGN_ML);
+		Ui()->DoLabel(&TextHeading, Localize("Text filters"), 11, TEXTALIGN_MC);
 		CUIRect Compact;
-		View.HSplitTop(30, &Compact, &View);
+		View.HSplitTop(CLucentBrowserFilterLayout::InputHeight(View.w), &Compact, &View);
 		const char *apNames[] = {"Exclusions", "Game types:", "Server address:"};
 		for(int i = 0; i < 3; ++i)
 		{
-			CUIRect Chip = {Compact.x + i * Compact.w / 3, Compact.y, Compact.w / 3 - 6, 24};
+			CUIRect Chip = CLucentBrowserFilterLayout::ChipBounds(Compact, i);
 			const bool Filled = s_CompactInputs[i].GetString()[0] != 0;
 			LucentUi::InputFrame(Chip, &s_aCompactIds[i], Filled, s_OpenInput == i, Ui()->MouseHovered(&Chip), Ui()->Enabled(), IGraphics::CORNER_ALL);
 			CUIRect Icon, Label;
@@ -869,7 +887,10 @@ void CMenus::RenderServerbrowserFilters(CUIRect View, CScrollRegion *pScroll)
 		View.HSplitTop(16, &Heading, &View);
 		TextRender()->TextColor(LucentStyle::Style::MutedText);
 		Ui()->DoLabel(&Heading, pText, 11, TEXTALIGN_MC);
-		View.HSplitTop(LucentStyle::Style::Hairline, nullptr, &View);
+		View.HSplitTop(4, nullptr, &View);
+		CUIRect Line;
+		View.HSplitTop(LucentStyle::Style::Hairline, &Line, &View);
+		LucentUi::Divider(Line);
 		TextRender()->TextColor(TextRender()->DefaultTextColor());
 	};
 	LucentUi::COpacityScope BodyOpacity(TextRender(), pScroll ? LucentStyle::Motion::Smooth(std::clamp((m_LucentBrowser.FiltersOpacity() - LucentStyle::Motion::FilterBodyDelay) / (1 - LucentStyle::Motion::FilterBodyDelay), 0.f, 1.f)) : 1.f);
@@ -921,13 +942,22 @@ void CMenus::RenderServerbrowserFilters(CUIRect View, CScrollRegion *pScroll)
 			Client()->ServerBrowserUpdate();
 	}
 
+	if(pScroll)
+	{
+		float Minimum = std::max(TextRender()->TextWidth(11, Localize("Countries and types")),
+			TextRender()->TextWidth(11, Localize("Player country:")) + LucentStyle::Style::ControlSize + LucentStyle::Style::LabelGap + 68);
+		Minimum = std::max(Minimum, 2 * std::max(TextRender()->TextWidth(11, Localize("Countries")), TextRender()->TextWidth(11, Localize("Types"))) + 12);
+		if(LayoutTab == FILTERTAB_TYPES)
+			for(const auto *pType : ServerBrowser()->CommunityCache().SelectableTypes())
+				Minimum = std::max(Minimum, 3 * (TextRender()->TextWidth(13 * CUi::ms_FontmodHeight, pType->Name()) + 4));
+		const float Width = CLucentBrowserFilterLayout::GridWidth(View.w, ServerBrowser()->CommunityCache().SelectableCountries().size(), LayoutTab == FILTERTAB_COUNTRIES, std::max(240.f, Minimum));
+		View.VMargin((View.w - Width) / 2, &View);
+	}
 	// player country
 	Section(Localize(pScroll ? "Countries and types" : "Players"));
 	{
 		CUIRect Flag;
 		View.HSplitTop(RowHeight, &Button, &View);
-		if(pScroll)
-			Button.w = std::min(360.f, Button.w);
 		Button.VSplitRight(60.0f, &Button, &Flag);
 		if(CheckBox(&g_Config.m_BrFilterCountry, Localize("Player country:"), g_Config.m_BrFilterCountry, &Button))
 			g_Config.m_BrFilterCountry ^= 1;
@@ -998,8 +1028,6 @@ void CMenus::RenderServerbrowserFilters(CUIRect View, CScrollRegion *pScroll)
 		const ColorRGBA ColorActive = ColorRGBA(0.0f, 0.0f, 0.0f, 0.3f);
 		const ColorRGBA ColorInactive = ColorRGBA(0.0f, 0.0f, 0.0f, 0.15f);
 
-		if(pScroll)
-			View.w = std::min(360.f, View.w);
 		CUIRect TabContents, CountriesTab, TypesTab;
 		View.HSplitTop(6.0f, nullptr, &View);
 		View.HSplitTop(19.0f, &Button, &View);
@@ -1299,6 +1327,8 @@ void CMenus::RenderServerbrowserCountriesFilter(CUIRect View)
 	};
 	const auto &&RenderItem = [&](int ItemIndex, CUIRect Item, const void *pItemId, bool Active) {
 		Item.Margin(Spacing, &Item);
+		if(m_LucentFiltersRendering)
+			Item.HMargin(1, &Item);
 		const float OldWidth = Item.w;
 		Item.w = Item.h * 2.0f;
 		Item.x += (OldWidth - Item.w) / 2.0f;
