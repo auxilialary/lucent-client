@@ -1,3 +1,5 @@
+#include <engine/textrender.h>
+
 #include <game/client/lucent/browser_layout.h>
 #include <game/client/lucent/browser_state.h>
 #include <game/client/lucent/preview_policy.h>
@@ -63,6 +65,36 @@ int main()
 	CHECK(LucentStyle::Gradient::Sample(.2f, 1, {6, 1, 0}).g == 1);
 	CHECK(std::abs(LucentStyle::Gradient::Sample(.2f, 1, {6, -1, 1}).g - LucentStyle::Gradient::Sample(.2f, -1).g) < .00001f);
 
+	CHECK(LucentStyle::Gradient::TextSample(0, 100, 0, 1, White) == White);
+	CHECK(LucentStyle::Gradient::TextSample(100, 100, 0, 1, White) == Pink);
+
+	// Exercise the color transform used by both renderer atlas passes. A glyph's
+	// left/right vertices differ in one frame; translating the container cannot
+	// change the local gradient, and alpha remains compatible with color splits.
+	for(int Fps : {60, 144, 240})
+	{
+		LucentStyle::Motion::CClock Clock;
+		Clock.BeginFrame(0, true);
+		for(int Frame = 1; Frame <= Fps; ++Frame)
+			Clock.BeginFrame(double(Frame) / Fps, true);
+		const STextVertexColor::FSampler Sampler = [&](float X, ColorRGBA Base) {
+			return LucentStyle::Gradient::TextSample(X, 100, Clock.GradientTime(), 1, Base);
+		};
+		const ColorRGBA Base(.8f, .8f, .8f, .6f), Tint(1, 1, 1, .5f);
+		const auto Left = STextVertexColor::Apply(Sampler, 12, 12, Base, Tint);
+		const auto Right = STextVertexColor::Apply(Sampler, 62, 12, Base, Tint);
+		CHECK(std::abs(Left.g - Right.g) > .05f);
+		CHECK(std::abs(Left.a - .3f) < .00001f);
+		CHECK(Left == STextVertexColor::Apply(Sampler, 812, 812, Base, Tint));
+		CHECK(STextVertexColor::Apply({}, 12, 12, Base, Tint) == ColorRGBA(.8f, .8f, .8f, .3f));
+		CHECK(LucentStyle::Gradient::TextSample(12, 100, 1, 0, Base) == Base);
+		Clock.BeginFrame(2, false);
+		const auto Static = STextVertexColor::Apply(Sampler, 62, 12, Base, Tint);
+		Clock.BeginFrame(30, false);
+		CHECK(Static == STextVertexColor::Apply(Sampler, 62, 12, Base, Tint));
+		CHECK(std::abs(STextVertexColor::Apply(Sampler, 12, 12, Base, Tint).g - Static.g) > .05f);
+	}
+
 	// Supporting artwork must leave contextual text below it at every viewport.
 	for(float Width : {800.f, 1098.67f, 1280.f, 1706.67f})
 	{
@@ -99,7 +131,7 @@ int main()
 	CHECK(Countries.m_Wide && Countries.m_GridHeight == 21 * 22);
 	CHECK(Countries.m_ContentHeight >= Countries.m_GridHeight + 59);
 	const auto Types = CLucentBrowserFilterLayout::Measure(1000, 101, 3, false, true, true, true);
-	CHECK(Types.m_GridHeight == 17 && Types.m_ContentHeight == 505.5f);
+	CHECK(Types.m_GridHeight == 17 && Types.m_ContentHeight == 355.5f);
 	const auto Narrow = CLucentBrowserFilterLayout::Measure(600, 8, 4, true, true, true, true);
 	CHECK(!Narrow.m_Wide && Narrow.m_GridHeight == 44);
 	CHECK(Narrow.m_ContentHeight > Types.m_ContentHeight);
@@ -110,12 +142,27 @@ int main()
 	CHECK(CLucentBrowserFilterLayout::QuickColumns(420) == 2);
 	CHECK(CLucentBrowserFilterLayout::QuickColumns(300) == 1);
 	CHECK(CLucentBrowserFilterLayout::QuickHeight(300) > CLucentBrowserFilterLayout::QuickHeight(420));
-	for(float Width : {300.f, 420.f, 600.f, 720.f, 820.f})
+	for(float Width : {300.f, 420.f, 600.f, 631.f, 632.f, 720.f, 820.f, 1098.67f})
 	{
 		const auto Layout = CLucentBrowserFilterLayout::Measure(Width, 101, 15, true, true, true, true);
-		CHECK(Layout.m_ContentHeight >= Layout.m_GridHeight + CLucentBrowserFilterLayout::QuickHeight(Width));
+		CHECK(Layout.m_ContentHeight >= Layout.m_GridHeight + CLucentBrowserFilterLayout::QuickHeight(CLucentBrowserFilterLayout::WorkspaceWidth(Width) - 12));
 		CHECK(CLucentBrowserFilterLayout::QuickColumns(Width) >= 1);
 	}
+	// Production column geometry at the requested 1648x900 viewport (600 UI height).
+	for(float ScreenWidth : {632.f, 720.f, 1648.f * 600 / 900, 1706.f})
+	{
+		const float Width = CLucentBrowserFilterLayout::WorkspaceWidth(ScreenWidth);
+		const CUIRect Workspace = {(ScreenWidth - Width) / 2, 0, Width - 12, 600};
+		const auto Left = CLucentBrowserFilterLayout::Column(Workspace, 0);
+		const auto Right = CLucentBrowserFilterLayout::Column(Workspace, 1);
+		CHECK(Left.w == Right.w && Left.w >= 290);
+		CHECK(Left.x + Left.w < Right.x);
+		CHECK(std::abs(Right.x + Right.w - (Workspace.x + Workspace.w)) < .001f);
+		CHECK(Left.w < Workspace.w * .5f);
+	}
+	CHECK(!CLucentBrowserFilterLayout::Measure(631, 0, 0, true, false, false, false).m_Wide);
+	CHECK(CLucentBrowserFilterLayout::Measure(632, 0, 0, true, false, false, false).m_Wide);
+
 	CLucentCountryPickerState Picker;
 	CHECK(Picker.Reconcile(200, 127, false) && Picker.m_Cursor == 127);
 	CHECK(!Picker.CanCommit(200, false, false));

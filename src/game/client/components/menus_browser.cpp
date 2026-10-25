@@ -680,8 +680,10 @@ void CMenus::PopupConfirmSwitchServer()
 
 void CMenus::RenderServerbrowserFilters(CUIRect View, CScrollRegion *pScroll)
 {
-	const bool Wide = pScroll && View.w >= 720;
-	CUIRect Columns[3];
+	if(pScroll)
+		View.VMargin(std::max(0.f, (View.w - CLucentBrowserFilterLayout::WorkspaceWidth(View.w)) / 2), &View);
+	const bool Wide = pScroll && View.w - 12 >= CLucentBrowserFilterLayout::WideWidth;
+	CUIRect Columns[2];
 	const float RowHeight = pScroll ? 21.0f : 18.0f;
 	const auto CheckBox = [&](const void *pId, const char *pText, int Checked, const CUIRect *pRect) {
 		if(!pScroll)
@@ -726,39 +728,20 @@ void CMenus::RenderServerbrowserFilters(CUIRect View, CScrollRegion *pScroll)
 			View.HSplitTop(CLucentBrowserFilterLayout::QuickHeight(View.w), &Quick, &View);
 			int *apValues[] = {&g_Config.m_BrFilterEmpty, &g_Config.m_BrFilterFull, &g_Config.m_BrFilterPw, &g_Config.m_BrFilterLogin, &g_Config.m_BrFilterFriends};
 			const char *apLabels[] = {"Has people playing", "Server not full", "No password", "No login required", "Show friends only"};
-			const float Width = std::min(190.f, Quick.w / QuickColumns);
+			const float Width = std::min(250.f, Quick.w / QuickColumns);
 			for(int i = 0; i < 5; ++i)
 			{
 				CUIRect Toggle;
-				Toggle = {Quick.x + (i % QuickColumns) * Width, Quick.y + (i / QuickColumns) * 25, Width - 8, 22};
+				const int RowColumns = std::min(QuickColumns, 5 - (i / QuickColumns) * QuickColumns);
+				Toggle = {Quick.x + (Quick.w - RowColumns * Width) / 2 + (i % QuickColumns) * Width, Quick.y + (i / QuickColumns) * 25, Width - 8, 22};
 				if(CheckBox(apValues[i], Localize(apLabels[i]), *apValues[i], &Toggle))
 					*apValues[i] ^= 1;
 			}
 		}
-		CUIRect Exclude, Label, ExclusionTitle;
-		View.HSplitTop(18, &ExclusionTitle, &View);
-		Ui()->DoLabel(&ExclusionTitle, Localize("Exclusions"), 11, TEXTALIGN_MC);
-		CUIRect ExclusionRule;
-		View.HSplitTop(LucentStyle::Style::Hairline, &ExclusionRule, &View);
-		LucentUi::Divider(ExclusionRule, .14f);
-		View.HSplitTop(18, &Label, &View);
-		Ui()->DoLabel(&Label, Localize("Exclude"), 11, TEXTALIGN_ML);
-		View.HSplitTop(21, &Exclude, &View);
-		View.HSplitTop(10, nullptr, &View);
-		static CLineInput s_Exclude(g_Config.m_BrExcludeString, sizeof(g_Config.m_BrExcludeString));
-		if(Ui()->DoClearableEditBox(&s_Exclude, &Exclude, 11))
-			Client()->ServerBrowserUpdate();
 		if(Wide)
 		{
-			const float Width = View.w / 3;
-			for(int i = 0; i < 3; ++i)
-				Columns[i] = {View.x + i * Width + 8, View.y, Width - 24, View.h};
-			// One shared baseline; restrained separators organize the advanced workspace.
-			for(int i = 1; i < 3; ++i)
-			{
-				CUIRect Rule = {View.x + i * Width - 4, View.y + 12, .5f, std::min(260.f, View.h - 12)};
-				Rule.Draw(LucentUi::Accent(.10f), 0, 0);
-			}
+			Columns[0] = CLucentBrowserFilterLayout::Column(View, 0);
+			Columns[1] = CLucentBrowserFilterLayout::Column(View, 1);
 			View = Columns[0];
 		}
 	}
@@ -766,8 +749,11 @@ void CMenus::RenderServerbrowserFilters(CUIRect View, CScrollRegion *pScroll)
 	View.Margin(5.0f, &View);
 
 	CUIRect Button, ResetButton;
-	View.HSplitBottom(RowHeight, &View, &ResetButton);
-	View.HSplitBottom(3.0f, &View, nullptr);
+	if(!pScroll)
+	{
+		View.HSplitBottom(RowHeight, &View, &ResetButton);
+		View.HSplitBottom(3.0f, &View, nullptr);
+	}
 
 	const auto Section = [&](const char *pText) {
 		if(!pScroll)
@@ -782,6 +768,17 @@ void CMenus::RenderServerbrowserFilters(CUIRect View, CScrollRegion *pScroll)
 		LucentUi::Divider(Rule, .14f);
 		TextRender()->TextColor(TextRender()->DefaultTextColor());
 	};
+	if(pScroll)
+	{
+		Section(Localize("Exclusions"));
+		CUIRect Label, Exclude;
+		View.HSplitTop(18, &Label, &View);
+		Ui()->DoLabel(&Label, Localize("Exclude"), 11, TEXTALIGN_ML);
+		View.HSplitTop(RowHeight, &Exclude, &View);
+		static CLineInput s_Exclude(g_Config.m_BrExcludeString, sizeof(g_Config.m_BrExcludeString));
+		if(Ui()->DoClearableEditBox(&s_Exclude, &Exclude, 11))
+			Client()->ServerBrowserUpdate();
+	}
 	Section(Localize("Server preferences"));
 	if(!pScroll)
 	{
@@ -826,34 +823,38 @@ void CMenus::RenderServerbrowserFilters(CUIRect View, CScrollRegion *pScroll)
 	if(CheckBox(&g_Config.m_BrFilterGametypeStrict, Localize("Strict gametype filter"), g_Config.m_BrFilterGametypeStrict, &Button))
 		g_Config.m_BrFilterGametypeStrict ^= 1;
 
-	View.HSplitTop(3.0f, nullptr, &View);
-	View.HSplitTop(RowHeight, &Button, &View);
 	CUIRect TypeLabel;
 	if(pScroll)
 	{
-		TypeLabel = Button;
+		Section(Localize("Game types:"));
 		View.HSplitTop(RowHeight, &Button, &View);
 	}
 	else
+	{
+		View.HSplitTop(3.0f, nullptr, &View);
+		View.HSplitTop(RowHeight, &Button, &View);
 		Button.VSplitRight(60.f, &TypeLabel, &Button);
-	Ui()->DoLabel(&TypeLabel, Localize("Game types:"), FontSize, TEXTALIGN_ML);
+		Ui()->DoLabel(&TypeLabel, Localize("Game types:"), FontSize, TEXTALIGN_ML);
+	}
 	static CLineInput s_GametypeInput(g_Config.m_BrFilterGametype, sizeof(g_Config.m_BrFilterGametype));
 	if(pScroll ? Ui()->DoClearableEditBox(&s_GametypeInput, &Button, FontSize) : Ui()->DoEditBox(&s_GametypeInput, &Button, FontSize))
 		Client()->ServerBrowserUpdate();
 
 	// server address
-	View.HSplitTop(6.0f, nullptr, &View);
-	View.HSplitTop(RowHeight, &Button, &View);
-	View.HSplitTop(6.0f, nullptr, &View);
 	CUIRect AddressLabel;
 	if(pScroll)
 	{
-		AddressLabel = Button;
+		Section(Localize("Server address:"));
 		View.HSplitTop(RowHeight, &Button, &View);
 	}
 	else
+	{
+		View.HSplitTop(6.0f, nullptr, &View);
+		View.HSplitTop(RowHeight, &Button, &View);
+		View.HSplitTop(6.0f, nullptr, &View);
 		Button.VSplitRight(60.f, &AddressLabel, &Button);
-	Ui()->DoLabel(&AddressLabel, Localize("Server address:"), FontSize, TEXTALIGN_ML);
+		Ui()->DoLabel(&AddressLabel, Localize("Server address:"), FontSize, TEXTALIGN_ML);
+	}
 	static CLineInput s_FilterServerAddressInput(g_Config.m_BrFilterServerAddress, sizeof(g_Config.m_BrFilterServerAddress));
 	if(pScroll ? Ui()->DoClearableEditBox(&s_FilterServerAddressInput, &Button, FontSize) : Ui()->DoEditBox(&s_FilterServerAddressInput, &Button, FontSize))
 		Client()->ServerBrowserUpdate();
@@ -902,7 +903,10 @@ void CMenus::RenderServerbrowserFilters(CUIRect View, CScrollRegion *pScroll)
 		g_Config.m_BrFilterConnectingPlayers ^= 1;
 
 	if(Wide)
+	{
 		View = Columns[1];
+		View.Margin(5, &View);
+	}
 	Section(Localize("Map completion"));
 	// map finish filters
 	if(ServerBrowser()->CommunityCache().AnyRanksAvailable())
@@ -935,8 +939,6 @@ void CMenus::RenderServerbrowserFilters(CUIRect View, CScrollRegion *pScroll)
 		}
 	}
 
-	if(Wide)
-		View = Columns[2];
 	Section(Localize("Countries and types"));
 	// countries and types filters
 	if(ServerBrowser()->CommunityCache().CountriesTypesFilterAvailable())

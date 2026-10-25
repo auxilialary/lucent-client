@@ -51,11 +51,11 @@ namespace LucentUi
 	constexpr float RADIUS = LucentStyle::Style::Radius;
 	inline ColorRGBA Accent(float Alpha) { return LucentStyle::Style::Accent.WithAlpha(Alpha); }
 	// Four vertex colors, one draw: no scissor bands or temporary textures for controls.
-	inline void GradientFill(const CUIRect &Rect, float Alpha, int Corners = IGraphics::CORNER_ALL, float Radius = RADIUS)
+	inline void GradientFill(const CUIRect &Rect, float Alpha, int Corners = IGraphics::CORNER_ALL, float Radius = RADIUS, bool Animate = true)
 	{
-		const double Time = LucentStyle::Motion::Clock().GradientTime();
-		const auto Left = LucentStyle::Gradient::Sample(0, Time).WithAlpha(Alpha);
-		const auto Right = LucentStyle::Gradient::Sample(.5f, Time).WithAlpha(Alpha);
+		const double Time = Animate ? LucentStyle::Motion::Clock().GradientTime() : 0;
+		const auto Left = LucentStyle::Gradient::Sample(LucentStyle::Gradient::ControlOrigin, Time).WithAlpha(Alpha);
+		const auto Right = LucentStyle::Gradient::Sample(LucentStyle::Gradient::ControlOrigin + LucentStyle::Gradient::ControlSpan, Time).WithAlpha(Alpha);
 		Rect.Draw4(Left, Right, Left, Right, Corners, Radius);
 	}
 	inline void Divider(CUIRect Rect, float Alpha = .25f, bool Glow = false)
@@ -73,11 +73,35 @@ namespace LucentUi
 			Right.Draw4(Accent(.025f), Accent(0), Accent(0), Accent(0), 0, 0);
 		}
 	}
+	class CTextScope
+	{
+		ITextRender *m_pTextRender;
+		ITextRender::FVertexColor m_Previous;
+		ColorRGBA m_PreviousColor;
+
+	public:
+		CTextScope(ITextRender *pTextRender, float Width, float Active, float Hover, bool Enabled) :
+			m_pTextRender(pTextRender), m_Previous(pTextRender->TextVertexColor()), m_PreviousColor(pTextRender->GetTextColor())
+		{
+			const auto Idle = LucentStyle::Gradient::Blend(LucentStyle::Style::Text, LucentStyle::Gradient::White, Hover * LucentStyle::Style::TextHover).WithAlpha(Enabled ? 1.f : LucentStyle::Style::Disabled);
+			pTextRender->TextColor(Idle);
+			const double Time = LucentStyle::Motion::Clock().GradientTime();
+			pTextRender->SetTextVertexColor(Enabled && Active > .001f ? ITextRender::FVertexColor([=](float X, ColorRGBA Base) {
+				return LucentStyle::Gradient::TextSample(X, Width, Time, Active, Idle).WithAlpha(Base.a);
+			}) :
+										    ITextRender::FVertexColor{});
+		}
+		~CTextScope()
+		{
+			m_pTextRender->SetTextVertexColor(m_Previous);
+			m_pTextRender->TextColor(m_PreviousColor);
+		}
+	};
 	inline void InputFrame(const CUIRect &Rect, const void *pId, bool Filled, bool Focus, bool Hover, bool Enabled, int Corners)
 	{
-		const float Active = Highlight(pId, Enabled && Filled, EChannel::ACTIVE);
-		const float Focused = Highlight(pId, Enabled && Focus, EChannel::FOCUS);
-		const float Hot = Highlight(pId, Enabled && Hover);
+		const float Active = Enabled ? Highlight(pId, Filled, EChannel::ACTIVE) : 0.f;
+		const float Focused = Enabled ? Highlight(pId, Focus, EChannel::FOCUS) : 0.f;
+		const float Hot = Enabled ? Highlight(pId, Hover) : 0.f;
 		const float Alpha = Enabled ? 1.f : LucentStyle::Style::Disabled;
 		Rect.Draw(Accent((LucentStyle::Style::BorderIdle + LucentStyle::Style::InputHover * Hot + LucentStyle::Style::InputFocus * Focused) * Alpha), Corners, RADIUS);
 		if(Active > .001f)
@@ -107,21 +131,22 @@ namespace LucentUi
 		Rect.VSplitLeft(LucentStyle::Style::ControlSize, &Box, &Label);
 		Box.HMargin((Box.h - LucentStyle::Style::ControlSize) / 2, &Box);
 		Label.VSplitLeft(LucentStyle::Style::LabelGap, nullptr, &Label);
-		const float Light = Highlight(pId, *pMark || (pUi->Enabled() && pUi->MouseHovered(&Rect)));
+		const float Light = pUi->Enabled() ? Highlight(pId, *pMark || pUi->MouseHovered(&Rect)) : 0.f;
 		Surface(Box, false, false, IGraphics::CORNER_ALL, Light);
-		const float Active = Highlight(pId, *pMark != 0, EChannel::ACTIVE);
+		const float Active = pUi->Enabled() ? Highlight(pId, *pMark != 0, EChannel::ACTIVE) : float(*pMark != 0);
 		if(Active > .001f)
 		{
 			Box.Margin(LucentStyle::Style::CheckInset, &Box);
 			// The mixed-state bar retains its shape while sharing the active gradient.
 			if(*pMark == 'O')
 				Box.HMargin((Box.h - LucentStyle::Style::MixedHeight) / 2, &Box);
-			GradientFill(Box, Active * (pUi->Enabled() ? LucentStyle::Style::CheckAlpha : LucentStyle::Style::Disabled), IGraphics::CORNER_ALL, LucentStyle::Style::CheckRadius);
+			GradientFill(Box, Active * (pUi->Enabled() ? LucentStyle::Style::CheckAlpha : LucentStyle::Style::Disabled), IGraphics::CORNER_ALL, LucentStyle::Style::CheckRadius, pUi->Enabled());
 		}
 		SLabelProperties Props;
 		Props.m_MaxWidth = Label.w;
 		Props.m_StopAtEnd = true;
 		Props.m_EnableWidthCheck = false;
+		CTextScope Text(pUi->TextRender(), std::min(Label.w, pUi->TextRender()->TextWidth(11, pText)), Active, Light, pUi->Enabled());
 		pUi->DoLabel(&Label, pText, 11, TEXTALIGN_ML, Props);
 		return pUi->DoButtonLogic(pId, 0, &Rect, Flags);
 	}

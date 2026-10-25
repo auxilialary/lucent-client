@@ -892,6 +892,7 @@ struct STextContainer
 	bool m_HasSelection;
 
 	bool m_SingleTimeUse;
+	bool m_VertexColorsApplied;
 
 	STextBoundingBox m_BoundingBox;
 
@@ -917,6 +918,7 @@ struct STextContainer
 		m_HasSelection = false;
 
 		m_SingleTimeUse = false;
+		m_VertexColorsApplied = false;
 
 		m_BoundingBox = {0.0f, 0.0f, 0.0f, 0.0f};
 
@@ -2142,12 +2144,56 @@ public:
 		ColorRGBA TextColor = InputTextColor, TextOutlineColor = InputOutlineColor;
 		TextColor.a *= RenderOpacity();
 		TextOutlineColor.a *= RenderOpacity();
-		const STextContainer &TextContainer = GetTextContainer(TextContainerIndex);
+		STextContainer &TextContainer = GetTextContainer(TextContainerIndex);
 
 		if(!TextContainer.m_StringInfo.m_vCharacterQuads.empty())
 		{
-			if(Graphics()->IsTextBufferingEnabled())
+			if(TextVertexColor() && !Graphics()->IsTextBufferingEnabled())
 			{
+				// Two batched atlas passes for the whole string, never a draw call per glyph.
+				const float UVScale = 1.0f / m_pGlyphMap->TextureDimension();
+				for(int Pass = 0; Pass < 2; ++Pass)
+				{
+					Graphics()->TextureSet(m_pGlyphMap->Texture(Pass == 0 ? CGlyphMap::FONT_TEXTURE_OUTLINE : CGlyphMap::FONT_TEXTURE_FILL));
+					Graphics()->QuadsBegin();
+					for(const STextCharQuad &Quad : TextContainer.m_StringInfo.m_vCharacterQuads)
+					{
+						ColorRGBA aColors[4];
+						for(int i = 0; i < 4; ++i)
+						{
+							const auto &Vertex = Quad.m_aVertices[i];
+							ColorRGBA Base(Vertex.m_Color.r / 255.f, Vertex.m_Color.g / 255.f, Vertex.m_Color.b / 255.f, Vertex.m_Color.a / 255.f);
+							aColors[i] = STextVertexColor::Apply(Pass == 0 ? FVertexColor{} : TextVertexColor(), Vertex.m_X, TextContainer.m_AlignedStartX, Base, Pass == 0 ? TextOutlineColor : TextColor);
+						}
+						// Quad height is negative: preserve the original vertex/UV order.
+						Graphics()->SetColor4(aColors[0], aColors[1], aColors[3], aColors[2]);
+						Graphics()->QuadsSetSubset(Quad.m_aVertices[0].m_U * UVScale, Quad.m_aVertices[0].m_V * UVScale, Quad.m_aVertices[2].m_U * UVScale, Quad.m_aVertices[2].m_V * UVScale);
+						IGraphics::CQuadItem Item(Quad.m_aVertices[0].m_X, Quad.m_aVertices[0].m_Y, Quad.m_aVertices[1].m_X - Quad.m_aVertices[0].m_X, Quad.m_aVertices[2].m_Y - Quad.m_aVertices[0].m_Y);
+						Graphics()->QuadsDrawTL(&Item, 1);
+					}
+					Graphics()->QuadsEnd();
+				}
+				Graphics()->SetColor(1, 1, 1, 1);
+			}
+			else if(Graphics()->IsTextBufferingEnabled())
+			{
+				// Keep the text shader's atlas coverage and outline composition. Only
+				// optional colored submissions upload changed vertex colors; the CPU
+				// source geometry remains intact for subsequent ordinary submissions.
+				if(TextVertexColor() || TextContainer.m_VertexColorsApplied)
+				{
+					auto vQuads = TextContainer.m_StringInfo.m_vCharacterQuads;
+					if(TextVertexColor())
+						for(auto &Quad : vQuads)
+							for(auto &Vertex : Quad.m_aVertices)
+							{
+								const auto Color = STextVertexColor::Apply(TextVertexColor(), Vertex.m_X, TextContainer.m_AlignedStartX,
+									ColorRGBA(Vertex.m_Color.r / 255.f, Vertex.m_Color.g / 255.f, Vertex.m_Color.b / 255.f, Vertex.m_Color.a / 255.f), ColorRGBA(1, 1, 1, 1));
+								Vertex.m_Color = STextCharQuadVertexColor(Color.r * 255.f, Color.g * 255.f, Color.b * 255.f, Color.a * 255.f);
+							}
+					Graphics()->RecreateBufferObject(TextContainer.m_StringInfo.m_QuadBufferObjectIndex, vQuads.size() * sizeof(STextCharQuad), vQuads.data(), TextContainer.m_SingleTimeUse ? IGraphics::EBufferObjectCreateFlags::BUFFER_OBJECT_CREATE_FLAGS_ONE_TIME_USE_BIT : 0);
+					TextContainer.m_VertexColorsApplied = bool(TextVertexColor());
+				}
 				Graphics()->TextureClear();
 				// render buffered text
 				Graphics()->RenderText(TextContainer.m_StringInfo.m_QuadBufferContainerIndex, TextContainer.m_StringInfo.m_vCharacterQuads.size(), m_pGlyphMap->TextureDimension(), m_pGlyphMap->Texture(CGlyphMap::FONT_TEXTURE_FILL).Id(), m_pGlyphMap->Texture(CGlyphMap::FONT_TEXTURE_OUTLINE).Id(), TextColor, TextOutlineColor);

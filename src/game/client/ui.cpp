@@ -1026,7 +1026,17 @@ bool CUi::DoEditBox(CLineInput *pLineInput, const CUIRect *pRect, float FontSize
 		pRect->Draw(ms_LightButtonColorFunction.GetColor(Active, HotItem() == pLineInput), Corners, 3.0f);
 	ClipEnable(pRect);
 	Textbox.x -= ScrollOffset;
-	const STextBoundingBox BoundingBox = pLineInput->Render(&Textbox, FontSize, TEXTALIGN_ML, Changed || CursorChanged, -1.0f, 0.0f, vColorSplits);
+	STextBoundingBox BoundingBox;
+	{
+		const float Filled = LucentStyle() && Enabled() ? LucentUi::Highlight(pLineInput, !pLineInput->IsEmpty(), LucentUi::EChannel::ACTIVE) : 0.f;
+		if(LucentStyle())
+		{
+			LucentUi::CTextScope Text(TextRender(), std::min(Textbox.w, TextRender()->TextWidth(FontSize, pLineInput->GetDisplayedString())), Filled, LucentUi::Highlight(pLineInput, Enabled() && HotItem() == pLineInput), Enabled());
+			BoundingBox = pLineInput->Render(&Textbox, FontSize, TEXTALIGN_ML, Changed || CursorChanged, -1.0f, 0.0f, vColorSplits);
+		}
+		else
+			BoundingBox = pLineInput->Render(&Textbox, FontSize, TEXTALIGN_ML, Changed || CursorChanged, -1.0f, 0.0f, vColorSplits);
+	}
 	ClipDisable();
 
 	// Scroll left or right if necessary

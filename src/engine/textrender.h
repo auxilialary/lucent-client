@@ -192,12 +192,31 @@ struct STextSizeProperties
 	int *m_pLineCount = nullptr;
 };
 
+// Optional color transform at submission time. No dependency on a UI palette or clock.
+struct STextVertexColor
+{
+	using FSampler = std::function<ColorRGBA(float, ColorRGBA)>;
+	static ColorRGBA Apply(const FSampler &Sampler, float X, float Origin, ColorRGBA Base, ColorRGBA Tint)
+	{
+		const auto Color = Sampler ? Sampler(X - Origin, Base) : Base;
+		return ColorRGBA(Color.r * Tint.r, Color.g * Tint.g, Color.b * Tint.b, Color.a * Tint.a);
+	}
+};
+
 class ITextRender : public IInterface
 {
 	MACRO_INTERFACE("textrender")
 public:
 private:
 	float m_RenderOpacity = 1;
+	std::function<ColorRGBA(float, ColorRGBA)> m_VertexColor;
+
+public:
+	// Optional submission-time glyph color. Coordinates are local to the text container.
+	// Selection, caret, metrics and the default buffered path are unaffected.
+	using FVertexColor = STextVertexColor::FSampler;
+	const FVertexColor &TextVertexColor() const { return m_VertexColor; }
+	void SetTextVertexColor(FVertexColor Color) { m_VertexColor = std::move(Color); }
 
 public:
 	// Submission-time opacity also fades cached text without rebuilding glyphs.

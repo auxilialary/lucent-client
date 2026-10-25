@@ -34,7 +34,7 @@ namespace LucentStyle
 		inline const ColorRGBA UtilitySurface(0, 0, 0, 1);
 		inline const ColorRGBA ErrorText(1, .4f, .4f, 1);
 		inline const ColorRGBA FavoriteText(.95f, .79f, .87f, 1);
-		constexpr float InputHover = .08f, InputFocus = .12f, SurfaceGlow = .07f;
+		constexpr float InputHover = .08f, InputFocus = .12f, SurfaceGlow = .07f, TextHover = .25f;
 		constexpr float CheckAlpha = .85f, CheckInset = 4, CheckRadius = 1, MixedHeight = 1.5f;
 		constexpr float ButtonUnderline = .7f, PressedUnderline = .95f, PressedText = .8f;
 		constexpr float SceneBase = .25f, SceneHover = .75f, ScenePressed = .10f, SceneIdle = .025f;
@@ -109,6 +109,7 @@ namespace LucentStyle
 	}
 	namespace Gradient
 	{
+		constexpr float ControlOrigin = -.25f, ControlSpan = .5f;
 		inline const ColorRGBA White(1, 1, 1, 1);
 		inline const ColorRGBA Rose(243.f / 255, 180.f / 255, 210.f / 255, 1);
 		inline const ColorRGBA Pink(239.f / 255, 161.f / 255, 199.f / 255, 1);
@@ -128,6 +129,12 @@ namespace LucentStyle
 			const float Wave = .5f + .5f * std::sin(6.28318530718f * (Position - float(Phase) * Parameters.m_Direction));
 			const auto Color = Wave < .5f ? Blend(White, Rose, Wave * 2) : Blend(Rose, Pink, Wave * 2 - 1);
 			return Blend(White, Color, std::clamp(Parameters.m_Intensity, 0.f, 1.f));
+		}
+		// One half-wave across each label: spatial color without brightness pulsing.
+		inline ColorRGBA TextSample(float X, float Width, double Time, float Active, ColorRGBA Idle)
+		{
+			const auto Color = Blend(Idle, Sample(ControlOrigin + ControlSpan * X / std::max(1.f, Width), Time), Active);
+			return Color.WithAlpha(Idle.a);
 		}
 	}
 }

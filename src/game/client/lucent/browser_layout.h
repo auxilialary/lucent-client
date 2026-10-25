@@ -26,16 +26,30 @@ struct CLucentBrowserFilterLayout
 	bool m_Wide;
 	float m_GridHeight;
 	float m_ContentHeight;
+	static constexpr float WideWidth = 620;
+	static float WorkspaceWidth(float Width) { return std::min(820.f, Width); }
+	static float ColumnGap(float Width) { return std::clamp(Width * .045f, 20.f, 36.f); }
+	static CUIRect Column(const CUIRect &Workspace, int Index)
+	{
+		const float Gap = ColumnGap(Workspace.w);
+		const float Width = (Workspace.w - Gap) / 2;
+		return {Workspace.x + Index * (Width + Gap), Workspace.y, Width, Workspace.h};
+	}
 	static int QuickColumns(float Width) { return std::clamp(int((Width - 14) / 185), 1, 3); }
 	static float QuickHeight(float Width) { return ((5 + QuickColumns(Width) - 1) / QuickColumns(Width)) * 25.f + 8; }
 	static CLucentBrowserFilterLayout Measure(float Width, int Countries, int Types, bool CountriesTab, bool HasGrid, bool Ranks, bool Finished)
 	{
-		const bool Wide = Width >= 720;
+		Width = WorkspaceWidth(Width);
+		Width -= 12; // Forced 8-unit scrollbar and 4-unit content inset.
+		const bool Wide = Width >= WideWidth;
 		const int Columns = Countries > 8 ? 5 : 4;
 		const float Grid = !HasGrid ? 0.f : CountriesTab ? ((Countries + Columns - 1) / Columns) * 22.f :
 								   ((Types + 2) / 3) * 17.f;
-		// Exclusions precede all columns. The server column includes two stacked labels/inputs.
-		const float Height = Wide ? QuickHeight(Width) + 67.5f + std::max(380.f, 59.5f + Grid) : QuickHeight(Width) + 483.5f + (Ranks ? 21.f + (Finished ? 21.f : 28.f) : 0.f) + (HasGrid ? 25.f + Grid : 0.f);
+		// Heights are the sum of consumed controls, not minimum section heights.
+		constexpr float Heading = 8 + 16 + .5f;
+		constexpr float Left = 5 * Heading + 18 + 7 * 21;
+		const float Right = 2 * Heading + (Ranks ? 21 + (Finished ? 21 : 28) : 0) + (HasGrid ? 6 + 19 + Grid : 0);
+		const float Height = QuickHeight(Width) + 10 + (Wide ? std::max(Left, Right) : Left + Right);
 		return {Wide, Grid, Height};
 	}
 };
