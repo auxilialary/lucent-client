@@ -2828,3 +2828,21 @@ Offline
 
 Back
 == Назад
+
+Map completion
+== Прохождение карт
+
+Enable map finish indication to filter unfinished maps.
+== Включите отметки прохождения для отбора непройденных карт.
+
+Active filters
+== Фильтры активны
+
+Copy address
+== Копировать адрес
+
+Add to favorites
+== В избранное
+
+Remove from favorites
+== Удалить из избранного

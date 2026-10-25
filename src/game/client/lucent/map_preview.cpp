@@ -193,9 +193,8 @@ void CLucentMapPreview::Update(const CServerInfo *pServer, double Now, bool Anim
 	pHttp->Run(m_pRequest);
 }
 
-void CLucentMapPreview::Render(IGraphics *pGraphics, const CUIRect &Screen, double Now, bool Animate, float SelectionPulse, float Opacity)
+void CLucentMapPreview::Render(IGraphics *pGraphics, const CUIRect &Screen, double Now, bool Animate, float Opacity)
 {
-	Screen.Draw(ColorRGBA(.018f, .015f, .027f, 1), 0, 0);
 	const float T = Animate ? std::clamp(float((Now - m_FadeStart) / .42), 0.f, 1.f) : 1;
 	const float Fade = T * T * (3 - 2 * T);
 	const auto Draw = [&](int Index, float Alpha, bool Previous, bool Atmospheric) {
@@ -207,10 +206,13 @@ void CLucentMapPreview::Render(IGraphics *pGraphics, const CUIRect &Screen, doub
 		pGraphics->SetColor(1, 1, 1, Alpha * .85f);
 		const auto &Entry = m_aCache[Index];
 		const float Settle = Animate ? std::pow(1.f - std::clamp(float((Now - Entry.m_RevealStart) / 3.5), 0.f, 1.f), 3.f) : 0.f;
-		const float Scale = LucentPreview::FrameScale(Entry.m_Width, Entry.m_Height, Screen.w, Screen.h) * (Atmospheric ? 1.10f : .92f) * (1.f - .015f * Settle);
+		const float Scale = LucentPreview::FrameScale(Entry.m_Width, Entry.m_Height, Screen.w, Screen.h) * (Atmospheric ? 1.16f : 1.f) * (1.f - .015f * Settle);
 		const float Width = Entry.m_Width * Scale, Height = Entry.m_Height * Scale;
-		const float X = Screen.x + Screen.w * .755f - Width * .5f;
-		const float Y = Screen.y + Screen.h * .43f - Height * .5f;
+		// Match the browser's list split and scene gutter. The atmospheric
+		// layer expands symmetrically around this shared artwork alignment.
+		const float SceneLeft = Screen.x + 18 + (Screen.w - 36) * .41f + 38;
+		const float X = SceneLeft - (Atmospheric ? Width * .069f : 0.f);
+		const float Y = Screen.y + Screen.h * .59f - Height;
 		// Feather all four edges in texture space. Geometry stays identical through fades.
 		constexpr int Steps = 24;
 		for(int y = 0; y < Steps; ++y)
@@ -219,8 +221,8 @@ void CLucentMapPreview::Render(IGraphics *pGraphics, const CUIRect &Screen, doub
 				const auto Mask = [&](float u, float v) {
 					const float Edge = std::clamp(std::min({u, v, 1 - u, 1 - v}) * 6.f, 0.f, 1.f);
 					const float Feather = Edge * Edge * (3 - 2 * Edge);
-					const float LowerFade = 1 - std::clamp((v - .58f) / .42f, 0.f, 1.f);
-					const float A = (Atmospheric ? .13f : .78f) * Feather * LowerFade * Opacity;
+					const float LowerFade = 1 - std::clamp((v - .72f) / .28f, 0.f, 1.f);
+					const float A = (Atmospheric ? .055f : .90f) * Feather * LowerFade * Opacity;
 					// Compensate alpha-over so equally framed images keep constant
 					// brightness and the outgoing image vanishes without a final jump.
 					return LucentPreview::FadeAlpha(A, Fade, Previous, m_Current >= 0);
@@ -241,21 +243,6 @@ void CLucentMapPreview::Render(IGraphics *pGraphics, const CUIRect &Screen, doub
 	Draw(m_Current, Fade, false, true);
 	Draw(m_Previous, 1 - Fade, true, false);
 	Draw(m_Current, Fade, false, false);
-	// Preserve the artwork in open space, with a stronger scrim behind map names.
-	pGraphics->TextureClear();
-	pGraphics->QuadsBegin();
-	// Keep the table dark, release the scrim across its boundary, and let
-	// recognizable artwork breathe in the right-hand scene.
-	const auto ScrimBand = [&](float Left, float Right, float A, float B) {
-		pGraphics->SetColor4(ColorRGBA(.018f, .015f, .027f, A), ColorRGBA(.018f, .015f, .027f, B), ColorRGBA(.018f, .015f, .027f, A), ColorRGBA(.018f, .015f, .027f, B));
-		IGraphics::CQuadItem Band(Screen.x + Screen.w * Left, Screen.y, Screen.w * (Right - Left), Screen.h);
-		pGraphics->QuadsDrawTL(&Band, 1);
-	};
-	ScrimBand(0, .40f, .86f, .86f);
-	ScrimBand(.40f, .62f, .86f, .04f);
-	const float Response = 1 - .12f * std::sin(std::clamp(SelectionPulse, 0.f, 1.f) * 3.14159265f);
-	ScrimBand(.72f, 1, .10f * Response, .06f * Response);
-	pGraphics->QuadsEnd();
 }
 void CLucentMapPreview::Shutdown(IGraphics *pGraphics)
 {

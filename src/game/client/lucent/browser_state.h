@@ -103,6 +103,7 @@ public:
 	float m_FiltersExpansion = 0;
 	float m_ScenePosition = 0;
 	std::string m_LastSelection;
+	std::string m_LastPreview;
 	std::string m_ServerSelection;
 	EPrimary m_SelectionPrimary = EPrimary::SERVERS;
 	float m_SelectionY = 0;
@@ -125,12 +126,13 @@ public:
 	bool m_DirectFocusPending = false;
 	int m_Focus = 0;
 	void Tab(bool Reverse) { m_Focus = (m_Focus + (Reverse ? 6 : 1)) % 7; }
-	void Select(std::string_view Address, bool Animate)
+	void Select(std::string_view Address, bool Animate, std::string_view PreviewKey = {})
 	{
 		if(Address != m_LastSelection)
 		{
 			m_LastSelection.assign(Address);
-			m_SelectionPulse = Animate && !Address.empty() ? 1.f : 0.f;
+			m_SelectionPulse = Animate && !Address.empty() && (PreviewKey.empty() || PreviewKey != m_LastPreview) ? 1.f : 0.f;
+			m_LastPreview.assign(PreviewKey);
 		}
 		if(!Animate)
 			m_SelectionPulse = 0;

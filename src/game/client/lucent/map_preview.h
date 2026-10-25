@@ -40,7 +40,7 @@ class CLucentMapPreview
 
 public:
 	void Update(const CServerInfo *pServer, double Now, bool Animate, IHttp *pHttp, IEngine *pEngine, IGraphics *pGraphics);
-	void Render(IGraphics *pGraphics, const CUIRect &Screen, double Now, bool Animate, float SelectionPulse = 0, float Opacity = 1);
+	void Render(IGraphics *pGraphics, const CUIRect &Screen, double Now, bool Animate, float Opacity = 1);
 	void Shutdown(IGraphics *pGraphics);
 };
 #endif

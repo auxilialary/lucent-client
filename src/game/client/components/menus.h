@@ -48,6 +48,13 @@ class CMenus : public CComponent
 	void RenderLucentContext(CUIRect View, CLucentBrowserState::EPanel Mode);
 	const CServerInfo *LucentSelectedServer();
 	bool LucentBrowserButton(const void *pId, const char *pText, CUIRect Rect, bool Selected = false);
+	bool LucentBrowserFiltersActive();
+	struct SLucentServerPopup
+	{
+		CMenus *m_pMenus;
+		std::string m_Address;
+	};
+	static CUi::EPopupMenuFunctionResult PopupLucentServer(void *pContext, CUIRect View, bool Active);
 	static ColorRGBA ms_GuiColor;
 	static ColorRGBA ms_ColorTabbarInactiveOutgame;
 	static ColorRGBA ms_ColorTabbarActiveOutgame;

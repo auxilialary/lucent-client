@@ -17,7 +17,7 @@ namespace LucentPreview
 	}
 	inline float FrameScale(float Width, float Height, float ScreenWidth, float ScreenHeight)
 	{
-		return std::min({ScreenWidth * .49f / Width, ScreenHeight * .68f / Height, 1.6f});
+		return std::min({ScreenWidth * .49f / Width, ScreenHeight * .46f / Height, 1.6f});
 	}
 	inline float FadeAlpha(float Mask, float Fade, bool Previous, bool HasCurrent)
 	{

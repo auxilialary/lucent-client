@@ -2754,8 +2754,10 @@ if(CLIENT)
     lineinput.cpp
     lineinput.h
     lucent/browser.cpp
+    lucent/browser_ambient.cpp
+    lucent/browser_ambient.h
+    lucent/browser_layout.h
     lucent/browser_panels.cpp
-    lucent/ui.h
     lucent/browser_state.h
     lucent/config_variables.h
     lucent/lucent_logo.cpp
@@ -2774,6 +2776,7 @@ if(CLIENT)
     lucent/preview_policy.h
     lucent/radial_transition.h
     lucent/server_controls.h
+    lucent/ui.h
     multiview.cpp
     pickup_data.cpp
     pickup_data.h

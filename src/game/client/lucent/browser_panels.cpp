@@ -38,11 +38,19 @@ void CMenus::RenderLucentContext(CUIRect View, CLucentBrowserState::EPanel Mode)
 	}
 	else if(Mode == EPanel::FILTERS)
 	{
-		CUIRect Heading, Back;
+		CUIRect Heading, Back, Reset;
 		View.HSplitTop(32, &Heading, &View);
 		Heading.VSplitRight(72, &Heading, &Back);
+		Heading.VSplitRight(110, &Heading, &Reset);
 		Ui()->DoLabel(&Heading, Localize("Filters"), 18, TEXTALIGN_ML);
-		static int s_CloseFilters;
+		if(LucentBrowserFiltersActive())
+		{
+			CUIRect Active = {Heading.x + TextRender()->TextWidth(18, Localize("Filters")) + 12, Heading.y, std::max(0.f, Heading.w - 110), Heading.h};
+			Ui()->DoLabel(&Active, Localize("Active filters"), 10, TEXTALIGN_ML);
+		}
+		static int s_CloseFilters, s_ResetFilters;
+		if(LucentUi::TextButton(Ui(), TextRender(), &s_ResetFilters, Localize("Reset filter"), Reset, false, 11))
+			ResetServerbrowserFilters();
 		if(LucentUi::TextButton(Ui(), TextRender(), &s_CloseFilters, Localize("Back"), Back, false, 11))
 		{
 			m_LucentBrowser.m_Overlay.m_Target = CLucentBrowserState::EOverlay::NONE;

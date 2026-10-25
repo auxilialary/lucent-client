@@ -29,11 +29,11 @@ int main()
 	CHECK(Countries.m_Wide && Countries.m_GridHeight == 21 * 22);
 	CHECK(Countries.m_ContentHeight >= Countries.m_GridHeight + 25);
 	const auto Types = CLucentBrowserFilterLayout::Measure(1000, 101, 3, false, true, true, true);
-	CHECK(Types.m_GridHeight == 17 && Types.m_ContentHeight == 300);
+	CHECK(Types.m_GridHeight == 17 && Types.m_ContentHeight == 386);
 	const auto Narrow = CLucentBrowserFilterLayout::Measure(600, 8, 4, true, true, true, true);
 	CHECK(!Narrow.m_Wide && Narrow.m_GridHeight == 44);
 	CHECK(Narrow.m_ContentHeight > Types.m_ContentHeight);
-	CHECK(CLucentBrowserFilterLayout::Measure(600, 8, 4, true, true, true, false).m_ContentHeight == Narrow.m_ContentHeight - 21);
+	CHECK(CLucentBrowserFilterLayout::Measure(600, 8, 4, true, true, true, false).m_ContentHeight == Narrow.m_ContentHeight - 21 + 28);
 	CHECK(CLucentBrowserFilterLayout::Measure(600, 8, 4, true, false, false, false).m_GridHeight == 0);
 	CLucentBrowserState Context;
 	CHECK(Context.PrimarySelection("browser:8303") == nullptr);
@@ -204,6 +204,14 @@ int main()
 		Selection.Select("", true);
 		CHECK(Selection.m_SelectionPulse == 0);
 	}
+	CLucentBrowserState SharedMap;
+	SharedMap.Select("one:8303", true, "map|crc|size");
+	CHECK(SharedMap.m_SelectionPulse == 1);
+	SharedMap.Update(.1f, true);
+	SharedMap.Select("two:8303", true, "map|crc|size");
+	CHECK(SharedMap.m_SelectionPulse == 0);
+	SharedMap.Select("three:8303", true, "map|new-crc|size");
+	CHECK(SharedMap.m_SelectionPulse == 1);
 	int Sort = 3, Order = 0;
 	State.Sort(3, Sort, Order, true);
 	CHECK(Order == 1);
@@ -251,7 +259,7 @@ int main()
 		{
 			const float Frame = LucentPreview::FrameScale(Size.first * Scale, Size.second * Scale, ScreenWidth, 600);
 			CHECK(Size.first * Scale * Frame <= ScreenWidth * .49f + .01f);
-			CHECK(Size.second * Scale * Frame <= 600 * .68f + .01f);
+			CHECK(Size.second * Scale * Frame <= 600 * .46f + .01f);
 			CHECK(Frame <= 1.6f);
 		}
 	}
