@@ -2805,8 +2805,12 @@ if(CLIENT)
     lucent/ui/scene_effects.cpp
     lucent/ui/scene_effects.h
     lucent/ui/scopes.h
+    lucent/ui/scrollbar.cpp
+    lucent/ui/scrollbar.h
     lucent/ui/surfaces.cpp
     lucent/ui/surfaces.h
+    lucent/ui/text_input_effects.cpp
+    lucent/ui/text_input_effects.h
     multiview.cpp
     pickup_data.cpp
     pickup_data.h

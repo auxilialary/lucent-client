@@ -95,6 +95,8 @@ private:
 	static void MoveCursor(EMoveDirection Direction, bool MoveWord, const char *pStr, size_t MaxSize, size_t *pCursorPos);
 	static void SetCompositionWindowPosition(vec2 Anchor, float LineHeight);
 
+	void RenderCaretEffects(const CTextCursor &Cursor, vec2 CursorPos, const char *pDisplayStr, size_t DisplayCursorOffset, bool HasComposition, bool Changed, double Now, bool AnimateCaret, const CUIRect &Clip);
+
 	void OnActivate();
 	void OnDeactivate();
 

@@ -4,6 +4,7 @@
 
 #include <engine/textrender.h>
 
+#include <game/client/lucent/ui/surfaces.h>
 #include <game/client/ui.h>
 
 #include <algorithm>
@@ -150,16 +151,9 @@ void CTooltips::OnRender()
 		}
 
 		if(Tooltip.m_LucentStyle)
-		{
-			// Header hints always sit below the complete header, away from search.
-			Rect.x = std::clamp(Tooltip.m_Rect.x + Tooltip.m_Rect.w - Rect.w, Margin, pScreen->w - Rect.w - Margin);
-			Rect.y = Tooltip.m_Rect.y + Tooltip.m_Rect.h + Margin;
-			if(Rect.y + Rect.h > pScreen->h - Margin)
-				Rect.y = Tooltip.m_Rect.y - Rect.h - Margin;
-			Rect.y = std::clamp(Rect.y, Margin, pScreen->h - Rect.h - Margin);
-		}
-
-		Rect.Draw(Tooltip.m_LucentStyle ? ColorRGBA(.078f, .067f, .098f, .98f * AlphaFactor) : ColorRGBA(0.2f, 0.2f, 0.2f, 0.8f * AlphaFactor), IGraphics::CORNER_ALL, Padding);
+			LucentUi::TooltipSurface(Rect, Tooltip.m_Rect, *pScreen, Margin, Padding, AlphaFactor);
+		else
+			Rect.Draw(ColorRGBA(0.2f, 0.2f, 0.2f, 0.8f * AlphaFactor), IGraphics::CORNER_ALL, Padding);
 		Rect.Margin(Padding, &Rect);
 
 		CTextCursor Cursor;

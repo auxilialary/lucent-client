@@ -2,9 +2,7 @@
 /* If you are missing that file, acquire a complete release at teeworlds.com.                */
 #include "lineinput.h"
 
-#include <game/client/lucent/motion/text_motion.h>
-#include <game/client/lucent/motion/clock.h>
-#include <game/client/lucent/style/gradient.h>
+#include <game/client/lucent/ui/text_input_effects.h>
 #include "ui.h"
 
 #include <base/dbg.h>
@@ -24,28 +22,6 @@ IClient *CLineInput::ms_pClient = nullptr;
 CLineInput *CLineInput::ms_pActiveInput = nullptr;
 EInputPriority CLineInput::ms_ActiveInputPriority = EInputPriority::NONE;
 
-// Only the focused editor owns visual motion, including chat and both consoles.
-static CLucentTextMotion s_TextMotion;
-static CLucentTextAppear s_TextAppear;
-
-struct SInputGlyphOpacity
-{
-	double m_Now;
-	int m_CompositionBegin, m_CompositionLength;
-	static float Sample(int Character, const void *pContext)
-	{
-		const auto &Context = *static_cast<const SInputGlyphOpacity *>(pContext);
-		return s_TextAppear.Alpha(Character, Context.m_Now, Context.m_CompositionBegin, Context.m_CompositionLength);
-	}
-};
-static double s_CaretChanged = 0;
-static vec2 s_LastInputOrigin(0, 0);
-static float s_LastInputHeight = 0;
-static size_t s_LastInputChars = 0;
-static int s_LastCursorChars = 0;
-static bool s_LastSelection = false;
-static CLineInput *s_pMotionInput = nullptr;
-
 vec2 CLineInput::ms_CompositionWindowPosition = vec2(0.0f, 0.0f);
 float CLineInput::ms_CompositionLineHeight = 0.0f;
 
@@ -54,7 +30,7 @@ void CLineInput::SetBuffer(char *pStr, size_t MaxSize, size_t MaxChars)
 	if(m_pStr && m_pStr == pStr)
 		return;
 	if(IsActive())
-		s_TextAppear.Reset();
+		LucentUi::ResetTextInputAppearance();
 	m_VisualReposition = true;
 	m_VisualEditCount = 0;
 	const char *pLastStr = m_pStr;
@@ -80,7 +56,7 @@ void CLineInput::SetBuffer(char *pStr, size_t MaxSize, size_t MaxChars)
 void CLineInput::Clear()
 {
 	if(IsActive())
-		s_TextAppear.Reset();
+		LucentUi::ResetTextInputAppearance();
 	m_VisualReposition = true;
 	m_VisualEditCount = 0;
 	mem_zero(m_pStr, m_MaxSize);
@@ -90,7 +66,7 @@ void CLineInput::Clear()
 void CLineInput::Set(const char *pString)
 {
 	if(IsActive())
-		s_TextAppear.Reset();
+		LucentUi::ResetTextInputAppearance();
 	m_VisualReposition = true;
 	m_VisualEditCount = 0;
 	str_copy(m_pStr, pString, m_MaxSize);
@@ -116,9 +92,9 @@ void CLineInput::SetRange(const char *pString, size_t Begin, size_t End)
 		if(IsActive())
 		{
 			if(g_Config.m_ClLucentLogoAnimation)
-				s_TextAppear.Replace(int(str_utf8_offset_bytes_to_chars(m_pStr, Begin)), int(RemovedCharCount), int(AddedCharCount), double(time_get()) / time_freq());
+				LucentUi::ReplaceTextInputAppearance(int(str_utf8_offset_bytes_to_chars(m_pStr, Begin)), int(RemovedCharCount), int(AddedCharCount), double(time_get()) / time_freq());
 			else
-				s_TextAppear.Reset();
+				LucentUi::ResetTextInputAppearance();
 		}
 		const int Delta = int(AddedCharCount) - int(RemovedCharCount);
 		if(m_VisualSequentialEdit && AddedCharCount + RemovedCharCount == 1 &&
@@ -168,7 +144,7 @@ void CLineInput::UpdateStrData()
 	if(IsActive() && (Length != m_Len || NumChars != m_NumChars))
 	{
 		// Linked config buffers can also be changed outside the input API.
-		s_TextAppear.Reset();
+		LucentUi::ResetTextInputAppearance();
 		m_VisualReposition = true;
 		m_VisualEditCount = 0;
 	}
@@ -450,7 +426,7 @@ bool CLineInput::ProcessInput(const IInput::CEvent &Event)
 						// Completed clipboard lines were sent to the console/chat callback;
 						// only the remaining editable line needs a bounded paste fade.
 						if(IsActive() && g_Config.m_ClLucentLogoAnimation)
-							s_TextAppear.Replace(0, 0, int(GetNumChars()), double(time_get()) / time_freq());
+							LucentUi::ReplaceTextInputAppearance(0, 0, int(GetNumChars()), double(time_get()) / time_freq());
 					}
 				}
 				else
@@ -531,12 +507,11 @@ STextBoundingBox CLineInput::Render(const CUIRect *pRect, float FontSize, int Al
 		const bool AnimateCaret = g_Config.m_ClLucentLogoAnimation != 0;
 		const double Now = double(time_get()) / time_freq();
 		if(!AnimateCaret)
-			s_TextAppear.Reset();
-		const SInputGlyphOpacity GlyphOpacity{Now,
+			LucentUi::ResetTextInputAppearance();
+		const LucentUi::SInputGlyphOpacity GlyphOpacity{Now,
 			int(str_utf8_offset_bytes_to_chars(pDisplayStr, DisplayCursorOffset)),
 			HasComposition ? int(str_utf8_offset_bytes_to_chars(Input()->GetComposition(), Input()->GetCompositionLength())) : 0};
-		if(s_TextAppear.Active(Now) && GetLength() > 0)
-			Cursor.m_GlyphOpacity = {&GlyphOpacity, SInputGlyphOpacity::Sample};
+		LucentUi::ApplyTextInputOpacity(Cursor, GlyphOpacity, GetLength() > 0);
 		Cursor.m_RenderCursor = !AnimateCaret;
 		Cursor.m_LineWidth = LineWidth;
 		Cursor.m_ForceCursorRendering = Changed || !AnimateCaret;
@@ -607,51 +582,7 @@ STextBoundingBox CLineInput::Render(const CUIRect *pRect, float FontSize, int Al
 		}
 
 		m_CaretPosition = Cursor.m_CursorRenderedPosition;
-		auto &Clock = LucentStyle::Motion::Clock();
-		Clock.BeginFrame(Now, AnimateCaret);
-		const int CursorChars = str_utf8_offset_bytes_to_chars(pDisplayStr, DisplayCursorOffset);
-		const int CharDelta = int(GetNumChars()) - int(s_LastInputChars);
-		const bool Editing = CharDelta != 0;
-		const bool Sequential = m_VisualEditCount != 0 && CharDelta == m_VisualEditCount && CursorChars - s_LastCursorChars == CharDelta;
-		const bool Reposition = m_VisualReposition || HasComposition || s_pMotionInput != this || s_LastInputHeight != Cursor.m_AlignedFontSize ||
-					HasSelection() || s_LastSelection || m_MouseSelection.m_Selecting ||
-					(Editing ? !Sequential : CursorChars != s_LastCursorChars) ||
-					(Input()->ModifierIsPressed() && Input()->KeyPress(KEY_V));
-		if(!Reposition)
-			s_TextMotion.Translate(CursorPos - s_LastInputOrigin);
-		s_TextMotion.Update(m_CaretPosition, Cursor.m_AlignedFontSize, Now, AnimateCaret, Reposition, std::abs(m_VisualEditCount));
-		m_VisualReposition = false;
-		m_VisualEditCount = 0;
-		s_LastInputChars = GetNumChars();
-		s_LastCursorChars = CursorChars;
-		s_LastSelection = HasSelection();
-		s_pMotionInput = this;
-		s_LastInputOrigin = CursorPos;
-		s_LastInputHeight = Cursor.m_AlignedFontSize;
-		if(Changed || s_TextMotion.Moving(Now))
-			s_CaretChanged = Now;
-		if(AnimateCaret && (HasComposition || Now - s_CaretChanged < .5 || std::fmod(Now - s_CaretChanged, 1.0) < .5))
-		{
-			const float CaretWidth = std::max(LucentStyle::Motion::TextHeadMinWidth, Cursor.m_AlignedFontSize * LucentStyle::Motion::TextHeadWidth);
-			const CUIRect &Clip = pTrailClip ? *pTrailClip : *pRect;
-			vec2 Visual = m_CaretPosition;
-			vec2 Tail = s_TextMotion.Tail(Now, Cursor.m_AlignedFontSize);
-			Visual.x = std::clamp(Visual.x, Clip.x, std::max(Clip.x, Clip.x + Clip.w - CaretWidth));
-			Tail.x = std::clamp(Tail.x, Clip.x, std::max(Clip.x, Clip.x + Clip.w - CaretWidth));
-			const float Alpha = TextRender()->RenderOpacity();
-			const float Fade = s_TextMotion.TrailAlpha(Now) * Alpha;
-			const auto White = LucentStyle::Gradient::White.WithAlpha(Fade);
-			const auto Rose = LucentStyle::Gradient::Pink.WithAlpha(Fade);
-			CUIRect Trail = {std::min(Tail.x, Visual.x), Visual.y, std::abs(Visual.x - Tail.x), Cursor.m_AlignedFontSize};
-			// A soft opacity ribbon, not a second cursor: both ends dissolve and
-			// the sole solid caret stays exactly at the logical insertion point.
-			CUIRect Left, Right;
-			Trail.VSplitMid(&Left, &Right);
-			Left.Draw4(White.WithAlpha(0), White, Rose.WithAlpha(0), Rose, 0, 0);
-			Right.Draw4(White, White.WithAlpha(0), Rose, Rose.WithAlpha(0), 0, 0);
-			CUIRect Caret = {m_CaretPosition.x, m_CaretPosition.y, CaretWidth, Cursor.m_AlignedFontSize};
-			Caret.Draw(LucentStyle::Gradient::Sample(0, Clock.GradientTime()).WithAlpha(Alpha), 0, 0);
-		}
+		RenderCaretEffects(Cursor, CursorPos, pDisplayStr, DisplayCursorOffset, HasComposition, Changed, Now, AnimateCaret, pTrailClip ? *pTrailClip : *pRect);
 
 		CTextCursor CaretCursor;
 		CaretCursor.SetPosition(CursorPos);
@@ -799,16 +730,13 @@ void CLineInput::OnActivate()
 {
 	m_VisualReposition = true;
 	m_VisualEditCount = 0;
-	s_TextAppear.Reset();
-	s_TextMotion.Reset();
-	s_CaretChanged = double(time_get()) / time_freq();
+	LucentUi::ResetTextInputMotion(true);
 	Input()->StartTextInput();
 }
 
 void CLineInput::OnDeactivate()
 {
-	s_TextAppear.Reset();
-	s_TextMotion.Reset();
+	LucentUi::ResetTextInputMotion(false);
 	Input()->StopTextInput();
 	m_MouseSelection.m_Selecting = false;
 }

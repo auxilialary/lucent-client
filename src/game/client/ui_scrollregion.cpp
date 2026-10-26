@@ -1,4 +1,4 @@
-#include <game/client/lucent/ui.h>
+#include <game/client/lucent/ui/scrollbar.h>
 /* (c) Magnus Auvinen. See licence.txt in the root of the distribution for more information. */
 /* If you are missing that file, acquire a complete release at teeworlds.com.                */
 #include "ui_scrollregion.h"
@@ -353,17 +353,11 @@ void CScrollRegion::DoSlider()
 	m_ScrollPos = std::clamp(m_ScrollPos, 0.0f, MaxScroll());
 	m_ContentScrollOffset = -m_ScrollPos;
 
-	// Keep the full rail as the drag target, only narrow the painted thumb.
 	if(Ui()->LucentStyle())
+		LucentUi::DrawScrollbar(Slider, m_Params.m_ScrollHorizontal, Ui()->CheckActiveItem(pId), Ui()->HotItem() == pId);
+	else
 	{
-		if(m_Params.m_ScrollHorizontal)
-			Slider.HMargin(std::max(0.f, (Slider.h - 2) * .5f), &Slider);
-		else
-			Slider.VMargin(std::max(0.f, (Slider.w - 2) * .5f), &Slider);
+		const float Rounding = m_Params.m_ScrollHorizontal ? Slider.h / 2.0f : Slider.w / 2.0f;
+		Slider.Draw(m_Params.SliderColor(Ui()->CheckActiveItem(pId), Ui()->HotItem() == pId), IGraphics::CORNER_ALL, Rounding);
 	}
-	const float Rounding = m_Params.m_ScrollHorizontal ? Slider.h / 2.0f : Slider.w / 2.0f;
-	Slider.Draw(Ui()->LucentStyle() ? LucentUi::Accent(Ui()->CheckActiveItem(pId) ? .65f : Ui()->HotItem() == pId ? .48f :
-															.24f) :
-					  m_Params.SliderColor(Ui()->CheckActiveItem(pId), Ui()->HotItem() == pId),
-		IGraphics::CORNER_ALL, Rounding);
 }

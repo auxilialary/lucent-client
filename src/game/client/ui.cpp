@@ -1,4 +1,6 @@
-#include <game/client/lucent/ui.h>
+#include <game/client/lucent/ui/controls.h>
+#include <game/client/lucent/ui/scopes.h>
+#include <game/client/lucent/ui/surfaces.h>
 /* (c) Magnus Auvinen. See licence.txt in the root of the distribution for more information. */
 /* If you are missing that file, acquire a complete release at teeworlds.com.                */
 #include "ui.h"
