@@ -1,6 +1,6 @@
 #ifndef GAME_CLIENT_LUCENT_SERVER_CONTROLS_H
 #define GAME_CLIENT_LUCENT_SERVER_CONTROLS_H
-#include "lucent_style.h"
+#include <game/client/lucent/motion/transition.h>
 
 #include <algorithm>
 

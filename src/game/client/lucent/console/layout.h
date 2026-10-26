@@ -1,7 +1,7 @@
 #ifndef GAME_CLIENT_LUCENT_CONSOLE_LAYOUT_H
 #define GAME_CLIENT_LUCENT_CONSOLE_LAYOUT_H
 
-#include <game/client/lucent/lucent_style.h>
+#include <game/client/lucent/style/tokens.h>
 
 #include <array>
 #include <span>

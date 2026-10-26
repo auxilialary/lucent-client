@@ -1,9 +1,10 @@
 /* (c) Magnus Auvinen. See licence.txt in the root of the distribution for more information. */
 /* If you are missing that file, acquire a complete release at teeworlds.com.                */
-#include "lucent_menu.h"
+#include <game/client/lucent/menu/menu.h>
 
-#include "lucent_menu_effects.h"
-#include "lucent_style.h"
+#include <game/client/lucent/ui/scene_effects.h>
+#include <game/client/lucent/motion/transition.h>
+#include <game/client/lucent/style/gradient.h>
 
 #include <base/time.h>
 

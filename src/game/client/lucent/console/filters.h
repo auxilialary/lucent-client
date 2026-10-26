@@ -1,7 +1,7 @@
 #ifndef GAME_CLIENT_LUCENT_CONSOLE_FILTERS_H
 #define GAME_CLIENT_LUCENT_CONSOLE_FILTERS_H
 
-#include <game/client/lucent/console_log.h>
+#include <game/client/lucent/console/log.h>
 
 #include <cstdint>
 #include <vector>

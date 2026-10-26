@@ -1,4 +1,4 @@
-#include "../radial_transition.h"
+#include <game/client/lucent/motion/radial_transition.h>
 
 #include <cstdio>
 #include <cstdlib>

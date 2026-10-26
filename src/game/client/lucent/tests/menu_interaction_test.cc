@@ -1,6 +1,6 @@
 // Standalone: compile with lucent_menu_interaction.cpp and the src include directory.
-#include "../lucent_menu_interaction.h"
-#include "../server_controls.h"
+#include <game/client/lucent/menu/interaction.h>
+#include <game/client/lucent/menu/server_controls.h>
 
 #include <cstdio>
 #include <cstdlib>

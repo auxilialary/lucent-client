@@ -1,7 +1,7 @@
 #ifndef GAME_CLIENT_LUCENT_RADIAL_TRANSITION_H
 #define GAME_CLIENT_LUCENT_RADIAL_TRANSITION_H
 
-#include "lucent_style.h"
+#include <game/client/lucent/motion/transition.h>
 
 #include <base/vmath.h>
 

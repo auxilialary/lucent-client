@@ -1,5 +1,5 @@
-#include "lucent_menu.h"
-#include "lucent_style.h"
+#include <game/client/lucent/menu/menu.h>
+#include <game/client/lucent/motion/clock.h>
 
 #include <base/dbg.h>
 #include <base/time.h>

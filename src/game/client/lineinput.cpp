@@ -2,7 +2,9 @@
 /* If you are missing that file, acquire a complete release at teeworlds.com.                */
 #include "lineinput.h"
 
-#include "lucent/lucent_text_motion.h"
+#include <game/client/lucent/motion/text_motion.h>
+#include <game/client/lucent/motion/clock.h>
+#include <game/client/lucent/style/gradient.h>
 #include "ui.h"
 
 #include <base/dbg.h>

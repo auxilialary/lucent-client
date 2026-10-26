@@ -1,6 +1,6 @@
-#include "map_preview.h"
+#include <game/client/lucent/browser/map_preview.h>
 
-#include "browser_layout.h"
+#include <game/client/lucent/browser/browser_layout.h>
 
 #include <base/str.h>
 

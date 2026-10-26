@@ -1,4 +1,4 @@
-#include "lucent_menu_interaction.h"
+#include <game/client/lucent/menu/interaction.h>
 
 #include <algorithm>
 #include <cmath>

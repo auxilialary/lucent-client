@@ -1,6 +1,7 @@
 #ifndef GAME_CLIENT_LUCENT_BROWSER_STATE_H
 #define GAME_CLIENT_LUCENT_BROWSER_STATE_H
-#include "lucent_style.h"
+#include "preview_policy.h"
+#include <game/client/lucent/motion/transition.h>
 
 #include <algorithm>
 #include <cmath>
@@ -271,29 +272,4 @@ public:
 	}
 };
 
-// Independent of HTTP and graphics: only the current generation may be published.
-class CLucentPreviewSelection
-{
-	std::string m_Key;
-	double m_Changed = 0;
-	uint64_t m_Generation = 0;
-	bool m_Started = false;
-
-public:
-	bool Select(std::string_view Key, double Now)
-	{
-		if(Key == m_Key)
-			return false;
-		m_Key.assign(Key);
-		m_Changed = Now;
-		m_Started = false;
-		++m_Generation;
-		return true;
-	}
-	bool Ready(double Now) const { return !m_Started && !m_Key.empty() && Now - m_Changed >= .22; }
-	void Start() { m_Started = true; }
-	uint64_t Generation() const { return m_Generation; }
-	bool Accept(uint64_t Generation) const { return Generation == m_Generation; }
-	const std::string &Key() const { return m_Key; }
-};
 #endif

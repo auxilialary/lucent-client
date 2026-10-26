@@ -2755,40 +2755,54 @@ if(CLIENT)
     laser_data.h
     lineinput.cpp
     lineinput.h
-    lucent/browser.cpp
-    lucent/browser_ambient.cpp
-    lucent/browser_ambient.h
-    lucent/browser_layout.h
-    lucent/browser_panels.cpp
-    lucent/browser_state.h
+    lucent/browser/browser.cpp
+    lucent/browser/browser_ambient.cpp
+    lucent/browser/browser_ambient.h
+    lucent/browser/browser_layout.h
+    lucent/browser/browser_list.cpp
+    lucent/browser/browser_panels.cpp
+    lucent/browser/browser_popups.cpp
+    lucent/browser/browser_state.h
+    lucent/browser/map_preview.cpp
+    lucent/browser/map_preview.h
+    lucent/browser/preview_policy.h
     lucent/config_variables.h
-    lucent/console_log.h
-    lucent/console_selection.h
-    lucent/console/filter_ui.h
     lucent/console/copy_feedback.h
+    lucent/console/filter_ui.cpp
+    lucent/console/filter_ui.h
     lucent/console/filters.h
     lucent/console/layout.h
+    lucent/console/log.h
+    lucent/console/presentation.cpp
     lucent/console/presentation.h
-    lucent/lucent_style.cpp
-    lucent/lucent_text_motion.h
-    lucent/lucent_style.h
-    lucent/lucent_logo.cpp
-    lucent/lucent_logo.h
-    lucent/lucent_menu.cpp
-    lucent/lucent_menu.h
-    lucent/lucent_menu_effects.cpp
-    lucent/lucent_menu_effects.h
-    lucent/lucent_menu_interaction.cpp
-    lucent/lucent_menu_interaction.h
-    lucent/lucent_menu_transition.cpp
+    lucent/console/selection.h
     lucent/lucent_startup.cpp
     lucent/lucent_startup.h
-    lucent/map_preview.cpp
-    lucent/map_preview.h
-    lucent/preview_policy.h
-    lucent/radial_transition.h
-    lucent/server_controls.h
+    lucent/lucent_style.h
+    lucent/menu/interaction.cpp
+    lucent/menu/interaction.h
+    lucent/menu/menu.cpp
+    lucent/menu/menu.h
+    lucent/menu/navigation.cpp
+    lucent/menu/server_controls.h
+    lucent/motion/clock.cpp
+    lucent/motion/clock.h
+    lucent/motion/radial_transition.h
+    lucent/motion/text_motion.h
+    lucent/motion/transition.h
+    lucent/style/gradient.h
+    lucent/style/tokens.h
     lucent/ui.h
+    lucent/ui/checkbox_geometry.h
+    lucent/ui/controls.cpp
+    lucent/ui/controls.h
+    lucent/ui/logo.cpp
+    lucent/ui/logo.h
+    lucent/ui/scene_effects.cpp
+    lucent/ui/scene_effects.h
+    lucent/ui/scopes.h
+    lucent/ui/surfaces.cpp
+    lucent/ui/surfaces.h
     multiview.cpp
     pickup_data.cpp
     pickup_data.h
@@ -4368,10 +4382,15 @@ endforeach()
 if(CLIENT)
   add_executable(lucent-menu-test EXCLUDE_FROM_ALL
     src/game/client/lucent/tests/menu_interaction_test.cc
-    src/game/client/lucent/lucent_menu_interaction.cpp
+    src/game/client/lucent/menu/interaction.cpp
   )
   target_include_directories(lucent-menu-test PRIVATE src)
   target_compile_features(lucent-menu-test PRIVATE cxx_std_20)
+  add_executable(lucent-menu-effects-test EXCLUDE_FROM_ALL
+    src/game/client/lucent/tests/menu_effects_test.cc
+  )
+  target_include_directories(lucent-menu-effects-test PRIVATE src)
+  target_compile_features(lucent-menu-effects-test PRIVATE cxx_std_20)
   add_executable(lucent-radial-transition-test EXCLUDE_FROM_ALL
     src/game/client/lucent/tests/radial_transition_test.cc
   )

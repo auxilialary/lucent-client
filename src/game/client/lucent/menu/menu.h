@@ -1,9 +1,9 @@
 #ifndef GAME_CLIENT_LUCENT_LUCENT_MENU_H
 #define GAME_CLIENT_LUCENT_LUCENT_MENU_H
-#include "lucent_logo.h"
-#include "lucent_menu_interaction.h"
-#include "radial_transition.h"
-#include "server_controls.h"
+#include <game/client/lucent/ui/logo.h>
+#include <game/client/lucent/menu/interaction.h>
+#include <game/client/lucent/motion/radial_transition.h>
+#include <game/client/lucent/menu/server_controls.h>
 
 #include <game/client/component.h>
 #include <game/client/ui.h>

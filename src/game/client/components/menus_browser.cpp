@@ -20,7 +20,7 @@
 #include <game/client/animstate.h>
 #include <game/client/components/countryflags.h>
 #include <game/client/gameclient.h>
-#include <game/client/lucent/browser_layout.h>
+#include <game/client/lucent/browser/browser_layout.h>
 #include <game/client/lucent/ui.h>
 #include <game/client/ui.h>
 #include <game/client/ui_listbox.h>

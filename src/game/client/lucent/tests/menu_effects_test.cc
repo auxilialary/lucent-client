@@ -1,6 +1,6 @@
 // Standalone geometry/temporal checks against the production tessellation.
 // Rendering is intentionally unavailable in this CPU-only test.
-#include "../lucent_menu_effects.cpp"
+#include <game/client/lucent/ui/scene_effects.cpp>
 
 #include <cstdio>
 #include <cstdlib>

@@ -26,7 +26,7 @@
 #include <generated/client_data.h>
 
 #include <game/client/gameclient.h>
-#include <game/client/lucent/console_log.h>
+#include <game/client/lucent/console/log.h>
 #include <game/client/lucent/ui.h>
 #include <game/client/ui.h>
 #include <game/localization.h>

@@ -1,7 +1,6 @@
 #ifndef GAME_CLIENT_LUCENT_MAP_PREVIEW_H
 #define GAME_CLIENT_LUCENT_MAP_PREVIEW_H
-#include "browser_state.h"
-#include "preview_policy.h"
+#include <game/client/lucent/browser/preview_policy.h>
 
 #include <engine/graphics.h>
 

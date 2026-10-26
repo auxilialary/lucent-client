@@ -1,4 +1,4 @@
-#include "lucent_style.h"
+#include "clock.h"
 
 LucentStyle::Motion::CClock &LucentStyle::Motion::Clock()
 {

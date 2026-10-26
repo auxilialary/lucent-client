@@ -6,8 +6,9 @@
 #include <game/client/lucent/console/copy_feedback.h>
 #include <game/client/lucent/console/filters.h>
 #include <game/client/lucent/console/layout.h>
-#include <game/client/lucent/console_log.h>
-#include <game/client/lucent/console_selection.h>
+#include <game/client/lucent/console/log.h>
+#include <game/client/lucent/console/selection.h>
+#include <game/client/lucent/motion/transition.h>
 
 #include <gtest/gtest.h>
 

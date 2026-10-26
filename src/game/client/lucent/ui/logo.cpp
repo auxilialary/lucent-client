@@ -1,7 +1,8 @@
-#include "lucent_logo.h"
+#include <game/client/lucent/ui/logo.h>
 
-#include "lucent_menu_effects.h"
-#include "lucent_style.h"
+#include <game/client/lucent/ui/scene_effects.h>
+#include <game/client/lucent/motion/clock.h>
+#include <game/client/lucent/style/gradient.h>
 
 #include <game/client/ui_rect.h>
 

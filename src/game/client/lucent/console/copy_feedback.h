@@ -1,7 +1,7 @@
 #ifndef GAME_CLIENT_LUCENT_CONSOLE_COPY_FEEDBACK_H
 #define GAME_CLIENT_LUCENT_CONSOLE_COPY_FEEDBACK_H
 
-#include <game/client/lucent/lucent_style.h>
+#include <game/client/lucent/style/tokens.h>
 
 namespace LucentConsole
 {

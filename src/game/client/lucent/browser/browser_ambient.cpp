@@ -1,4 +1,4 @@
-#include "browser_ambient.h"
+#include <game/client/lucent/browser/browser_ambient.h>
 
 #include <engine/graphics.h>
 

@@ -13,7 +13,7 @@
 #include <game/client/lucent/console/copy_feedback.h>
 #include <game/client/lucent/console/filter_ui.h>
 #include <game/client/lucent/console/presentation.h>
-#include <game/client/lucent/console_selection.h>
+#include <game/client/lucent/console/selection.h>
 #include <game/client/lucent/lucent_style.h>
 #include <game/client/ui.h>
 

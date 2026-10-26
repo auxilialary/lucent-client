@@ -1,10 +1,13 @@
 #include <engine/textrender.h>
+#include <game/client/lucent/motion/clock.h>
 
-#include <game/client/lucent/browser_layout.h>
-#include <game/client/lucent/browser_state.h>
-#include <game/client/lucent/checkbox_geometry.h>
-#include <game/client/lucent/lucent_text_motion.h>
-#include <game/client/lucent/preview_policy.h>
+#include <game/client/lucent/style/gradient.h>
+
+#include <game/client/lucent/browser/browser_layout.h>
+#include <game/client/lucent/browser/browser_state.h>
+#include <game/client/lucent/ui/checkbox_geometry.h>
+#include <game/client/lucent/motion/text_motion.h>
+#include <game/client/lucent/browser/preview_policy.h>
 
 #include <cstdio>
 #include <cstdlib>

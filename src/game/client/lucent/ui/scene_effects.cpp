@@ -1,4 +1,4 @@
-#include "lucent_menu_effects.h"
+#include <game/client/lucent/ui/scene_effects.h>
 
 #include <engine/graphics.h>
 

@@ -23,9 +23,9 @@
 #include <game/client/components/menus_start.h>
 #include <game/client/components/skins7.h>
 #include <game/client/lineinput.h>
-#include <game/client/lucent/browser_state.h>
+#include <game/client/lucent/browser/browser_state.h>
 #include <game/client/lucent/lucent_startup.h>
-#include <game/client/lucent/map_preview.h>
+#include <game/client/lucent/browser/map_preview.h>
 #include <game/client/ui.h>
 #include <game/voting.h>
 

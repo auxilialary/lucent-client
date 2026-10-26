@@ -1,7 +1,7 @@
 #ifndef GAME_CLIENT_LUCENT_LUCENT_STARTUP_H
 #define GAME_CLIENT_LUCENT_LUCENT_STARTUP_H
 
-#include "lucent_logo.h"
+#include <game/client/lucent/ui/logo.h>
 #include <game/client/ui_rect.h>
 #include <optional>
 
