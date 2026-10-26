@@ -2758,9 +2758,12 @@ if(CLIENT)
     lucent/browser/browser.cpp
     lucent/browser/browser_ambient.cpp
     lucent/browser/browser_ambient.h
+    lucent/browser/browser_filters.cpp
+    lucent/browser/browser_friends.cpp
     lucent/browser/browser_layout.h
     lucent/browser/browser_list.cpp
     lucent/browser/browser_panels.cpp
+    lucent/browser/browser_players.cpp
     lucent/browser/browser_popups.cpp
     lucent/browser/browser_state.h
     lucent/browser/map_preview.cpp

@@ -33,6 +33,9 @@
 #include <optional>
 #include <vector>
 
+class CListBox;
+struct CScrollRegionParams;
+
 class CMenus : public CComponent
 {
 	CLucentStartup m_LucentStartup;
@@ -885,6 +888,26 @@ public:
 	void Connect(const char *pAddress);
 
 private:
+	// Lucent browser presentation; shared data, IDs and actions stay in the host.
+	void RenderLucentBrowserFilterControls(CUIRect &View, CScrollRegion &Scroll, bool CountriesTab, bool LayoutFinished, float &GridHeight, CLineInput (&s_CompactInputs)[3], LucentStyle::Motion::CTransition (&s_aFloatingLabels)[3]);
+	void RenderLucentBrowserFilterSection(CUIRect &View, const char *pText);
+	float LucentBrowserFilterBodyOpacity() const;
+	void LayoutLucentBrowserFilterGrid(CUIRect &View, bool CountriesTab);
+	void PopupLucentBrowserFilterCountry(const CUIRect &Flag, SPopupMenuId *pId, SPopupCountrySelectionContext *pContext);
+	float LucentBrowserCommunityFilterOpacity(const void *pItemId, bool Active);
+	void RenderLucentBrowserCountryFilterItem(int ItemIndex, CUIRect Item, const void *pItemId, bool Active);
+	void RenderLucentBrowserTypeFilterItem(int ItemIndex, CUIRect Item, const void *pItemId, bool Active);
+
+	void ConfigureLucentBrowserPlayers(CListBox &ListBox, float &FontSize, float &RowHeight);
+	void LayoutLucentBrowserPlayer(const void *pItemId, const CUIRect &Row, float Width, CUIRect &Skin, CUIRect &Name, CUIRect &Clan, CUIRect &Score, CUIRect &Flag);
+
+	float LayoutLucentBrowserFriends(CUIRect &View, CUIRect &List, CUIRect &ServerFriends, bool &ShowAdd, CLineInput &NameInput, CLineInput &ClanInput, const void *pAddAction);
+	void ConfigureLucentBrowserFriends(CScrollRegionParams &Params);
+	void RenderLucentBrowserFriendGroupHeader(CUIRect Header, const void *pId, bool Extended, CUIRect &GroupLabel);
+	void RenderLucentBrowserFriendGroupLabel(CUIRect GroupLabel, size_t FriendType, char (&aBuf)[256]);
+	void RenderLucentBrowserFriendBackground(const CUIRect &Rect, bool InSelectedServer, bool Inside);
+	void LayoutLucentBrowserFriendForm(CUIRect &ServerFriends, CUIRect &Button, CLineInput &NameInput, CLineInput &ClanInput, char (&aBuf)[256]);
+
 	CCommunityIcons m_CommunityIcons;
 	CMenusIngameTouchControls m_MenusIngameTouchControls;
 	friend CMenusIngameTouchControls;
