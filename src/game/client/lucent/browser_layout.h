@@ -9,14 +9,20 @@ struct CLucentBrowserSceneLayout
 {
 	CUIRect m_Artwork;
 	float m_TitleY;
-	static CLucentBrowserSceneLayout Measure(const CUIRect &Screen, float Context, float Players)
+	static float ListWidth(const CUIRect &Screen) { return (Screen.w - 36) * .38f; }
+	static CUIRect SceneBounds(const CUIRect &Screen)
 	{
-		const float Left = Screen.x + 18 + (Screen.w - 36) * .38f + Screen.w * .05f;
-		const float Width = Screen.x + Screen.w - 24 - Left;
-		const CUIRect Preview = {Left, Screen.y + Screen.h * .15f, Width, Screen.h * .51f};
-		const CUIRect Supporting = {Left + Width * (.56f + .08f * Players), Screen.y + Screen.h * .13f, Width * (.44f - .08f * Players), Screen.h * .19f};
+		const float Gap = std::clamp(Screen.w * .02f, 12.f, 24.f);
+		const float Left = Screen.x + 18 + ListWidth(Screen) + Gap;
+		return {Left, Screen.y, Screen.x + Screen.w - 24 - Left, Screen.h};
+	}
+	static CLucentBrowserSceneLayout Measure(const CUIRect &Screen, float Context, float /*Players*/)
+	{
+		const auto Scene = SceneBounds(Screen);
+		Context = std::clamp(Context, 0.f, 1.f);
 		const auto Blend = [Context](float A, float B) { return A + (B - A) * Context; };
-		return {{Blend(Preview.x, Supporting.x), Blend(Preview.y, Supporting.y), Blend(Preview.w, Supporting.w), Blend(Preview.h, Supporting.h)}, Blend(Screen.y + Screen.h * .62f, Screen.y + Screen.h * .32f)};
+		const CUIRect Artwork = {Scene.x, Screen.y + Screen.h * .12f, Scene.w, Blend(Screen.h * .46f, Screen.h * .18f)};
+		return {Artwork, Artwork.y + Artwork.h + 12};
 	}
 };
 

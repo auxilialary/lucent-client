@@ -206,10 +206,13 @@ void CLucentMapPreview::Render(IGraphics *pGraphics, const CUIRect &Screen, doub
 		pGraphics->QuadsBegin();
 		pGraphics->SetColor(1, 1, 1, Alpha * .85f);
 		const auto &Entry = m_aCache[Index];
-		const float Settle = Animate ? std::pow(1.f - std::clamp(float((Now - Entry.m_RevealStart) / 3.5), 0.f, 1.f), 3.f) : 0.f;
 		const auto Layout = CLucentBrowserSceneLayout::Measure(Screen, Context, Players);
-		const float Scale = std::min({Layout.m_Artwork.w / Entry.m_Width, Layout.m_Artwork.h / Entry.m_Height, 2.f}) * (Atmospheric ? 1.16f : 1.f) * (1.f - .015f * Settle);
-		const float Width = Entry.m_Width * Scale, Height = Entry.m_Height * Scale;
+		const float Fit = std::min(Layout.m_Artwork.w / Entry.m_Width, Layout.m_Artwork.h / Entry.m_Height);
+		const float Fill = std::max(Layout.m_Artwork.w / Entry.m_Width, Layout.m_Artwork.h / Entry.m_Height);
+		const float Scale = Fit + (Fill - Fit) * std::clamp(Context, 0.f, 1.f);
+		const float Width = std::min(Layout.m_Artwork.w, Entry.m_Width * Scale);
+		const float Height = std::min(Layout.m_Artwork.h, Entry.m_Height * Scale);
+		const float USpan = Width / (Entry.m_Width * Scale), VSpan = Height / (Entry.m_Height * Scale);
 		const float X = Layout.m_Artwork.x + (Layout.m_Artwork.w - Width) * .5f;
 		const float Y = Layout.m_Artwork.y + (Layout.m_Artwork.h - Height) * .5f;
 		// Preserve the image center; dissolve mostly into the lower title boundary.
@@ -228,7 +231,7 @@ void CLucentMapPreview::Render(IGraphics *pGraphics, const CUIRect &Screen, doub
 				};
 				const float U = float(x) / Steps, V = float(y) / Steps;
 				const float R = float(x + 1) / Steps, B = float(y + 1) / Steps;
-				pGraphics->QuadsSetSubset(U, V, R, B);
+				pGraphics->QuadsSetSubset((1 - USpan) * .5f + U * USpan, (1 - VSpan) * .5f + V * VSpan, (1 - USpan) * .5f + R * USpan, (1 - VSpan) * .5f + B * VSpan);
 				pGraphics->SetColor4(ColorRGBA(1, 1, 1, Mask(U, V)), ColorRGBA(1, 1, 1, Mask(R, V)), ColorRGBA(1, 1, 1, Mask(U, B)), ColorRGBA(1, 1, 1, Mask(R, B)));
 				IGraphics::CQuadItem Tile(X + Width * U, Y + Height * V, Width / Steps, Height / Steps);
 				pGraphics->QuadsDrawTL(&Tile, 1);

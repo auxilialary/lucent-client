@@ -125,9 +125,16 @@ void CMenus::RenderLucentContext(CUIRect View, CLucentBrowserState::EPanel Mode)
 		TextRender()->TextColor(TextRender()->DefaultTextColor());
 		View.HSplitTop(14, nullptr, &View);
 		CUIRect Actions, CopyAction;
-		View.HSplitTop(28, &Actions, &View);
-		Actions.w = std::min(Actions.w, 240.f);
-		Actions.VSplitMid(&Row, &CopyAction, 8);
+		const float FavoriteWidth = TextRender()->TextWidth(10, Localize("Favorite"), -1, -1) + 28;
+		const float CopyWidth = TextRender()->TextWidth(10, Localize("Copy address"), -1, -1) + 28;
+		const bool StackActions = View.w < FavoriteWidth + CopyWidth + 8;
+		View.HSplitTop(StackActions ? 56 : 28, &Actions, &View);
+		if(StackActions)
+			Actions.HSplitMid(&Row, &CopyAction);
+		else
+			Actions.VSplitLeft(std::clamp((Actions.w - 8) * .5f, FavoriteWidth, Actions.w - 8 - CopyWidth), &Row, &CopyAction);
+		if(!StackActions)
+			CopyAction.VSplitLeft(8, nullptr, &CopyAction);
 		static int s_Favorite;
 		if(LucentUi::TextButton(Ui(), TextRender(), &s_Favorite, Localize("Favorite"), Row, pServer->m_Favorite != TRISTATE::NONE, 10, TEXTALIGN_ML, true, FontIcon::STAR))
 		{
@@ -152,14 +159,8 @@ void CMenus::RenderLucentContext(CUIRect View, CLucentBrowserState::EPanel Mode)
 			}
 		}
 		static int s_Copy;
-		if(LucentUi::TextButton(Ui(), TextRender(), &s_Copy, Localize("Copy info"), CopyAction, false, 10, TEXTALIGN_ML, false, FontIcon::FILE))
-		{
-			char aInfo[1024];
-			str_format(aInfo, sizeof(aInfo), "%s\n%s: ddnet://%s\n%s: %s\n%s: %s\n%s: %s\n%s: %d/%d\n", pServer->m_aName, Localize("Server address"), pServer->m_aAddress, Localize("Map"), pServer->m_aMap, Localize("Type"), pServer->m_aGameType, Localize("Version"), pServer->m_aVersion, Localize("Players"), pServer->m_NumPlayers, pServer->m_MaxPlayers);
-			Input()->SetClipboardText(aInfo);
-		}
-		View.HSplitTop(8, nullptr, &View);
-		Label(Localize("Current DDNet map artwork; revisions may differ."), 24, 8);
+		if(LucentUi::TextButton(Ui(), TextRender(), &s_Copy, Localize("Copy address"), CopyAction, false, 10, TEXTALIGN_ML, false, FontIcon::FILE))
+			Input()->SetClipboardText(pServer->m_aAddress);
 		s_DetailsScroll.End();
 	}
 }

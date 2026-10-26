@@ -27,6 +27,7 @@ namespace LucentStyle
 		inline const ColorRGBA SecondaryText(.63f, .62f, .69f, 1);
 		inline const ColorRGBA DetailText(.72f, .68f, .74f, 1);
 		inline const ColorRGBA UnavailableText(.64f, .58f, .64f, 1);
+		inline const ColorRGBA ServerSelection(.19f, .12f, .16f, .65f);
 		inline const ColorRGBA ServerText(.86f, .84f, .88f, 1);
 		inline const ColorRGBA ServerHover(.98f, .96f, .98f, 1);
 		inline const ColorRGBA MetadataText(.58f, .57f, .64f, 1);

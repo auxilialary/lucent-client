@@ -409,7 +409,15 @@ int main()
 			CHECK(Context.m_Artwork.y + Context.m_Artwork.h <= Context.m_TitleY + .01f);
 			CHECK(Context.m_Artwork.x + Context.m_Artwork.w <= Width);
 			const auto Preview = CLucentBrowserSceneLayout::Measure(Screen, 0, Players);
-			CHECK(Preview.m_Artwork.w > Context.m_Artwork.w * 2);
+			CHECK(Preview.m_Artwork.w == Context.m_Artwork.w);
+			CHECK(Preview.m_Artwork.h > Context.m_Artwork.h * 2);
+			for(int Step = 0; Step <= 20; ++Step)
+			{
+				const auto Layout = CLucentBrowserSceneLayout::Measure(Screen, Step / 20.f, Players);
+				CHECK(Layout.m_Artwork.x >= Screen.x + 18 + CLucentBrowserSceneLayout::ListWidth(Screen) + 12);
+				CHECK(Layout.m_Artwork.y + Layout.m_Artwork.h + 12 <= Layout.m_TitleY + .01f);
+				CHECK(Layout.m_Artwork.x + Layout.m_Artwork.w <= Width - 24 + .01f);
+			}
 		}
 	}
 	CLucentBrowserState Retarget;

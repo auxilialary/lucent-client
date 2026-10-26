@@ -2839,7 +2839,7 @@ Active filters
 == Фильтры активны
 
 Copy address
-== Копировать адрес
+== Скопировать адрес
 
 Add to favorites
 == В избранное

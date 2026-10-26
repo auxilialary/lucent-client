@@ -304,8 +304,10 @@ void CMenus::RenderLucentBrowser(CUIRect Screen)
 	}
 	// Fixed regions share the background, with independent contextual state.
 	CUIRect Atmosphere;
-	Screen.VSplitLeft(Screen.w * .38f, &List, &Atmosphere);
-	Atmosphere.VSplitLeft(Ui()->Screen()->w * .05f, nullptr, &Atmosphere);
+	Screen.VSplitLeft(CLucentBrowserSceneLayout::ListWidth(*Ui()->Screen()), &List, nullptr);
+	Atmosphere = CLucentBrowserSceneLayout::SceneBounds(*Ui()->Screen());
+	Atmosphere.y = Screen.y;
+	Atmosphere.h = Screen.h;
 	CUIRect OverlayBounds = {Screen.x, Top.y + Top.h + 4, Screen.w, 0};
 	const auto VisibleOverlay = m_LucentBrowser.m_Overlay.m_Visible;
 	const bool Workspace = m_LucentBrowser.FiltersWorkspace();
@@ -473,13 +475,9 @@ void CMenus::RenderLucentBrowser(CUIRect Screen)
 	}
 	if(!m_LucentBrowser.TooltipsAllowed() || Ui()->IsPopupOpen())
 		Ui()->OnReset();
-	CUIRect Advanced;
 	Footer.y += LucentStyle::Motion::FilterFooterTravel * FiltersProgress;
-	Footer.VSplitRight(120, &Status, &Advanced);
+	Status = Footer;
 	LucentUi::COpacityScope FooterOpacity(TextRender(), 1 - FiltersProgress);
-	static int s_Legacy;
-	if(!Workspace && LucentUi::TextButton(Ui(), TextRender(), &s_Legacy, Localize("Legacy view"), Advanced, false, 9, TEXTALIGN_MR))
-		m_LucentLegacyBrowser = true;
 	char aStatus[192];
 	str_format(aStatus, sizeof(aStatus), "%d %s · %d %s   %s", ServerBrowser()->NumSortedServers(), Localize("servers"), ServerBrowser()->NumSortedPlayers(), Localize("players"), ServerBrowser()->IsRefreshing() || ServerBrowser()->IsGettingServerlist() ? Localize("Refreshing...") : "");
 	TextRender()->TextColor(LucentStyle::Style::SecondaryText);
@@ -521,7 +519,7 @@ void CMenus::RenderLucentServerList(CUIRect View, bool &Activated)
 		const auto *pNext = ServerBrowser()->SortedGet(i);
 		MixedRegions = str_comp(pFirst->m_aCommunityCountry, pNext->m_aCommunityCountry) != 0 || pFirst->m_Location != pNext->m_Location;
 	}
-	const float RegionWidth = MixedRegions ? 30.f : 0.f;
+	const float RegionWidth = MixedRegions ? std::max(44.f, (TextRender()->TextWidth(8, Localize("Region")) + 8) / ColumnScale) : 0.f;
 	const float Fixed = (16 + 48 + RegionWidth + 28) * ColumnScale;
 	const float MapWidth = std::max(0.f, Header.w - Fixed);
 	const float aWidths[] = {16 * ColumnScale, MapWidth, 0, 0, RegionWidth * ColumnScale, 48 * ColumnScale, 28 * ColumnScale};
@@ -595,18 +593,13 @@ void CMenus::RenderLucentServerList(CUIRect View, bool &Activated)
 		const float Hover = LucentUi::Highlight(pInfo, Item.m_Visible && Ui()->Enabled() && !Ui()->IsPopupOpen() && Ui()->MouseHovered(&Item.m_Rect));
 		const float Selection = LucentUi::Highlight(pInfo->m_aAddress, i == Selected);
 		if(Selection > .001f)
+			Item.m_Rect.Draw(LucentStyle::Style::ServerSelection.WithAlpha(LucentStyle::Style::ServerSelection.a * Selection), 0, 0);
+		if(i != Selected)
 		{
-			Item.m_Rect.Draw4(LucentUi::Accent(.025f * Selection), LucentUi::Accent(.07f * Selection), LucentUi::Accent(.025f * Selection), LucentUi::Accent(.015f * Selection), 0, 0);
-			if(i == Selected && m_LucentBrowser.m_SelectionPulse > 0)
-			{
-				CUIRect Echo = {Item.m_Rect.x + Item.m_Rect.w - 18, Item.m_Rect.y + 3, 18, Item.m_Rect.h - 6};
-				const float Pulse = std::sin(m_LucentBrowser.m_SelectionPulse * 3.14159265f);
-				Echo.Draw4(LucentUi::Accent(0), LucentUi::Accent(.09f * Pulse), LucentUi::Accent(0), LucentUi::Accent(.09f * Pulse), 0, 0);
-			}
+			CUIRect HoverLight = Item.m_Rect;
+			HoverLight.w *= .72f;
+			HoverLight.Draw4(LucentUi::Accent(.045f * Hover * (1 - Selection)), LucentUi::Accent(0), LucentUi::Accent(.045f * Hover * (1 - Selection)), LucentUi::Accent(0), 0, 0);
 		}
-		CUIRect HoverLight = Item.m_Rect;
-		HoverLight.w *= .72f;
-		HoverLight.Draw4(LucentUi::Accent(.045f * Hover), LucentUi::Accent(0), LucentUi::Accent(.045f * Hover), LucentUi::Accent(0), 0, 0);
 		if(i == Selected)
 			m_LucentBrowser.m_SelectionY = Item.m_Rect.y + Item.m_Rect.h * .5f;
 		if(!vpElements[i])
