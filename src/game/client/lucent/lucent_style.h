@@ -9,6 +9,38 @@
 // The visual vocabulary for Lucent scenes and controls. No renderer or config dependency.
 namespace LucentStyle
 {
+	namespace Console
+	{
+		constexpr float PillRadius = 2, PillPadding = 3, Gap = 6, MetadataSize = 8;
+		constexpr float CopySize = 16, CopyFade = .12f;
+		constexpr float CopyGap = 11;
+		constexpr double CopiedDuration = 1.05;
+		constexpr float HistoryPadding = 4, FilterGap = 8, FilterPadding = 6;
+		constexpr float PopoverPadding = 8, PopoverRow = 28, PopoverWidth = 210, LevelsWidth = 270, PopoverHeader = 18;
+		constexpr float PopoverRadius = 9, PopoverMotion = .16f, PopoverTravel = 4, PopoverIndicator = 4;
+		inline const ColorRGBA PopoverSurface(.025f, .021f, .035f, .94f);
+		constexpr float MorePopoverOpacity = 1.f;
+		constexpr float PopoverHintHeight = 40;
+		constexpr float FilterHeight = 26, FilterFontSize = 9, FilterFullWidth = 620, FilterMinWidth = 72;
+		constexpr float FilterTransition = .18f, FilterInactiveAlpha = .48f;
+		constexpr float SeveritySize = 3;
+		inline const ColorRGBA SeverityColors[] = {
+			ColorRGBA(.92f, .48f, .51f, 1), ColorRGBA(.88f, .71f, .43f, 1), ColorRGBA(.67f, .79f, .73f, 1),
+			ColorRGBA(.55f, .71f, .85f, 1), ColorRGBA(.76f, .63f, .84f, 1), ColorRGBA(.62f, .60f, .65f, 1)};
+		constexpr float MetadataWidthFraction = .27f, CopyIdleAlpha = .65f;
+		inline const ColorRGBA Timestamp(.19f, .18f, .22f, .65f);
+		inline const ColorRGBA MetadataText(.78f, .76f, .82f, 1);
+		inline const ColorRGBA Graphics(.35f, .29f, .46f, .75f);
+		inline const ColorRGBA Network(.22f, .35f, .43f, .75f);
+		inline const ColorRGBA Chat(.27f, .39f, .34f, .75f);
+		inline const ColorRGBA Server(.43f, .32f, .25f, .75f);
+		inline const ColorRGBA Browser(.29f, .34f, .47f, .75f);
+		inline const ColorRGBA Other(.37f, .28f, .35f, .75f);
+		inline const ColorRGBA Client(.38f, .31f, .43f, .85f);
+		inline const ColorRGBA Assets(.30f, .39f, .34f, .85f);
+		inline const ColorRGBA Record(.41f, .30f, .39f, .85f);
+		inline const ColorRGBA Editor(.38f, .37f, .27f, .85f);
+	}
 	namespace Style
 	{
 		inline const ColorRGBA Accent(1, .82f, .91f, 1);

@@ -2077,6 +2077,8 @@ foreach(datafile ${DATA})
   file(MAKE_DIRECTORY ${DESTINATION})
   file(COPY ${datafile} DESTINATION ${DESTINATION})
 endforeach()
+# Keep the runtime Russian dictionary current when its source changes.
+configure_file(data/languages/russian.txt data/languages/russian.txt COPYONLY)
 set(COPY_FILES
   # tidy-alphabetical-start
   ${CRASHDUMP_COPY_FILES}
@@ -2760,6 +2762,13 @@ if(CLIENT)
     lucent/browser_panels.cpp
     lucent/browser_state.h
     lucent/config_variables.h
+    lucent/console_log.h
+    lucent/console_selection.h
+    lucent/console/filter_ui.h
+    lucent/console/copy_feedback.h
+    lucent/console/filters.h
+    lucent/console/layout.h
+    lucent/console/presentation.h
     lucent/lucent_style.cpp
     lucent/lucent_text_motion.h
     lucent/lucent_style.h
@@ -3492,6 +3501,7 @@ if((GTEST_FOUND OR DOWNLOAD_GTEST) AND SERVER)
     json_test.cpp
     jsonwriter_test.cpp
     linereader_test.cpp
+    lucent_console_test.cpp
     map_download_test.cpp
     mapbugs_test.cpp
     mapitems_test.cpp

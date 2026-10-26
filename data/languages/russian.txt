@@ -2885,3 +2885,81 @@ Expand text filter (Ctrl+1/2/3)
 
 Game types
 == Типы игры
+
+Copy
+== Скопировать
+
+Categories
+== Категории
+
+Levels
+== Уровни
+
+Server
+== Сервер
+
+Network
+== Сеть
+
+Record
+== Запись
+
+Other
+== Прочее
+
+Debug
+== Отладка
+
+Trace
+== Трассировка
+
+Copy selection
+== Копировать
+
+Collect Debug
+== Собирать Debug
+
+Collect Trace
+== Собирать Trace
+
+Debug/Trace are not collected. Only future messages can be enabled.
+== Debug/Trace не собираются. Можно включить сбор будущих сообщений.
+
+Trace is not collected. Only future messages can be enabled.
+== Trace не собирается. Можно включить сбор будущих сообщений.
+
+Display filters do not change log collection.
+== Фильтры отображения не меняют сбор логов.
+
+RCON has no structured severity. Remote log collection is controlled by the server.
+== RCON не передаёт уровни сообщений. Сбором удалённых логов управляет сервер.
+
+Copied
+== Скопировано
+
+Display
+== Отображение
+
+Log collection
+== Сбор логов
+
+RCON levels are unknown.
+== Уровни RCON неизвестны.
+
+Debug/Trace collection is off.
+== Сбор Debug/Trace выключен.
+
+Trace collection is off.
+== Сбор Trace выключен.
+
+Display filters do not change collection.
+== Фильтры не меняют сбор логов.
+
+0 messages
+== 0 сообщений
+
+No messages yet
+== Сообщений пока нет
+
+No messages match the selected filters
+== Нет сообщений по выбранным фильтрам

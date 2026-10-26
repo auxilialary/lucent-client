@@ -1721,6 +1721,25 @@ public:
 				{
 					if((pCursor->m_Flags & TEXTFLAG_DISALLOW_NEWLINE) == 0)
 					{
+						// Explicit selection/caret offsets can end on the newline itself.
+						// Process these boundaries before skipping its non-rendering glyph.
+						if(pCursor->m_CalculateSelectionMode == TEXT_CURSOR_SELECTION_MODE_SET)
+						{
+							if(pCursor->m_GlyphCount == pCursor->m_SelectionStart)
+							{
+								SelectionStarted = !SelectionStarted;
+								SelectionStartChar = pCursor->m_GlyphCount;
+								SelectionUsedPress = true;
+							}
+							if(pCursor->m_GlyphCount == pCursor->m_SelectionEnd)
+							{
+								SelectionStarted = !SelectionStarted;
+								SelectionEndChar = pCursor->m_GlyphCount;
+								SelectionUsedRelease = true;
+							}
+						}
+						if(pCursor->m_CursorMode == TEXT_CURSOR_CURSOR_MODE_SET && pCursor->m_GlyphCount == pCursor->m_CursorCharacter)
+							pCursor->m_CursorRenderedPosition = vec2(DrawX, DrawY);
 						if(StartNewLine())
 						{
 							// Count the newline as a decoded character, so that m_GlyphCount stays

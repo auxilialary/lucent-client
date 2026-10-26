@@ -10,6 +10,11 @@
 
 #include <game/client/component.h>
 #include <game/client/lineinput.h>
+#include <game/client/lucent/console/copy_feedback.h>
+#include <game/client/lucent/console/filter_ui.h>
+#include <game/client/lucent/console/presentation.h>
+#include <game/client/lucent/console_selection.h>
+#include <game/client/lucent/lucent_style.h>
 #include <game/client/ui.h>
 
 enum
@@ -30,13 +35,32 @@ class CGameConsole : public CComponent
 	public:
 		struct CBacklogEntry
 		{
+			uint64_t m_Id;
+			int m_MessageOffset;
+			int m_MessageCharacterOffset;
+			int m_SourceCharacterOffset;
+			int m_Characters;
+			int m_Severity;
+			EConsoleLogGroup m_Group;
+			char m_aTimestamp[80];
+			char m_aSource[32];
+			float m_MessageX;
+			float m_TimestampWidth;
+			float m_SourceWidth;
 			float m_YOffset;
 			int m_LineCount;
 			ColorRGBA m_PrintColor;
 			size_t m_Length;
 			char m_aText[1];
+			const char *Message() const { return m_aText + m_MessageOffset; }
 		};
 		CStaticRingBuffer<CBacklogEntry, 1024 * 1024, CRingBufferBase::FLAG_RECYCLE> m_Backlog;
+		LucentConsole::CFilters m_Filters;
+		LucentConsole::CFilterPanel m_FilterPanel;
+		LucentConsole::CVisibleEntries<CBacklogEntry> m_VisibleEntries;
+		LucentConsole::CMetadataTooltip m_MetadataTooltip;
+		void EnsureVisibleEntries();
+		void ApplyFilters();
 		CLock m_BacklogPendingLock;
 		CStaticRingBuffer<CBacklogEntry, 1024 * 1024, CRingBufferBase::FLAG_RECYCLE> m_BacklogPending GUARDED_BY(m_BacklogPendingLock);
 		CStaticRingBuffer<char, 64 * 1024, CRingBufferBase::FLAG_RECYCLE> m_History;
@@ -53,11 +77,17 @@ class CGameConsole : public CComponent
 		float m_LastInputHeight = 0.0f;
 
 		bool m_MouseIsPress = false;
+		bool m_PointerTouch = false;
 		vec2 m_MousePress = vec2(0.0f, 0.0f);
 		vec2 m_MouseRelease = vec2(0.0f, 0.0f);
-		int m_CurSelStart = 0;
-		int m_CurSelEnd = 0;
 		bool m_HasSelection = false;
+		CLucentConsoleSelection m_Selection;
+		uint64_t m_NextEntryId = 1; // Assigned while holding the pending lock.
+		bool m_Selecting = false;
+		CUIRect m_CopyRect = {};
+		bool m_CopyVisible = false;
+		LucentStyle::Motion::CTransition m_CopyFade;
+		LucentConsole::CCopyFeedback m_CopyFeedback;
 		int m_NewLineCounter = 0;
 
 		CGameConsole *m_pGameConsole;
@@ -114,7 +144,8 @@ class CGameConsole : public CComponent
 		void ExecuteLine(const char *pLine);
 
 		bool OnInput(const IInput::CEvent &Event);
-		void PrintLine(const char *pLine, int Len, ColorRGBA PrintColor) REQUIRES(!m_BacklogPendingLock);
+		void PrintLine(const char *pLine, int Len, ColorRGBA PrintColor, const class CLogMessage *pMessage = nullptr) REQUIRES(!m_BacklogPendingLock);
+		void CopySelection(bool VisibleAnchor = true);
 		int GetLinesToScroll(int Direction, int LinesToScroll);
 		void ScrollToCenter(int StartLine, int EndLine);
 		void Dump() REQUIRES(!m_BacklogPendingLock);
@@ -168,6 +199,8 @@ class CGameConsole : public CComponent
 	bool m_ButtonPressed = false;
 
 	bool DoButton(const CUIRect &Rect, const char *pIcon, vec2 MousePosition, bool Released);
+	void RenderLogMetadata(const CInstance::CBacklogEntry *pEntry, float Y, int SearchMatch, vec2 Mouse);
+	void RenderSelectionCopy(CInstance *pConsole, bool Visible, const LucentConsole::COverlayPosition &Fragment, std::span<const LucentConsole::COverlayPosition> Occupied, vec2 Mouse, bool Released, const CUIRect &Bounds);
 
 	static constexpr ColorRGBA ms_SearchHighlightColor = ColorRGBA(1.0f, 0.0f, 0.0f, 1.0f);
 	static constexpr ColorRGBA ms_SearchSelectedColor = ColorRGBA(1.0f, 1.0f, 0.0f, 1.0f);
