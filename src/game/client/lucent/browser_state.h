@@ -212,7 +212,7 @@ public:
 	{
 		const float Step = std::clamp(Dt, 0.f, .1f);
 		m_Primary.Update(Step, Animate, LucentStyle::Motion::Primary);
-		m_Scene.Update(Step, Animate, LucentStyle::Motion::Scene);
+		m_Scene.Update(Step, Animate, LucentStyle::Motion::Selection);
 		if(m_Overlay.m_Visible == EOverlay::NONE && m_Overlay.m_Target != EOverlay::NONE)
 			m_Overlay.m_Visible = m_Overlay.m_Target;
 		if(m_Overlay.m_Target != EOverlay::NONE)

@@ -70,7 +70,6 @@ void CMenus::RenderLucentContext(CUIRect View, CLucentBrowserState::EPanel Mode)
 		}
 		if(Mode == EPanel::PLAYERS)
 		{
-			View.w = std::min(View.w, 360.f);
 			RenderServerbrowserInfoScoreboard(View, pServer);
 			return;
 		}
@@ -78,8 +77,12 @@ void CMenus::RenderLucentContext(CUIRect View, CLucentBrowserState::EPanel Mode)
 		CScrollRegionParams DetailsParams;
 		DetailsParams.m_ScrollbarThickness = 8;
 		DetailsParams.m_ScrollbarMargin = 1;
-		s_DetailsScroll.Begin(&View, &DetailsParams);
-		CUIRect Content = {View.x, View.y, View.w, std::max(305.f, View.h)};
+		const float ContentHeight = 26 + 22 + 20 + 20 + 14 + 28 +
+			((pServer->m_Flags & SERVER_FLAG_PASSWORD) ? 20 : 0) +
+			(pServer->m_RequiresLogin ? 20 : 0) +
+			(pServer->m_Favorite != TRISTATE::NONE ? 22 : 0);
+		s_DetailsScroll.Begin(&View, &DetailsParams, ContentHeight);
+		CUIRect Content = {View.x, View.y, View.w, ContentHeight};
 		s_DetailsScroll.AddRect(Content);
 		View = Content;
 		// Complete identity remains available even when the list emphasizes the map.
@@ -96,27 +99,23 @@ void CMenus::RenderLucentContext(CUIRect View, CLucentBrowserState::EPanel Mode)
 		Ui()->DoToolTip(&pServer->m_aName, &Row, pServer->m_aName);
 
 		char aMeta[128];
-		const char *apRegions[] = {"Unknown region", "Africa", "Asia", "Australia", "Europe", "North America", "South America", "China"};
-		const char *pCategory = pServer->m_aCommunityType[0] && str_comp(pServer->m_aCommunityType, IServerBrowser::COMMUNITY_TYPE_NONE) != 0 ? pServer->m_aCommunityType : pServer->m_aGameType;
-		str_format(aMeta, sizeof(aMeta), "%s · %s · %d/%d %s", Localize(apRegions[std::clamp(pServer->m_Location, 0, 7)]), pCategory, pServer->m_NumPlayers, pServer->m_MaxPlayers, Localize("players"));
-		Label(aMeta, 24, 11);
-		View.HSplitTop(14, nullptr, &View);
-		CUIRect ConnectButton;
-		View.HSplitTop(30, &ConnectButton, &View);
-		ConnectButton.VSplitLeft(std::min(150.f, ConnectButton.w), &ConnectButton, nullptr);
-		static int s_Connect;
-		if(LucentUi::SceneButton(Ui(), TextRender(), &s_Connect, Localize("Connect"), ConnectButton))
-			Connect(pServer->m_aAddress);
-		View.HSplitTop(12, nullptr, &View);
 		TextRender()->TextColor(LucentStyle::Style::DetailText);
-		Label(pServer->m_aAddress, 22, 10);
+		CUIRect AddressRow, CopyAction;
+		View.HSplitTop(22, &AddressRow, &View);
+		const float AddressWidth = std::min(TextRender()->TextWidth(10, pServer->m_aAddress) + 6, std::max(0.f, AddressRow.w - 24));
+		AddressRow.VSplitLeft(AddressWidth, &Row, &CopyAction);
+		CopyAction.w = 24;
+		SLabelProperties AddressProps;
+		AddressProps.m_MaxWidth = Row.w;
+		AddressProps.m_StopAtEnd = true;
+		Ui()->DoLabel(&Row, pServer->m_aAddress, 10, TEXTALIGN_ML, AddressProps);
 		Ui()->DoToolTip(&pServer->m_aAddress, &Row, pServer->m_aAddress);
-		str_format(aMeta, sizeof(aMeta), "%s: %s", Localize("Version"), pServer->m_aVersion);
+		static int s_Copy;
+		if(LucentUi::IconButton(Ui(), TextRender(), &s_Copy, FontIcon::COPY, Localize("Copy address"), CopyAction))
+			Input()->SetClipboardText(pServer->m_aAddress);
+		str_format(aMeta, sizeof(aMeta), "%s: %s", Localize("Game type"), pServer->m_aGameType);
 		Label(aMeta, 20, 10);
-		if(pServer->m_LatencyIsEstimated)
-			str_format(aMeta, sizeof(aMeta), "%s: %s", Localize("Ping"), Localize("Estimated"));
-		else
-			str_format(aMeta, sizeof(aMeta), "%s: %d ms", Localize("Ping"), pServer->m_Latency);
+		str_format(aMeta, sizeof(aMeta), "%s: %s", Localize("Version"), pServer->m_aVersion);
 		Label(aMeta, 20, 10);
 		if(pServer->m_Flags & SERVER_FLAG_PASSWORD)
 			Label(Localize("Password required"), 20, 10);
@@ -124,17 +123,7 @@ void CMenus::RenderLucentContext(CUIRect View, CLucentBrowserState::EPanel Mode)
 			Label(Localize("Login required"), 20, 10);
 		TextRender()->TextColor(TextRender()->DefaultTextColor());
 		View.HSplitTop(14, nullptr, &View);
-		CUIRect Actions, CopyAction;
-		const float FavoriteWidth = TextRender()->TextWidth(10, Localize("Favorite"), -1, -1) + 28;
-		const float CopyWidth = TextRender()->TextWidth(10, Localize("Copy address"), -1, -1) + 28;
-		const bool StackActions = View.w < FavoriteWidth + CopyWidth + 8;
-		View.HSplitTop(StackActions ? 56 : 28, &Actions, &View);
-		if(StackActions)
-			Actions.HSplitMid(&Row, &CopyAction);
-		else
-			Actions.VSplitLeft(std::clamp((Actions.w - 8) * .5f, FavoriteWidth, Actions.w - 8 - CopyWidth), &Row, &CopyAction);
-		if(!StackActions)
-			CopyAction.VSplitLeft(8, nullptr, &CopyAction);
+		View.HSplitTop(28, &Row, &View);
 		static int s_Favorite;
 		if(LucentUi::TextButton(Ui(), TextRender(), &s_Favorite, Localize("Favorite"), Row, pServer->m_Favorite != TRISTATE::NONE, 10, TEXTALIGN_ML, true, FontIcon::STAR))
 		{
@@ -158,9 +147,6 @@ void CMenus::RenderLucentContext(CUIRect View, CLucentBrowserState::EPanel Mode)
 				Client()->ServerBrowserUpdate();
 			}
 		}
-		static int s_Copy;
-		if(LucentUi::TextButton(Ui(), TextRender(), &s_Copy, Localize("Copy address"), CopyAction, false, 10, TEXTALIGN_ML, false, FontIcon::FILE))
-			Input()->SetClipboardText(pServer->m_aAddress);
 		s_DetailsScroll.End();
 	}
 }

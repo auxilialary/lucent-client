@@ -1,7 +1,5 @@
 #include "browser_ambient.h"
 
-#include "lucent_menu_effects.h"
-
 #include <engine/graphics.h>
 
 #include <algorithm>
@@ -51,18 +49,4 @@ void CLucentBrowserAmbient::Render(IGraphics *pGraphics, const CUIRect &Screen, 
 			pGraphics->QuadsDrawTL(&Tile, 1);
 		}
 	pGraphics->QuadsEnd();
-	// Asymmetric fragments compose the upper scene and its lower outer edge.
-	// Reuse the menu's Bezier/stroke renderer, without a closed orbit or frame.
-	const float Drift = 3 * std::sin(Time * .045f) + m_Cursor.x * 1.5f;
-	const auto Point = [&](float X, float Y) { return vec2(Screen.x + Screen.w * X + Drift, Screen.y + Screen.h * Y); };
-	CLucentMenuEffects::SceneCurve(pGraphics, Point(.48f, .24f), Point(.55f, .10f), Point(.82f, .095f), Point(.94f, .19f), .28f * Opacity);
-	CLucentMenuEffects::SceneCurve(pGraphics, Point(.83f, .72f), Point(.96f, .69f), Point(.99f, .53f), Point(.96f, .45f), .21f * Opacity);
-	// Sparse elongated vector stars sit outside artwork/title/control bounds.
-	for(int I = 0; I < 3; ++I)
-	{
-		const float X[] = {.49f, .91f, .96f};
-		const float Y[] = {.20f, .17f, .55f};
-		const float Alpha = .085f + .025f * std::sin(Time * .12f + I * 2.1f);
-		CLucentMenuEffects::FocusStar(pGraphics, vec2(Screen.x + Screen.w * X[I], Screen.y + Screen.h * Y[I]), .42f + I * .08f, Alpha * Opacity);
-	}
 }

@@ -208,8 +208,7 @@ void CLucentMapPreview::Render(IGraphics *pGraphics, const CUIRect &Screen, doub
 		const auto &Entry = m_aCache[Index];
 		const auto Layout = CLucentBrowserSceneLayout::Measure(Screen, Context, Players);
 		const float Fit = std::min(Layout.m_Artwork.w / Entry.m_Width, Layout.m_Artwork.h / Entry.m_Height);
-		const float Fill = std::max(Layout.m_Artwork.w / Entry.m_Width, Layout.m_Artwork.h / Entry.m_Height);
-		const float Scale = Fit + (Fill - Fit) * std::clamp(Context, 0.f, 1.f);
+		const float Scale = Fit;
 		const float Width = std::min(Layout.m_Artwork.w, Entry.m_Width * Scale);
 		const float Height = std::min(Layout.m_Artwork.h, Entry.m_Height * Scale);
 		const float USpan = Width / (Entry.m_Width * Scale), VSpan = Height / (Entry.m_Height * Scale);

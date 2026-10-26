@@ -16,12 +16,12 @@ struct CLucentBrowserSceneLayout
 		const float Left = Screen.x + 18 + ListWidth(Screen) + Gap;
 		return {Left, Screen.y, Screen.x + Screen.w - 24 - Left, Screen.h};
 	}
-	static CLucentBrowserSceneLayout Measure(const CUIRect &Screen, float Context, float /*Players*/)
+	static CLucentBrowserSceneLayout Measure(const CUIRect &Screen, float /*Context*/, float /*Players*/)
 	{
 		const auto Scene = SceneBounds(Screen);
-		Context = std::clamp(Context, 0.f, 1.f);
-		const auto Blend = [Context](float A, float B) { return A + (B - A) * Context; };
-		const CUIRect Artwork = {Scene.x, Screen.y + Screen.h * .12f, Scene.w, Blend(Screen.h * .46f, Screen.h * .18f)};
+		// UI height tracks the viewport: 156 units is 281 pixels at 1080p.
+		// Reserve the same header and contextual space in all three modes.
+		const CUIRect Artwork = {Scene.x, Screen.y + Screen.h * .12f, Scene.w, Screen.h * .26f};
 		return {Artwork, Artwork.y + Artwork.h + 12};
 	}
 };
