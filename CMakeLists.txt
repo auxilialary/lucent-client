@@ -2770,6 +2770,7 @@ if(CLIENT)
     lucent/browser/map_preview.h
     lucent/browser/preview_policy.h
     lucent/config_variables.h
+    lucent/console/console_view.cpp
     lucent/console/copy_feedback.h
     lucent/console/filter_ui.cpp
     lucent/console/filter_ui.h

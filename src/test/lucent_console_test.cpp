@@ -599,3 +599,20 @@ TEST(LucentConsole, PopoversSizeToContentAndUseTwoColumnLevels)
 	EXPECT_FLOAT_EQ(PopoverContentHeight(true, false, 24) - PopoverContentHeight(true, false, 12), 12);
 	EXPECT_FLOAT_EQ(PopoverContentHeight(true, false, 12) - PopoverContentHeight(true, true, 12), PopoverRow);
 }
+
+TEST(LucentConsole, CopyBesideWrappedSelectionUsesFreeEndpointAboveFullRows)
+{
+	using namespace LucentConsole;
+	const COverlayPosition Bounds{0, 24, 500, 250};
+	const std::array Occupied{COverlayPosition{0, 263, 180, 11}, COverlayPosition{0, 252, 500, 11}, COverlayPosition{120, 241, 380, 11}};
+	for(const auto &Anchor : {Occupied.front(), Occupied.back()})
+	{
+		const auto Button = CopyBeside(Anchor, 100, 16, Bounds, Occupied);
+		EXPECT_FLOAT_EQ(Button.m_X, 9);
+		EXPECT_FLOAT_EQ(Button.m_Y, 236);
+		EXPECT_FLOAT_EQ(Button.m_W, 100);
+		EXPECT_FLOAT_EQ(Button.m_H, 16);
+		for(const auto &Fragment : Occupied)
+			EXPECT_FALSE(Overlaps(Button, Fragment));
+	}
+}

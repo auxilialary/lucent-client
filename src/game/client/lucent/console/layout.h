@@ -67,17 +67,33 @@ namespace LucentConsole
 	inline COverlayPosition CopyBeside(const COverlayPosition &Fragment, float Width, float Height, const COverlayPosition &Bounds, std::span<const COverlayPosition> Occupied)
 	{
 		const float Gap = LucentStyle::Console::CopyGap;
-		const float Y = std::clamp(Fragment.m_Y, Bounds.m_Y, std::max(Bounds.m_Y, Bounds.m_Y + Bounds.m_H - Height));
-		const float X = std::clamp(Fragment.m_X, Bounds.m_X, std::max(Bounds.m_X, Bounds.m_X + Bounds.m_W - Width));
-		const std::array<COverlayPosition, 3> Candidates = {{{Fragment.m_X + Fragment.m_W + Gap, Y, Width, Height},
-			{Fragment.m_X - Gap - Width, Y, Width, Height}, {X, Fragment.m_Y + Fragment.m_H + Gap, Width, Height}}};
 		const auto Fits = [&](const COverlayPosition &Rect) {
 			return Rect.m_X >= Bounds.m_X && Rect.m_Y >= Bounds.m_Y && Rect.m_X + Rect.m_W <= Bounds.m_X + Bounds.m_W && Rect.m_Y + Rect.m_H <= Bounds.m_Y + Bounds.m_H &&
 			       std::none_of(Occupied.begin(), Occupied.end(), [&](const auto &Other) { return Overlaps(Rect, Other); });
 		};
-		for(const auto &Rect : Candidates)
-			if(Fits(Rect))
+		const auto TryFragment = [&](const COverlayPosition &Anchor, bool BottomAligned) -> COverlayPosition {
+			const float Y = std::clamp(Anchor.m_Y + (BottomAligned ? Anchor.m_H - Height : 0.f), Bounds.m_Y, std::max(Bounds.m_Y, Bounds.m_Y + Bounds.m_H - Height));
+			const float X = std::clamp(Anchor.m_X, Bounds.m_X, std::max(Bounds.m_X, Bounds.m_X + Bounds.m_W - Width));
+			const std::array<COverlayPosition, 3> Candidates = {{{Anchor.m_X + Anchor.m_W + Gap, Y, Width, Height},
+				{Anchor.m_X - Gap - Width, Y, Width, Height}, {X, Anchor.m_Y + Anchor.m_H + Gap, Width, Height}}};
+			for(const auto &Rect : Candidates)
+				if(Fits(Rect))
+					return Rect;
+			return {};
+		};
+		// Preserve the original placement whenever it fits.
+		if(const auto Rect = TryFragment(Fragment, false); Rect.m_W > 0)
+			return Rect;
+		if(const auto Rect = TryFragment(Fragment, true); Rect.m_W > 0)
+			return Rect;
+		// A control taller than one selected line may only fit at another endpoint.
+		for(const auto &Other : Occupied)
+		{
+			if(const auto Rect = TryFragment(Other, false); Rect.m_W > 0)
 				return Rect;
+			if(const auto Rect = TryFragment(Other, true); Rect.m_W > 0)
+				return Rect;
+		}
 		// A fully selected viewport may have no legal floating-control location.
 		return {};
 	}

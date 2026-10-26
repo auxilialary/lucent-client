@@ -17,6 +17,8 @@
 #include <game/client/lucent/lucent_style.h>
 #include <game/client/ui.h>
 
+#include <array>
+
 enum
 {
 	CONSOLE_CLOSED,
@@ -30,6 +32,9 @@ class CConsoleLogger;
 class CGameConsole : public CComponent
 {
 	friend class CConsoleLogger;
+	static constexpr float FONT_SIZE = 10.0f;
+	static constexpr float LINE_SPACING = 1.0f;
+
 	class CInstance
 	{
 	public:
@@ -171,6 +176,7 @@ class CGameConsole : public CComponent
 		void UpdateCompletionSuggestions();
 
 	private:
+		void MeasureLogMetadata(CBacklogEntry *pEntry, float Width) const;
 		void SetSearching(bool Searching);
 		void ClearSearch();
 		void UpdateSearch();
@@ -199,8 +205,20 @@ class CGameConsole : public CComponent
 	bool m_ButtonPressed = false;
 
 	bool DoButton(const CUIRect &Rect, const char *pIcon, vec2 MousePosition, bool Released);
+	// Per-frame geometry for the existing copy overlay; the range model stays in CInstance.
+	struct SSelectionOverlay
+	{
+		bool m_Visible = false;
+		LucentConsole::COverlayPosition m_Fragment{};
+		std::array<LucentConsole::COverlayPosition, 128> m_aOccupied{};
+		size_t m_OccupiedCount = 0;
+	};
+
 	void RenderLogMetadata(const CInstance::CBacklogEntry *pEntry, float Y, int SearchMatch, vec2 Mouse);
 	void RenderSelectionCopy(CInstance *pConsole, bool Visible, const LucentConsole::COverlayPosition &Fragment, std::span<const LucentConsole::COverlayPosition> Occupied, vec2 Mouse, bool Released, const CUIRect &Bounds);
+
+	void PrepareLogMetadataHit(const CInstance::CBacklogEntry *pEntry, vec2 Mouse, float EntryTop, CTextCursor &Hit, const char *&pHitText, int &CharacterOffset, int &HitCharacters);
+	void MeasureLogSelectionFragments(const CInstance::CBacklogEntry *pEntry, const CTextCursor &EntryCursor, int SelectionStart, int SelectionStop, int BodyStart, int BodyStop, float EntryTop, float LineHeight, float ClipTop, float BottomY, float Width, SSelectionOverlay &Overlay);
 
 	static constexpr ColorRGBA ms_SearchHighlightColor = ColorRGBA(1.0f, 0.0f, 0.0f, 1.0f);
 	static constexpr ColorRGBA ms_SearchSelectedColor = ColorRGBA(1.0f, 1.0f, 0.0f, 1.0f);
