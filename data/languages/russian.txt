@@ -2963,3 +2963,797 @@ No messages yet
 
 No messages match the selected filters
 == Нет сообщений по выбранным фильтрам
+
+[General settings]
+Recordings & Results
+== Записи и результаты
+
+[General settings]
+Files
+== Файлы
+
+[General settings]
+Advanced
+== Дополнительно
+
+[General settings]
+Basic
+== Основное
+
+[General settings]
+Advanced settings
+== Доп. параметры
+
+Playback
+== Воспроизведение
+
+Volume
+== Громкость
+
+Unspecified
+== Не указан
+
+England
+== Англия
+
+Northern Ireland
+== Северная Ирландия
+
+Scotland
+== Шотландия
+
+Wales
+== Уэльс
+
+Catalonia
+== Каталония
+
+Galicia
+== Галисия
+
+European Union
+== Европейский союз
+
+Afghanistan
+== Афганистан
+
+Åland Islands
+== Аландские о-ва
+
+Albania
+== Албания
+
+Algeria
+== Алжир
+
+American Samoa
+== Американское Самоа
+
+Andorra
+== Андорра
+
+Angola
+== Ангола
+
+Anguilla
+== Ангилья
+
+Antarctica
+== Антарктида
+
+Antigua & Barbuda
+== Антигуа и Барбуда
+
+Argentina
+== Аргентина
+
+Armenia
+== Армения
+
+Aruba
+== Аруба
+
+Austria
+== Австрия
+
+Azerbaijan
+== Азербайджан
+
+Bahamas
+== Багамы
+
+Bahrain
+== Бахрейн
+
+Bangladesh
+== Бангладеш
+
+Barbados
+== Барбадос
+
+Belarus
+== Беларусь
+
+Belgium
+== Бельгия
+
+Belize
+== Белиз
+
+Benin
+== Бенин
+
+Bermuda
+== Бермудские о-ва
+
+Bhutan
+== Бутан
+
+Bolivia
+== Боливия
+
+Bosnia & Herzegovina
+== Босния и Герцеговина
+
+Botswana
+== Ботсвана
+
+Brazil
+== Бразилия
+
+British Indian Ocean Territory
+== Британская территория в Индийском океане
+
+Brunei
+== Бруней
+
+Bulgaria
+== Болгария
+
+Burkina Faso
+== Буркина-Фасо
+
+Burundi
+== Бурунди
+
+Cambodia
+== Камбоджа
+
+Cameroon
+== Камерун
+
+Canada
+== Канада
+
+Cape Verde
+== Кабо-Верде
+
+Cayman Islands
+== о-ва Кайман
+
+Central African Republic
+== Центрально-Африканская Республика
+
+Chad
+== Чад
+
+Chile
+== Чили
+
+Christmas Island
+== о-в Рождества
+
+Cocos (Keeling) Islands
+== Кокосовые о-ва
+
+Colombia
+== Колумбия
+
+Comoros
+== Коморы
+
+Congo - Brazzaville
+== Конго - Браззавиль
+
+Congo - Kinshasa
+== Конго - Киншаса
+
+Cook Islands
+== о-ва Кука
+
+Costa Rica
+== Коста-Рика
+
+Côte d’Ivoire
+== Кот-д’Ивуар
+
+Croatia
+== Хорватия
+
+Cuba
+== Куба
+
+Curaçao
+== Кюрасао
+
+Cyprus
+== Кипр
+
+Czechia
+== Чехия
+
+Denmark
+== Дания
+
+Djibouti
+== Джибути
+
+Dominica
+== Доминика
+
+Dominican Republic
+== Доминиканская Республика
+
+Ecuador
+== Эквадор
+
+Egypt
+== Египет
+
+El Salvador
+== Сальвадор
+
+Equatorial Guinea
+== Экваториальная Гвинея
+
+Eritrea
+== Эритрея
+
+Estonia
+== Эстония
+
+Ethiopia
+== Эфиопия
+
+Falkland Islands
+== Фолклендские о-ва
+
+Faroe Islands
+== Фарерские о-ва
+
+Fiji
+== Фиджи
+
+Finland
+== Финляндия
+
+France
+== Франция
+
+French Guiana
+== Французская Гвиана
+
+French Polynesia
+== Французская Полинезия
+
+French Southern Territories
+== Французские Южные территории
+
+Gabon
+== Габон
+
+Gambia
+== Гамбия
+
+Georgia
+== Грузия
+
+Germany
+== Германия
+
+Ghana
+== Гана
+
+Gibraltar
+== Гибралтар
+
+Greece
+== Греция
+
+Greenland
+== Гренландия
+
+Grenada
+== Гренада
+
+Guadeloupe
+== Гваделупа
+
+Guam
+== Гуам
+
+Guatemala
+== Гватемала
+
+Guernsey
+== Гернси
+
+Guinea
+== Гвинея
+
+Guinea-Bissau
+== Гвинея-Бисау
+
+Guyana
+== Гайана
+
+Haiti
+== Гаити
+
+Vatican City
+== Ватикан
+
+Honduras
+== Гондурас
+
+Hong Kong SAR China
+== Гонконг (САР)
+
+Hungary
+== Венгрия
+
+Iceland
+== Исландия
+
+India
+== Индия
+
+Indonesia
+== Индонезия
+
+Iran
+== Иран
+
+Iraq
+== Ирак
+
+Ireland
+== Ирландия
+
+Isle of Man
+== о-в Мэн
+
+Israel
+== Израиль
+
+Italy
+== Италия
+
+Jamaica
+== Ямайка
+
+Japan
+== Япония
+
+Jersey
+== Джерси
+
+Jordan
+== Иордания
+
+Kazakhstan
+== Казахстан
+
+Kenya
+== Кения
+
+Kiribati
+== Кирибати
+
+North Korea
+== КНДР
+
+South Korea
+== Республика Корея
+
+Kuwait
+== Кувейт
+
+Kyrgyzstan
+== Киргизия
+
+Laos
+== Лаос
+
+Latvia
+== Латвия
+
+Lebanon
+== Ливан
+
+Lesotho
+== Лесото
+
+Liberia
+== Либерия
+
+Libya
+== Ливия
+
+Liechtenstein
+== Лихтенштейн
+
+Lithuania
+== Литва
+
+Luxembourg
+== Люксембург
+
+Macao SAR China
+== Макао (САР)
+
+North Macedonia
+== Северная Македония
+
+Madagascar
+== Мадагаскар
+
+Malawi
+== Малави
+
+Malaysia
+== Малайзия
+
+Maldives
+== Мальдивы
+
+Mali
+== Мали
+
+Malta
+== Мальта
+
+Marshall Islands
+== Маршалловы о-ва
+
+Martinique
+== Мартиника
+
+Mauritania
+== Мавритания
+
+Mauritius
+== Маврикий
+
+Mexico
+== Мексика
+
+Micronesia
+== Федеративные Штаты Микронезии
+
+Moldova
+== Молдова
+
+Monaco
+== Монако
+
+Mongolia
+== Монголия
+
+Montenegro
+== Черногория
+
+Montserrat
+== Монтсеррат
+
+Morocco
+== Марокко
+
+Mozambique
+== Мозамбик
+
+Myanmar (Burma)
+== Мьянма (Бирма)
+
+Namibia
+== Намибия
+
+Nauru
+== Науру
+
+Nepal
+== Непал
+
+Netherlands
+== Нидерланды
+
+New Caledonia
+== Новая Каледония
+
+New Zealand
+== Новая Зеландия
+
+Nicaragua
+== Никарагуа
+
+Niger
+== Нигер
+
+Nigeria
+== Нигерия
+
+Niue
+== Ниуэ
+
+Norfolk Island
+== о-в Норфолк
+
+Northern Mariana Islands
+== Северные Марианские о-ва
+
+Norway
+== Норвегия
+
+Oman
+== Оман
+
+Pakistan
+== Пакистан
+
+Palau
+== Палау
+
+Panama
+== Панама
+
+Papua New Guinea
+== Папуа — Новая Гвинея
+
+Paraguay
+== Парагвай
+
+Peru
+== Перу
+
+Philippines
+== Филиппины
+
+Pitcairn Islands
+== о-ва Питкэрн
+
+Poland
+== Польша
+
+Portugal
+== Португалия
+
+Puerto Rico
+== Пуэрто-Рико
+
+Palestinian Territories
+== Палестинские территории
+
+Qatar
+== Катар
+
+Réunion
+== Реюньон
+
+Romania
+== Румыния
+
+Russia
+== Россия
+
+Rwanda
+== Руанда
+
+St. Barthélemy
+== Сен-Бартелеми
+
+St. Helena
+== о-в Св. Елены
+
+St. Kitts & Nevis
+== Сент-Китс и Невис
+
+St. Lucia
+== Сент-Люсия
+
+St. Martin
+== Сен-Мартен
+
+St. Pierre & Miquelon
+== Сен-Пьер и Микелон
+
+St. Vincent & Grenadines
+== Сент-Винсент и Гренадины
+
+Samoa
+== Самоа
+
+San Marino
+== Сан-Марино
+
+São Tomé & Príncipe
+== Сан-Томе и Принсипи
+
+Saudi Arabia
+== Саудовская Аравия
+
+Senegal
+== Сенегал
+
+Serbia
+== Сербия
+
+Seychelles
+== Сейшельские о-ва
+
+Sierra Leone
+== Сьерра-Леоне
+
+Singapore
+== Сингапур
+
+Sint Maarten
+== Синт-Мартен
+
+Slovakia
+== Словакия
+
+Slovenia
+== Словения
+
+Solomon Islands
+== Соломоновы о-ва
+
+Somalia
+== Сомали
+
+South Sudan
+== Южный Судан
+
+South Africa
+== Южно-Африканская Республика
+
+South Georgia & South Sandwich Islands
+== Южная Георгия и Южные Сандвичевы о-ва
+
+Spain
+== Испания
+
+Sri Lanka
+== Шри-Ланка
+
+Sudan
+== Судан
+
+Suriname
+== Суринам
+
+Eswatini
+== Эсватини
+
+Sweden
+== Швеция
+
+Switzerland
+== Швейцария
+
+Syria
+== Сирия
+
+Taiwan
+== Тайвань
+
+Tajikistan
+== Таджикистан
+
+Tanzania
+== Танзания
+
+Thailand
+== Таиланд
+
+Timor-Leste
+== Восточный Тимор
+
+Togo
+== Того
+
+Tokelau
+== Токелау
+
+Tonga
+== Тонга
+
+Trinidad & Tobago
+== Тринидад и Тобаго
+
+Tunisia
+== Тунис
+
+Türkiye
+== Турция
+
+Turkmenistan
+== Туркменистан
+
+Turks & Caicos Islands
+== Тёркс и Кайкос
+
+Tuvalu
+== Тувалу
+
+Uganda
+== Уганда
+
+Ukraine
+== Украина
+
+United Arab Emirates
+== ОАЭ
+
+United Kingdom
+== Великобритания
+
+United States
+== Соединенные Штаты
+
+Uruguay
+== Уругвай
+
+Uzbekistan
+== Узбекистан
+
+Vanuatu
+== Вануату
+
+Venezuela
+== Венесуэла
+
+Vietnam
+== Вьетнам
+
+British Virgin Islands
+== Виргинские о-ва (Великобритания)
+
+U.S. Virgin Islands
+== Виргинские о-ва (США)
+
+Wallis & Futuna
+== Уоллис и Футуна
+
+Western Sahara
+== Западная Сахара
+
+Yemen
+== Йемен
+
+Zambia
+== Замбия
+
+Zimbabwe
+== Зимбабве
+
+Profile
+== Профиль
+
+Choose country
+== Выбрать страну
+
+Choose flag
+== Выбор флага
+
+Search by country name or code
+== Поиск по названию страны или коду
+
+Country
+== Страна
+
+Scoreboard preview
+== Предпросмотр в TAB
+
+Country selection
+== Выбор страны

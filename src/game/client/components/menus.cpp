@@ -1046,11 +1046,21 @@ void CMenus::Render()
 		ms_ColorTabbarHover = ms_ColorTabbarHoverOutgame;
 	}
 
+	const bool SettingsPage = (ClientState == IClient::STATE_OFFLINE && !m_ShowStart && m_MenuPage == PAGE_SETTINGS) ||
+		(ClientState == IClient::STATE_ONLINE && m_GamePage == PAGE_SETTINGS);
 	CUIRect Screen = *Ui()->Screen();
-	if(Client()->State() != IClient::STATE_DEMOPLAYBACK || m_Popup != POPUP_NONE)
+	if(SettingsPage)
+	{
+		// Settings owns the full viewport, including behind its modal popups.
+		Screen.Draw(LucentStyle::Style::MenuBackground, 0, 0);
+	}
+	else if(ClientState != IClient::STATE_DEMOPLAYBACK || m_Popup != POPUP_NONE)
 	{
 		Screen.Margin(10.0f, &Screen);
 	}
+
+	if(!SettingsPage || m_Popup != POPUP_NONE)
+		m_LucentSettings.Reset();
 
 	switch(ClientState)
 	{
@@ -1079,8 +1089,9 @@ void CMenus::Render()
 		}
 		else
 		{
-			CUIRect TabBar, MainView;
-			Screen.HSplitTop(24.0f, &TabBar, &MainView);
+			CUIRect TabBar, MainView = Screen;
+			if(!SettingsPage)
+				Screen.HSplitTop(24.0f, &TabBar, &MainView);
 
 			if(m_MenuPage == PAGE_NEWS)
 			{
@@ -1103,7 +1114,7 @@ void CMenus::Render()
 				dbg_assert_failed("Invalid m_MenuPage: %d", m_MenuPage);
 			}
 
-			if(!(m_MenuPage >= PAGE_INTERNET && m_MenuPage <= PAGE_FAVORITE_COMMUNITY_5))
+			if(!SettingsPage && !(m_MenuPage >= PAGE_INTERNET && m_MenuPage <= PAGE_FAVORITE_COMMUNITY_5))
 				RenderMenubar(TabBar, ClientState);
 		}
 		break;
@@ -1115,8 +1126,9 @@ void CMenus::Render()
 		}
 		else
 		{
-			CUIRect TabBar, MainView;
-			Screen.HSplitTop(24.0f, &TabBar, &MainView);
+			CUIRect TabBar, MainView = Screen;
+			if(!SettingsPage)
+				Screen.HSplitTop(24.0f, &TabBar, &MainView);
 
 			if(m_GamePage == PAGE_GAME)
 			{
@@ -1156,7 +1168,8 @@ void CMenus::Render()
 				dbg_assert_failed("Invalid m_GamePage: %d", m_GamePage);
 			}
 
-			RenderMenubar(TabBar, ClientState);
+			if(!SettingsPage)
+				RenderMenubar(TabBar, ClientState);
 		}
 		break;
 
@@ -2287,6 +2300,8 @@ void CMenus::PopupConfirmDemoReplaceVideo()
 
 void CMenus::SetActive(bool Active)
 {
+	if(!Active)
+		m_LucentSettings.Reset();
 	if(Active != m_MenuActive)
 	{
 		Ui()->SetHotItem(nullptr);

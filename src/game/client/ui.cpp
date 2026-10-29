@@ -1,6 +1,7 @@
 #include <game/client/lucent/ui/controls.h>
 #include <game/client/lucent/ui/scopes.h>
 #include <game/client/lucent/ui/surfaces.h>
+#include <game/client/lucent/ui/scrollbar.h>
 /* (c) Magnus Auvinen. See licence.txt in the root of the distribution for more information. */
 /* If you are missing that file, acquire a complete release at teeworlds.com.                */
 #include "ui.h"
@@ -395,6 +396,8 @@ void CUi::UpdateTouchState(CTouchState &State) const
 
 bool CUi::ConsumeHotkey(EHotkey Hotkey)
 {
+	if(!Enabled())
+		return false;
 	const bool Pressed = m_HotkeysPressed & Hotkey;
 	m_HotkeysPressed &= ~Hotkey;
 	return Pressed;
@@ -528,6 +531,8 @@ void CUi::UpdateClipping()
 
 int CUi::DoButtonLogic(const void *pId, int Checked, const CUIRect *pRect, const unsigned Flags)
 {
+	if(!Enabled())
+		return 0;
 	int ReturnValue = 0;
 	const bool Inside = MouseHovered(pRect);
 
@@ -565,6 +570,14 @@ int CUi::DoButtonLogic(const void *pId, int Checked, const CUIRect *pRect, const
 
 int CUi::DoDraggableButtonLogic(const void *pId, int Checked, const CUIRect *pRect, bool *pClicked, bool *pAbrupted)
 {
+	if(!Enabled())
+	{
+		if(pClicked)
+			*pClicked = false;
+		if(pAbrupted)
+			*pAbrupted = false;
+		return 0;
+	}
 	// logic
 	int ReturnValue = 0;
 	const bool Inside = MouseHovered(pRect);
@@ -641,6 +654,8 @@ bool CUi::DoDoubleClickLogic(const void *pId)
 
 EEditState CUi::DoPickerLogic(const void *pId, const CUIRect *pRect, float *pX, float *pY)
 {
+	if(!Enabled())
+		return EEditState::NONE;
 	if(MouseHovered(pRect))
 		SetHotItem(pId);
 
@@ -1254,7 +1269,7 @@ int64_t CUi::DoValueSelector(const void *pId, const CUIRect *pRect, const char *
 SEditResult<int64_t> CUi::DoValueSelectorWithState(const void *pId, const CUIRect *pRect, const char *pLabel, int64_t Current, int64_t Min, int64_t Max, const SValueSelectorProperties &Props)
 {
 	// logic
-	const bool Inside = MouseInside(pRect);
+	const bool Inside = Enabled() && MouseHovered(pRect);
 	const int Base = Props.m_IsHex ? 16 : 10;
 
 	if(HotItem() == pId && m_ActiveValueSelectorState.m_Button >= 0 && !MouseButton(m_ActiveValueSelectorState.m_Button))
@@ -1459,6 +1474,11 @@ float CUi::DoScrollbarV(const void *pId, const CUIRect *pRect, float Current)
 
 float CUi::DoScrollbarH(const void *pId, const CUIRect *pRect, float Current, const ColorRGBA *pColorInner)
 {
+	return DoScrollbarH(pId, pRect, Current, pColorInner, false);
+}
+
+float CUi::DoScrollbarH(const void *pId, const CUIRect *pRect, float Current, const ColorRGBA *pColorInner, bool Lucent, bool ContentAnchored)
+{
 	Current = std::clamp(Current, 0.0f, 1.0f);
 
 	// layout
@@ -1551,7 +1571,13 @@ float CUi::DoScrollbarH(const void *pId, const CUIRect *pRect, float Current, co
 
 	// render
 	const ColorRGBA HandleColor = ms_ScrollBarColorFunction.GetColor(CheckActiveItem(pId), HotItem() == pId);
-	if(pColorInner)
+	if(Lucent)
+	{
+		const float Hot = LucentUi::Highlight(pId, Enabled() && (InsideRail || CheckActiveItem(pId)));
+		const auto Geometry = LucentUi::CSliderGeometry::Calculate(Rail, Handle, ReturnValue, PixelSize(), ContentAnchored);
+		LucentUi::DrawSlider(Graphics(), Geometry, Hot, CheckActiveItem(pId), HotItem() == pId, Enabled());
+	}
+	else if(pColorInner)
 	{
 		CUIRect Slider;
 		Handle.VMargin(-2.0f, &Slider);
@@ -1569,12 +1595,13 @@ float CUi::DoScrollbarH(const void *pId, const CUIRect *pRect, float Current, co
 	return ReturnValue;
 }
 
-bool CUi::DoScrollbarOption(const void *pId, int *pOption, const CUIRect *pRect, const char *pStr, int Min, int Max, const IScrollbarScale *pScale, unsigned Flags, const char *pSuffix)
+bool CUi::DoScrollbarOption(const void *pId, int *pOption, const CUIRect *pRect, const char *pStr, int Min, int Max, const IScrollbarScale *pScale, unsigned Flags, const char *pSuffix, const CUIRect *pValueRect)
 {
 	const bool Infinite = Flags & CUi::SCROLLBAR_OPTION_INFINITE;
 	const bool NoClampValue = Flags & CUi::SCROLLBAR_OPTION_NOCLAMPVALUE;
 	const bool MultiLine = Flags & CUi::SCROLLBAR_OPTION_MULTILINE;
 	const bool DelayUpdate = Flags & CUi::SCROLLBAR_OPTION_DELAYUPDATE;
+	const bool Compact = Flags & CUi::SCROLLBAR_OPTION_COMPACT;
 
 	int PrevValue = (DelayUpdate && m_pLastActiveScrollbar == pId && CheckActiveItem(pId)) ? m_ScrollbarValue : *pOption;
 	int Value = PrevValue;
@@ -1586,7 +1613,11 @@ bool CUi::DoScrollbarOption(const void *pId, int *pOption, const CUIRect *pRect,
 	}
 
 	char aBuf[256];
-	if(!Infinite || Value != Max)
+	if(Compact && (!Infinite || Value != Max))
+		str_format(aBuf, sizeof(aBuf), "%i%s", Value, pSuffix);
+	else if(Compact)
+		str_copy(aBuf, "∞");
+	else if(!Infinite || Value != Max)
 		str_format(aBuf, sizeof(aBuf), "%s: %i%s", pStr, Value, pSuffix);
 	else
 		str_format(aBuf, sizeof(aBuf), "%s: ∞", pStr);
@@ -1597,16 +1628,35 @@ bool CUi::DoScrollbarOption(const void *pId, int *pOption, const CUIRect *pRect,
 		Value = std::clamp(Value, Min, Max);
 	}
 
+	const bool Stacked = pValueRect != nullptr;
 	CUIRect Label, ScrollBar;
-	if(MultiLine)
+	if(Stacked)
+	{
+		Label = *pValueRect;
+		ScrollBar = *pRect;
+	}
+	else if(Compact)
+		pRect->VSplitRight(std::min(56.f, pRect->w * .4f), &ScrollBar, &Label);
+	else if(MultiLine)
 		pRect->HSplitMid(&Label, &ScrollBar);
 	else
 		pRect->VSplitMid(&Label, &ScrollBar, std::min(10.0f, pRect->w * 0.05f));
 
-	const float FontSize = Label.h * CUi::ms_FontmodHeight * 0.8f;
-	DoLabel(&Label, aBuf, FontSize, TEXTALIGN_ML);
+	const bool CompactLucent = Compact && (Flags & SCROLLBAR_OPTION_LUCENT);
+	if(CompactLucent && !Stacked)
+		Label = LucentUi::CSliderGeometry::ValueLabel(*pRect, ScrollBar, PixelSize());
+	const float FontSize = Compact ? 11 : Label.h * CUi::ms_FontmodHeight * 0.8f;
+	SLabelProperties ValueProps;
+	if(CompactLucent)
+	{
+		ValueProps.m_MaxWidth = Label.w;
+		ValueProps.m_StopAtEnd = true;
+	}
+	DoLabel(&Label, aBuf, FontSize, Stacked || (Compact && !CompactLucent) ? TEXTALIGN_MR : TEXTALIGN_ML, ValueProps);
+	if(Compact && Enabled())
+		DoToolTip(pId, pRect, pStr);
 
-	Value = pScale->ToAbsolute(DoScrollbarH(pId, &ScrollBar, pScale->ToRelative(Value, Min, Max)), Min, Max);
+	Value = pScale->ToAbsolute(DoScrollbarH(pId, &ScrollBar, pScale->ToRelative(Value, Min, Max), nullptr, Flags & SCROLLBAR_OPTION_LUCENT, pValueRect != nullptr), Min, Max);
 	if(NoClampValue && ((Value == Min && PrevValue < Min) || (Value == Max && PrevValue > Max)))
 	{
 		Value = PrevValue; // use previous out of range value instead if the scrollbar is at the edge

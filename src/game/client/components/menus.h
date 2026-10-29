@@ -25,6 +25,7 @@
 #include <game/client/lineinput.h>
 #include <game/client/lucent/browser/browser_state.h>
 #include <game/client/lucent/lucent_startup.h>
+#include <game/client/lucent/settings/sidebar.h>
 #include <game/client/lucent/browser/map_preview.h>
 #include <game/client/ui.h>
 #include <game/voting.h>
@@ -39,6 +40,7 @@ struct CScrollRegionParams;
 class CMenus : public CComponent
 {
 	CLucentStartup m_LucentStartup;
+	LucentSettings::CSidebar m_LucentSettings;
 	CLucentBrowserState m_LucentBrowser;
 	CLucentMapPreview m_LucentPreview;
 	double m_LucentBrowserTime = 0;

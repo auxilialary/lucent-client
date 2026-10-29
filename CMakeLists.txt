@@ -2794,6 +2794,19 @@ if(CLIENT)
     lucent/motion/radial_transition.h
     lucent/motion/text_motion.h
     lucent/motion/transition.h
+    lucent/settings/general.cpp
+    lucent/settings/general.h
+    lucent/settings/layout.h
+    lucent/settings/mode.h
+    lucent/settings/mode_render.h
+    lucent/settings/navigation.h
+    lucent/settings/player.cpp
+    lucent/settings/player.h
+    lucent/settings/player_countries.h
+    lucent/settings/sidebar.cpp
+    lucent/settings/sidebar.h
+    lucent/settings/sound.cpp
+    lucent/settings/sound.h
     lucent/style/gradient.h
     lucent/style/tokens.h
     lucent/ui.h
@@ -2807,6 +2820,7 @@ if(CLIENT)
     lucent/ui/scopes.h
     lucent/ui/scrollbar.cpp
     lucent/ui/scrollbar.h
+    lucent/ui/slider_geometry.h
     lucent/ui/surfaces.cpp
     lucent/ui/surfaces.h
     lucent/ui/text_input_effects.cpp
@@ -3524,6 +3538,7 @@ if((GTEST_FOUND OR DOWNLOAD_GTEST) AND SERVER)
     jsonwriter_test.cpp
     linereader_test.cpp
     lucent_console_test.cpp
+    lucent_player_test.cpp
     map_download_test.cpp
     mapbugs_test.cpp
     mapitems_test.cpp
@@ -4388,6 +4403,12 @@ endforeach()
 
 # Small, dependency-free checks for the Lucent menu aim state machine.
 if(CLIENT)
+  add_executable(lucent-settings-test EXCLUDE_FROM_ALL
+    src/game/client/lucent/tests/settings_test.cc
+    src/game/client/ui_rect.cpp
+  )
+  target_include_directories(lucent-settings-test PRIVATE src)
+  target_compile_features(lucent-settings-test PRIVATE cxx_std_20)
   add_executable(lucent-menu-test EXCLUDE_FROM_ALL
     src/game/client/lucent/tests/menu_interaction_test.cc
     src/game/client/lucent/menu/interaction.cpp

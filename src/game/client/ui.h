@@ -595,7 +595,7 @@ public:
 		return false;
 	}
 	void SetHotScrollRegion(CScrollRegion *pId) { m_pBecomingHotScrollRegion = pId; }
-	const void *HotItem() const { return m_pHotItem; }
+	const void *HotItem() const { return Enabled() ? m_pHotItem : nullptr; }
 	const void *NextHotItem() const { return m_pBecomingHotItem; }
 	const void *ActiveItem() const { return m_pActiveItem; }
 	const CScrollRegion *HotScrollRegion() const { return m_pHotScrollRegion; }
@@ -613,7 +613,7 @@ public:
 
 	bool MouseInside(const CUIRect *pRect) const;
 	bool MouseInsideClip() const { return !IsClipped() || MouseInside(ClipArea()); }
-	bool MouseHovered(const CUIRect *pRect) const { return MouseInside(pRect) && MouseInsideClip(); }
+	bool MouseHovered(const CUIRect *pRect) const { return Enabled() && MouseInside(pRect) && MouseInsideClip(); }
 	void ConvertMouseMove(float *pX, float *pY, IInput::ECursorType CursorType) const;
 	void UpdateTouchState(CTouchState &State) const;
 	void SetMouseSlow(bool MouseSlow) { m_MouseSlow = MouseSlow; }
@@ -720,10 +720,13 @@ public:
 		SCROLLBAR_OPTION_NOCLAMPVALUE = 1 << 1,
 		SCROLLBAR_OPTION_MULTILINE = 1 << 2,
 		SCROLLBAR_OPTION_DELAYUPDATE = 1 << 3,
+		SCROLLBAR_OPTION_LUCENT = 1 << 4, // Opt-in paint adapter; value/drag semantics stay unchanged.
+		SCROLLBAR_OPTION_COMPACT = 1 << 5, // Caption belongs to the host row; value stays beside the rail.
 	};
 	float DoScrollbarV(const void *pId, const CUIRect *pRect, float Current);
 	float DoScrollbarH(const void *pId, const CUIRect *pRect, float Current, const ColorRGBA *pColorInner = nullptr);
-	bool DoScrollbarOption(const void *pId, int *pOption, const CUIRect *pRect, const char *pStr, int Min, int Max, const IScrollbarScale *pScale = &ms_LinearScrollbarScale, unsigned Flags = 0u, const char *pSuffix = "");
+	float DoScrollbarH(const void *pId, const CUIRect *pRect, float Current, const ColorRGBA *pColorInner, bool Lucent, bool ContentAnchored = false);
+	bool DoScrollbarOption(const void *pId, int *pOption, const CUIRect *pRect, const char *pStr, int Min, int Max, const IScrollbarScale *pScale = &ms_LinearScrollbarScale, unsigned Flags = 0u, const char *pSuffix = "", const CUIRect *pValueRect = nullptr);
 
 	// progress bar
 	void RenderProgressBar(CUIRect ProgressBar, float Progress);

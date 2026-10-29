@@ -1,4 +1,5 @@
 #include "controls.h"
+
 #include "scopes.h"
 
 namespace LucentUi
@@ -52,31 +53,52 @@ namespace LucentUi
 
 	int CheckBox(CUi *pUi, const void *pId, const char *pText, const char *pMark, const CUIRect &Rect, unsigned Flags)
 	{
+		return CheckBox(pUi, pId, pText, pMark, Rect, Flags, false);
+	}
+
+	int CheckBox(CUi *pUi, const void *pId, const char *pText, const char *pMark, const CUIRect &Rect, unsigned Flags, bool ControlRight)
+	{
+		return CheckBox(pUi, pId, pText, pMark, Rect, Flags, ControlRight, pUi->Enabled());
+	}
+
+	int CheckBox(CUi *pUi, const void *pId, const char *pText, const char *pMark, const CUIRect &Rect, unsigned Flags, bool ControlRight, bool VisualEnabled)
+	{
 		CUIRect Box, Label;
-		Rect.VSplitLeft(LucentStyle::Style::ControlSize, &Box, &Label);
+		if(ControlRight)
+			Rect.VSplitRight(LucentStyle::Style::ControlSize, &Label, &Box);
+		else
+			Rect.VSplitLeft(LucentStyle::Style::ControlSize, &Box, &Label);
 		Box.HMargin((Box.h - LucentStyle::Style::ControlSize) / 2, &Box);
-		Label.VSplitLeft(LucentStyle::Style::LabelGap, nullptr, &Label);
-		const float Light = pUi->Enabled() ? Highlight(pId, *pMark || pUi->MouseHovered(&Rect)) : 0.f;
+		if(ControlRight)
+			Label.VSplitRight(LucentStyle::Style::LabelGap, &Label, nullptr);
+		else
+			Label.VSplitLeft(LucentStyle::Style::LabelGap, nullptr, &Label);
+		const float Light = VisualEnabled ? Highlight(pId, *pMark || (pUi->Enabled() && pUi->MouseHovered(&Rect))) : 0.f;
 		Surface(Box, false, false, IGraphics::CORNER_ALL, Light);
-		const float Active = pUi->Enabled() ? Highlight(pId, *pMark != 0, EChannel::ACTIVE) : float(*pMark != 0);
+		const float Active = VisualEnabled ? Highlight(pId, *pMark != 0, EChannel::ACTIVE) : float(*pMark != 0);
 		if(Active > .001f)
 		{
 			Box.Margin(LucentStyle::Style::CheckInset, &Box);
 			// The mixed-state bar retains its shape while sharing the active gradient.
 			if(*pMark == 'O')
 				Box.HMargin((Box.h - LucentStyle::Style::MixedHeight) / 2, &Box);
-			GradientFill(Box, Active * (pUi->Enabled() ? LucentStyle::Style::CheckAlpha : LucentStyle::Style::Disabled), IGraphics::CORNER_ALL, LucentStyle::Style::CheckRadius, pUi->Enabled());
+			GradientFill(Box, Active * (VisualEnabled ? LucentStyle::Style::CheckAlpha : LucentStyle::Style::Disabled), IGraphics::CORNER_ALL, LucentStyle::Style::CheckRadius, VisualEnabled);
 		}
 		SLabelProperties Props;
 		Props.m_MaxWidth = Label.w;
 		Props.m_StopAtEnd = true;
 		Props.m_EnableWidthCheck = false;
-		CTextScope Text(pUi->TextRender(), std::min(Label.w, pUi->TextRender()->TextWidth(11, pText)), Active, Light, pUi->Enabled());
+		CTextScope Text(pUi->TextRender(), std::min(Label.w, pUi->TextRender()->TextWidth(11, pText)), Active, Light, VisualEnabled);
 		pUi->DoLabel(&Label, pText, 11, TEXTALIGN_ML, Props);
 		return pUi->DoButtonLogic(pId, 0, &Rect, Flags);
 	}
 
 	int FilledCheckBox(CUi *pUi, const void *pId, const char *pText, bool Checked, const CUIRect &Rect)
+	{
+		return FilledCheckBox(pUi, pId, pText, Checked, Rect, pUi->Enabled(), false);
+	}
+
+	int FilledCheckBox(CUi *pUi, const void *pId, const char *pText, bool Checked, const CUIRect &Rect, bool VisualEnabled, bool WrapLabel, float IdleLabelBrightness)
 	{
 		struct CState
 		{
@@ -104,15 +126,18 @@ namespace LucentUi
 			pState->m_Fill.Update(Checked, Clock.m_Now, false);
 		}
 		pState->m_Last = Clock.m_Now;
-		const bool Enabled = pUi->Enabled();
+		const bool Enabled = VisualEnabled;
 		const float Fill = pState->m_Fill.Update(Checked, Clock.m_Now, Clock.m_Animate, LucentStyle::Checkbox::FillDuration);
-		const float Hot = pState->m_Hover.Update(Enabled && pUi->MouseHovered(&Rect), Clock.m_Now, Clock.m_Animate);
+		const float Hot = pState->m_Hover.Update(pUi->Enabled() && pUi->MouseHovered(&Rect), Clock.m_Now, Clock.m_Animate);
 		const float Alpha = Enabled ? 1.f : LucentStyle::Style::Disabled;
 		CUIRect Label = Rect;
-		Label.VSplitLeft(LucentStyle::Checkbox::LabelOffset, nullptr, &Label);
+		const float LeftInset = WrapLabel ? 0.f : LucentStyle::Checkbox::LeftInset;
+		Label.VSplitLeft(LeftInset + LucentStyle::Checkbox::Size + LucentStyle::Style::LabelGap, nullptr, &Label);
+		if(WrapLabel)
+			Label.y += 4;
 		SLabelProperties Props;
 		Props.m_MaxWidth = Label.w;
-		Props.m_StopAtEnd = true;
+		Props.m_StopAtEnd = !WrapLabel;
 		Props.m_EnableWidthCheck = false;
 		// Match DoLabel's single-line cursor placement and TextEx's pixel-aligned
 		// baseline. Cap height supplies a stable optical center across translations.
@@ -127,9 +152,9 @@ namespace LucentUi
 		pUi->TextRender()->TextWidth(11, "H", -1, -1, 0, CapMetrics);
 		auto *pGraphics = pUi->Graphics();
 		const float Pixel = pGraphics->GetScreen().Height() / pGraphics->ScreenHeight();
-		const vec2 Cursor = CUi::CalcAlignedCursorPos(&Label, vec2(TextWidth, TextHeight), TEXTALIGN_ML, &MaxHeight);
+		const vec2 Cursor = CUi::CalcAlignedCursorPos(&Label, vec2(TextWidth, TextHeight), WrapLabel ? TEXTALIGN_TL : TEXTALIGN_ML, &MaxHeight);
 		const float Baseline = round_to_int(Cursor.y / Pixel) * Pixel + AlignedSize;
-		const vec2 Center = CheckboxCenter(vec2(Rect.x, Rect.y), Baseline - Rect.y, CapHeight);
+		const vec2 Center = CheckboxCenter(vec2(Rect.x + LeftInset - LucentStyle::Checkbox::LeftInset, Rect.y), Baseline - Rect.y, CapHeight);
 		const auto Coverage = CheckboxRingCoverage(Pixel);
 		const float Opacity = Alpha * CUIRect::DrawOpacity();
 		const float Radius = LucentStyle::Checkbox::Size / 2;
@@ -137,7 +162,7 @@ namespace LucentUi
 		// hover nor the dot's changing radius can reset or shift the gradient phase.
 		const auto Gradient = [&](vec2 Point) {
 			return LucentStyle::Gradient::Sample(LucentStyle::Gradient::ControlOrigin + LucentStyle::Gradient::ControlSpan *
-				((Point.x - Center.x) / (2 * Radius) + .5f + LucentStyle::Checkbox::GradientTilt * (Point.y - Center.y) / (2 * Radius)),
+													    ((Point.x - Center.x) / (2 * Radius) + .5f + LucentStyle::Checkbox::GradientTilt * (Point.y - Center.y) / (2 * Radius)),
 				Clock.GradientTime(), {LucentStyle::Checkbox::Period});
 		};
 		const auto Idle = LucentStyle::Gradient::Blend(LucentStyle::Checkbox::BorderIdle, LucentStyle::Checkbox::BorderHover, Hot);
@@ -175,8 +200,8 @@ namespace LucentUi
 		const float TextAlpha = LucentStyle::Motion::Lerp(
 			LucentStyle::Motion::Lerp(LucentStyle::Checkbox::TextIdle, LucentStyle::Checkbox::TextHover, Hot),
 			LucentStyle::Checkbox::TextChecked, Fill);
-		CTextScope Text(pUi->TextRender(), std::min(Label.w, pUi->TextRender()->TextWidth(11, pText)), Fill, Hot, Enabled, TextAlpha, {LucentStyle::Checkbox::Period});
-		pUi->DoLabel(&Label, pText, 11, TEXTALIGN_ML, Props);
+		CTextScope Text(pUi->TextRender(), std::min(Label.w, pUi->TextRender()->TextWidth(11, pText)), Fill, Hot, Enabled, TextAlpha, {LucentStyle::Checkbox::Period}, IdleLabelBrightness);
+		pUi->DoLabel(&Label, pText, 11, WrapLabel ? TEXTALIGN_TL : TEXTALIGN_ML, Props);
 		return pUi->DoButtonLogic(pId, 0, &Rect, BUTTONFLAG_LEFT);
 	}
 

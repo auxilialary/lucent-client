@@ -14,10 +14,16 @@ namespace LucentUi
 		ColorRGBA m_PreviousColor;
 
 	public:
-		CTextScope(ITextRender *pTextRender, float Width, float Active, float Hover, bool Enabled, float Opacity = 1.f, LucentStyle::Gradient::CParameters Parameters = {}) :
+		CTextScope(ITextRender *pTextRender, float Width, float Active, float Hover, bool Enabled, float Opacity = 1.f, LucentStyle::Gradient::CParameters Parameters = {}, float IdleBrightness = 1.f) :
 			m_pTextRender(pTextRender), m_Previous(pTextRender->TextVertexColor()), m_PreviousColor(pTextRender->GetTextColor())
 		{
-			const auto Idle = LucentStyle::Gradient::Blend(LucentStyle::Style::Text, LucentStyle::Gradient::White, Hover * LucentStyle::Style::TextHover).WithAlpha(Enabled ? Opacity : LucentStyle::Style::Disabled);
+			auto Idle = LucentStyle::Gradient::Blend(LucentStyle::Style::Text, LucentStyle::Gradient::White, Hover * LucentStyle::Style::TextHover).WithAlpha(Enabled ? Opacity : LucentStyle::Style::Disabled);
+			if(Enabled && IdleBrightness != 1.f)
+			{
+				Idle.r *= IdleBrightness;
+				Idle.g *= IdleBrightness;
+				Idle.b *= IdleBrightness;
+			}
 			pTextRender->TextColor(Idle);
 			const double Time = LucentStyle::Motion::Clock().GradientTime();
 			pTextRender->SetTextVertexColor(Enabled && Active > .001f ? ITextRender::FVertexColor([=](float X, ColorRGBA Base) {

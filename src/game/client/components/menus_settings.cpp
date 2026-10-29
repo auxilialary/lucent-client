@@ -11,6 +11,10 @@
 
 #include <game/client/components/menu_background.h>
 #include <game/client/gameclient.h>
+#include <game/client/lucent/ui/scopes.h>
+#include <game/client/lucent/settings/general.h>
+#include <game/client/lucent/settings/sound.h>
+#include <game/client/lucent/settings/player.h>
 #include <game/client/ui.h>
 #include <game/localization.h>
 
@@ -24,11 +28,20 @@ void CMenus::SetNeedSendInfo()
 
 void CMenus::RenderSettings(CUIRect MainView)
 {
-	// render background
-	CUIRect Button, TabBar, RestartBar;
-	MainView.VSplitRight(120.0f, &MainView, &TabBar);
-	MainView.Draw(ms_ColorTabbarActive, IGraphics::CORNER_B, 10.0f);
+	static_assert(SETTINGS_LENGTH == LucentSettings::CategoryCount);
+	const auto Layout = m_LucentSettings.Begin(Ui(), MainView, g_Config.m_UiSettingsPage, GameClient()->m_KeyBinder.IsActive());
+	CUIRect RestartBar;
+	MainView = Layout.m_Content;
 	MainView.Margin(20.0f, &MainView);
+
+	if(g_Config.m_UiSettingsPage != SETTINGS_GENERAL)
+		LucentSettings::LeaveGeneral(Ui());
+
+	if(g_Config.m_UiSettingsPage != SETTINGS_SOUND)
+		LucentSettings::LeaveSound(Ui());
+
+	if(g_Config.m_UiSettingsPage != SETTINGS_PLAYER)
+		LucentSettings::LeavePlayer(Ui());
 
 	const bool NeedRestart = m_NeedRestartGraphics || m_NeedRestartSound || m_NeedRestartUpdate;
 	if(NeedRestart)
@@ -36,9 +49,6 @@ void CMenus::RenderSettings(CUIRect MainView)
 		MainView.HSplitBottom(20.0f, &MainView, &RestartBar);
 		MainView.HSplitBottom(10.0f, &MainView, nullptr);
 	}
-
-	TabBar.HSplitTop(50.0f, &Button, &TabBar);
-	Button.Draw(ms_ColorTabbarActive, IGraphics::CORNER_BR, 10.0f);
 
 	const char *apTabs[SETTINGS_LENGTH] = {
 		Localize("Language"),
@@ -52,107 +62,112 @@ void CMenus::RenderSettings(CUIRect MainView)
 		Localize("DDNet"),
 		Localize("Assets"),
 		Localize("Credits")};
-	static CButtonContainer s_aTabButtons[SETTINGS_LENGTH];
-
-	for(int i = 0; i < SETTINGS_LENGTH; i++)
 	{
-		TabBar.HSplitTop(10.0f, nullptr, &TabBar);
-		TabBar.HSplitTop(26.0f, &Button, &TabBar);
-		if(DoButton_MenuTab(&s_aTabButtons[i], apTabs[i], g_Config.m_UiSettingsPage == i, &Button, IGraphics::CORNER_R, &m_aAnimatorsSettingsTab[i]))
-			g_Config.m_UiSettingsPage = i;
-	}
-
-	if(g_Config.m_UiSettingsPage == SETTINGS_LANGUAGE)
-	{
-		GameClient()->m_MenuBackground.ChangePosition(CMenuBackground::POS_SETTINGS_LANGUAGE);
-		RenderLanguageSettings(MainView);
-	}
-	else if(g_Config.m_UiSettingsPage == SETTINGS_GENERAL)
-	{
-		GameClient()->m_MenuBackground.ChangePosition(CMenuBackground::POS_SETTINGS_GENERAL);
-		RenderSettingsGeneral(MainView);
-	}
-	else if(g_Config.m_UiSettingsPage == SETTINGS_PLAYER)
-	{
-		GameClient()->m_MenuBackground.ChangePosition(CMenuBackground::POS_SETTINGS_PLAYER);
-		RenderSettingsPlayer(MainView);
-	}
-	else if(g_Config.m_UiSettingsPage == SETTINGS_TEE)
-	{
-		GameClient()->m_MenuBackground.ChangePosition(CMenuBackground::POS_SETTINGS_TEE);
-		if(Client()->IsSixup())
-			RenderSettingsTee7(MainView);
-		else
-			RenderSettingsTee(MainView);
-	}
-	else if(g_Config.m_UiSettingsPage == SETTINGS_APPEARANCE)
-	{
-		GameClient()->m_MenuBackground.ChangePosition(CMenuBackground::POS_SETTINGS_APPEARANCE);
-		RenderSettingsAppearance(MainView);
-	}
-	else if(g_Config.m_UiSettingsPage == SETTINGS_CONTROLS)
-	{
-		GameClient()->m_MenuBackground.ChangePosition(CMenuBackground::POS_SETTINGS_CONTROLS);
-		m_MenusSettingsControls.Render(MainView);
-	}
-	else if(g_Config.m_UiSettingsPage == SETTINGS_GRAPHICS)
-	{
-		GameClient()->m_MenuBackground.ChangePosition(CMenuBackground::POS_SETTINGS_GRAPHICS);
-		RenderSettingsGraphics(MainView);
-	}
-	else if(g_Config.m_UiSettingsPage == SETTINGS_SOUND)
-	{
-		GameClient()->m_MenuBackground.ChangePosition(CMenuBackground::POS_SETTINGS_SOUND);
-		RenderSettingsSound(MainView);
-	}
-	else if(g_Config.m_UiSettingsPage == SETTINGS_DDNET)
-	{
-		GameClient()->m_MenuBackground.ChangePosition(CMenuBackground::POS_SETTINGS_DDNET);
-		RenderSettingsDDNet(MainView);
-	}
-	else if(g_Config.m_UiSettingsPage == SETTINGS_ASSETS)
-	{
-		GameClient()->m_MenuBackground.ChangePosition(CMenuBackground::POS_SETTINGS_ASSETS);
-		RenderSettingsAssets(MainView);
-	}
-	else if(g_Config.m_UiSettingsPage == SETTINGS_CREDITS)
-	{
-		GameClient()->m_MenuBackground.ChangePosition(CMenuBackground::POS_SETTINGS_CREDITS);
-		RenderSettingsCredits(MainView);
-	}
-	else
-	{
-		dbg_assert_failed("ui_settings_page invalid");
-	}
-
-	if(NeedRestart)
-	{
-		CUIRect RestartWarning, RestartButton;
-		RestartBar.VSplitRight(125.0f, &RestartWarning, &RestartButton);
-		RestartWarning.VSplitRight(10.0f, &RestartWarning, nullptr);
-		if(m_NeedRestartUpdate)
+		LucentUi::CInteractionScope ContentInput(Ui(), !m_LucentSettings.BlocksContent(Ui()));
+		if(g_Config.m_UiSettingsPage == SETTINGS_LANGUAGE)
 		{
-			TextRender()->TextColor(1.0f, 0.4f, 0.4f, 1.0f);
-			Ui()->DoLabel(&RestartWarning, Localize("Lucent Client needs to be restarted to complete update!"), 14.0f, TEXTALIGN_ML);
-			TextRender()->TextColor(1.0f, 1.0f, 1.0f, 1.0f);
+			GameClient()->m_MenuBackground.ChangePosition(CMenuBackground::POS_SETTINGS_LANGUAGE);
+			RenderLanguageSettings(MainView);
+		}
+		else if(g_Config.m_UiSettingsPage == SETTINGS_GENERAL)
+		{
+			GameClient()->m_MenuBackground.ChangePosition(CMenuBackground::POS_SETTINGS_GENERAL);
+			RenderSettingsGeneral(MainView);
+		}
+		else if(g_Config.m_UiSettingsPage == SETTINGS_PLAYER)
+		{
+			GameClient()->m_MenuBackground.ChangePosition(CMenuBackground::POS_SETTINGS_PLAYER);
+			RenderSettingsPlayer(MainView);
+		}
+		else if(g_Config.m_UiSettingsPage == SETTINGS_TEE)
+		{
+			GameClient()->m_MenuBackground.ChangePosition(CMenuBackground::POS_SETTINGS_TEE);
+			if(Client()->IsSixup())
+				RenderSettingsTee7(MainView);
+			else
+				RenderSettingsTee(MainView);
+		}
+		else if(g_Config.m_UiSettingsPage == SETTINGS_APPEARANCE)
+		{
+			GameClient()->m_MenuBackground.ChangePosition(CMenuBackground::POS_SETTINGS_APPEARANCE);
+			RenderSettingsAppearance(MainView);
+		}
+		else if(g_Config.m_UiSettingsPage == SETTINGS_CONTROLS)
+		{
+			GameClient()->m_MenuBackground.ChangePosition(CMenuBackground::POS_SETTINGS_CONTROLS);
+			m_MenusSettingsControls.Render(MainView);
+		}
+		else if(g_Config.m_UiSettingsPage == SETTINGS_GRAPHICS)
+		{
+			GameClient()->m_MenuBackground.ChangePosition(CMenuBackground::POS_SETTINGS_GRAPHICS);
+			RenderSettingsGraphics(MainView);
+		}
+		else if(g_Config.m_UiSettingsPage == SETTINGS_SOUND)
+		{
+			GameClient()->m_MenuBackground.ChangePosition(CMenuBackground::POS_SETTINGS_SOUND);
+			RenderSettingsSound(MainView);
+		}
+		else if(g_Config.m_UiSettingsPage == SETTINGS_DDNET)
+		{
+			GameClient()->m_MenuBackground.ChangePosition(CMenuBackground::POS_SETTINGS_DDNET);
+			RenderSettingsDDNet(MainView);
+		}
+		else if(g_Config.m_UiSettingsPage == SETTINGS_ASSETS)
+		{
+			GameClient()->m_MenuBackground.ChangePosition(CMenuBackground::POS_SETTINGS_ASSETS);
+			RenderSettingsAssets(MainView);
+		}
+		else if(g_Config.m_UiSettingsPage == SETTINGS_CREDITS)
+		{
+			GameClient()->m_MenuBackground.ChangePosition(CMenuBackground::POS_SETTINGS_CREDITS);
+			RenderSettingsCredits(MainView);
 		}
 		else
 		{
-			Ui()->DoLabel(&RestartWarning, Localize("You must restart the game for all settings to take effect."), 14.0f, TEXTALIGN_ML);
+			dbg_assert_failed("ui_settings_page invalid");
 		}
 
-		static CButtonContainer s_RestartButton;
-		if(DoButton_Menu(&s_RestartButton, Localize("Restart"), 0, &RestartButton))
+		if(NeedRestart)
 		{
-			if(Client()->State() == IClient::STATE_ONLINE || GameClient()->Editor()->HasUnsavedData())
+			CUIRect RestartWarning, RestartButton;
+			RestartBar.VSplitRight(125.0f, &RestartWarning, &RestartButton);
+			RestartWarning.VSplitRight(10.0f, &RestartWarning, nullptr);
+			if(m_NeedRestartUpdate)
 			{
-				m_Popup = POPUP_RESTART;
+				TextRender()->TextColor(1.0f, 0.4f, 0.4f, 1.0f);
+				Ui()->DoLabel(&RestartWarning, Localize("Lucent Client needs to be restarted to complete update!"), 14.0f, TEXTALIGN_ML);
+				TextRender()->TextColor(1.0f, 1.0f, 1.0f, 1.0f);
 			}
 			else
 			{
-				Client()->Restart();
+				Ui()->DoLabel(&RestartWarning, Localize("You must restart the game for all settings to take effect."), 14.0f, TEXTALIGN_ML);
+			}
+
+			static CButtonContainer s_RestartButton;
+			if(DoButton_Menu(&s_RestartButton, Localize("Restart"), 0, &RestartButton))
+			{
+				if(Client()->State() == IClient::STATE_ONLINE || GameClient()->Editor()->HasUnsavedData())
+				{
+					m_Popup = POPUP_RESTART;
+				}
+				else
+				{
+					Client()->Restart();
+				}
 			}
 		}
+	}
+	m_LucentSettings.Render(Ui(), TextRender(), g_Config.m_UiSettingsPage, apTabs);
+	if(m_LucentSettings.BackRequested())
+	{
+		LucentSettings::LeaveGeneral(Ui());
+		LucentSettings::LeaveSound(Ui());
+		LucentSettings::LeavePlayer(Ui());
+		m_LucentSettings.Reset();
+		if(Client()->State() == IClient::STATE_OFFLINE)
+			SetShowStart(true);
+		else
+			m_GamePage = PAGE_GAME;
 	}
 }
 

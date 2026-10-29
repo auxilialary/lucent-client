@@ -32,36 +32,13 @@ void CMenus::RenderSettingsDDNet(CUIRect MainView)
 	MainView.HSplitBottom(5.0f, &MainView, nullptr);
 #endif
 
-	// demo
-	CUIRect Demo;
-	MainView.HSplitTop(110.0f, &Demo, &MainView);
-	Demo.HSplitTop(30.0f, &Label, &Demo);
-	Ui()->DoLabel(&Label, Localize("Demo"), 20.0f, TEXTALIGN_ML);
-	Label.VSplitMid(nullptr, &Label, 20.0f);
+	// Recording controls now live in General; this block only owns Ghost.
+	CUIRect Ghost;
+	MainView.HSplitTop(110.0f, &Ghost, &MainView);
+	Ghost.HSplitTop(30.0f, &Label, &Ghost);
 	Ui()->DoLabel(&Label, Localize("Ghost"), 20.0f, TEXTALIGN_ML);
-
-	Demo.HSplitTop(5.0f, nullptr, &Demo);
-	Demo.VSplitMid(&Left, &Right, 20.0f);
-
-	Left.HSplitTop(20.0f, &Button, &Left);
-	if(DoButton_CheckBox(&g_Config.m_ClAutoRaceRecord, Localize("Save the best demo of each race"), g_Config.m_ClAutoRaceRecord, &Button))
-	{
-		g_Config.m_ClAutoRaceRecord ^= 1;
-	}
-
-	Left.HSplitTop(20.0f, &Button, &Left);
-	if(DoButton_CheckBox(&g_Config.m_ClReplays, Localize("Enable replays"), g_Config.m_ClReplays, &Button))
-	{
-		g_Config.m_ClReplays ^= 1;
-		if(Client()->State() == IClient::STATE_ONLINE)
-		{
-			Client()->DemoRecorder_UpdateReplayRecorder();
-		}
-	}
-
-	Left.HSplitTop(20.0f, &Button, &Left);
-	if(g_Config.m_ClReplays)
-		Ui()->DoScrollbarOption(&g_Config.m_ClReplayLength, &g_Config.m_ClReplayLength, &Button, Localize("Default length"), 10, 600, &CUi::ms_LinearScrollbarScale, CUi::SCROLLBAR_OPTION_NOCLAMPVALUE);
+	Ghost.HSplitTop(5.0f, nullptr, &Ghost);
+	Ghost.VSplitMid(&Right, nullptr, 20.0f);
 
 	Right.HSplitTop(20.0f, &Button, &Right);
 	if(DoButton_CheckBox(&g_Config.m_ClRaceGhost, Localize("Enable ghost"), g_Config.m_ClRaceGhost, &Button))
@@ -143,9 +120,6 @@ void CMenus::RenderSettingsDDNet(CUIRect MainView)
 	}
 	Ui()->DoToolTip(&g_Config.m_ClShowQuads, &Button, Localize("Quads are used for background decoration"));
 
-	Left.HSplitTop(20.0f, &Button, &Left);
-	if(Ui()->DoScrollbarOption(&g_Config.m_ClDefaultZoom, &g_Config.m_ClDefaultZoom, &Button, Localize("Default zoom"), 0, 20))
-		GameClient()->m_Camera.SetZoom(CCamera::ZoomStepsToValue(g_Config.m_ClDefaultZoom - 10), g_Config.m_ClSmoothZoomTime, true);
 
 	Right.HSplitTop(20.0f, &Button, &Right);
 	Ui()->DoScrollbarOption(&g_Config.m_ClPredictionMargin, &g_Config.m_ClPredictionMargin, &Button, Localize("Prediction margin"), 1, 300);
