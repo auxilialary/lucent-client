@@ -166,7 +166,7 @@ void CHud::RenderLucentAlignment()
 			Panel(Graphics(), Rect, A, Layout.m_Scale);
 			const float CircleSize = Layout.Unit(14), Padding = Layout.Unit(2);
 			const vec2 TeeCenter(Rect.x + Padding + CircleSize / 2, Rect.y + Height / 2);
-			Graphics()->DrawRect(TeeCenter.x - CircleSize / 2, TeeCenter.y - CircleSize / 2, CircleSize, CircleSize, Accent(LucentStyle::Style::Hover * A), IGraphics::CORNER_ALL, CircleSize / 2);
+			SoftFill(Graphics(), {TeeCenter.x - CircleSize / 2, TeeCenter.y - CircleSize / 2, CircleSize, CircleSize}, Accent(LucentStyle::Style::Hover * A), Layout.m_Scale);
 			CTeeRenderInfo Tee = m_aAlignmentVisual[Mode * 2 + LayerIndex].m_Tee;
 			Tee.m_Size = Layout.Unit(13);
 			RenderTools()->RenderIdleTeeAtCenter(&Tee, TeeCenter, EMOTE_NORMAL, vec2(1, 0), A);
@@ -233,5 +233,6 @@ void CHud::DrawAlignmentText(int Slot, float X, float CenterY, float Alpha)
 	// Native renderer aligns translated containers to physical pixels. Glyphs are
 	// rasterized at the target size; no shadow copy, outline, or container scaling.
 	const auto Bounds = TextRender()->GetBoundingBoxTextContainer(Text.m_Index);
-	TextRender()->RenderTextContainer(Text.m_Index, LucentHud::Text(Alpha), ColorRGBA(0, 0, 0, 0), X, CenterY - Bounds.m_H / 2);
+	const vec2 Anchor = LucentHud::PixelGrid(Graphics()).Snap({X, CenterY - Bounds.m_H / 2});
+	TextRender()->RenderTextContainer(Text.m_Index, LucentHud::Text(Alpha), ColorRGBA(0, 0, 0, 0), Anchor.x, Anchor.y);
 }
