@@ -2800,6 +2800,8 @@ if(CLIENT)
     lucent/game/ping_transport.h
     lucent/game/ping_websocket.cpp
     lucent/game/ping_websocket.h
+    lucent/gameview/config_variables.h
+    lucent/gameview/presentation.h
     lucent/lucent_startup.cpp
     lucent/lucent_startup.h
     lucent/lucent_style.h
@@ -2845,6 +2847,7 @@ if(CLIENT)
     lucent/ui/controls.h
     lucent/ui/logo.cpp
     lucent/ui/logo.h
+    lucent/ui/panel.h
     lucent/ui/scene_effects.cpp
     lucent/ui/scene_effects.h
     lucent/ui/scopes.h
@@ -3570,6 +3573,7 @@ if((GTEST_FOUND OR DOWNLOAD_GTEST) AND SERVER)
     jsonwriter_test.cpp
     linereader_test.cpp
     lucent_console_test.cpp
+    lucent_gameview_test.cpp
     lucent_ping_relay_test.cpp
     lucent_ping_transport_test.cpp
     lucent_player_test.cpp

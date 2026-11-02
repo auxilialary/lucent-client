@@ -1,4 +1,3 @@
-#include <game/client/lucent/ui.h>
 /* (c) Magnus Auvinen. See licence.txt in the root of the distribution for more information. */
 /* If you are missing that file, acquire a complete release at teeworlds.com.                */
 
@@ -36,6 +35,8 @@
 #include <game/client/components/menu_background.h>
 #include <game/client/components/sounds.h>
 #include <game/client/gameclient.h>
+#include <game/client/lucent/ui.h>
+#include <game/client/lucent/ui/panel.h>
 #include <game/client/ui_listbox.h>
 #include <game/localization.h>
 
@@ -1047,7 +1048,7 @@ void CMenus::Render()
 	}
 
 	const bool SettingsPage = (ClientState == IClient::STATE_OFFLINE && !m_ShowStart && m_MenuPage == PAGE_SETTINGS) ||
-		(ClientState == IClient::STATE_ONLINE && m_GamePage == PAGE_SETTINGS);
+				  (ClientState == IClient::STATE_ONLINE && m_GamePage == PAGE_SETTINGS);
 	CUIRect Screen = *Ui()->Screen();
 	if(SettingsPage)
 	{
@@ -1128,9 +1129,17 @@ void CMenus::Render()
 		{
 			CUIRect TabBar, MainView = Screen;
 			if(!SettingsPage)
-				Screen.HSplitTop(24.0f, &TabBar, &MainView);
+			{
+				Screen.VSplitLeft(120.0f, &TabBar, &MainView);
+				MainView.VSplitLeft(12.0f, nullptr, &MainView);
+				LucentUi::IngamePanel(MainView);
+			}
 
-			if(m_GamePage == PAGE_GAME)
+			if(m_GamePage == PAGE_GAMEVIEW)
+			{
+				RenderLucentGameView(MainView);
+			}
+			else if(m_GamePage == PAGE_GAME)
 			{
 				RenderGame(MainView);
 				RenderIngameHint();
@@ -1169,7 +1178,7 @@ void CMenus::Render()
 			}
 
 			if(!SettingsPage)
-				RenderMenubar(TabBar, ClientState);
+				RenderLucentGameNavigation(TabBar);
 		}
 		break;
 
