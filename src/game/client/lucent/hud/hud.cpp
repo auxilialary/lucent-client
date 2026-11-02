@@ -32,7 +32,7 @@ float CHud::LucentText(int Slot, const char *pText, float X, float Y, float Size
 		if(TimerText)
 			Cursor.m_LineWidth = m_Width;
 		const auto Flags = TextRender()->GetRenderFlags();
-		TextRender()->SetRenderFlags(TimerText ? TEXT_RENDER_FLAG_ONE_TIME_USE : (Flags | TEXT_RENDER_FLAG_ONE_TIME_USE));
+		TextRender()->SetRenderFlags(TimerText ? TEXT_RENDER_FLAG_ONE_TIME_USE : ((Flags & ~TEXT_RENDER_FLAG_NO_PIXEL_ALIGNMENT) | TEXT_RENDER_FLAG_ONE_TIME_USE));
 		TextRender()->TextColor(1, 1, 1, 1);
 		if(Text.m_Index.Valid())
 			TextRender()->RecreateTextContainerSoft(Text.m_Index, &Cursor, pText);
@@ -50,7 +50,8 @@ float CHud::LucentText(int Slot, const char *pText, float X, float Y, float Size
 		const float Left = X - (Center ? Width / 2 : 0);
 		// The shared surface supplies contrast without an offset glyph pass that
 		// blurs small utility labels at fractional HUD scales.
-		TextRender()->RenderTextContainer(Text.m_Index, Color, ColorRGBA(0, 0, 0, 0), Left, Y);
+		const vec2 Anchor = LucentHud::PixelGrid(Graphics()).Snap({Left, Y});
+		TextRender()->RenderTextContainer(Text.m_Index, Color, ColorRGBA(0, 0, 0, 0), Anchor.x, Anchor.y);
 	}
 	TextRender()->TextColor(TextRender()->DefaultTextColor());
 	return Width;

@@ -22,6 +22,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iterator>
+#include <limits>
 #include <vector>
 
 namespace
@@ -817,4 +818,122 @@ TEST(LucentHud, NeutralWeaponSamplingPreservesMipmapsAndWorldPolicy)
 	EXPECT_NEAR(InactiveLod - ActiveLod, std::log2(1.f / .75f), .000001f);
 	EXPECT_LT(InactiveLod + TextureFlag::LodBias(0, -.5f), InactiveLod);
 	EXPECT_FLOAT_EQ(InactiveLod + TextureFlag::LodBias(TextureFlag::UI_SPRITE, -.5f), InactiveLod);
+}
+
+TEST(LucentHud, PanelPaintAndTextAnchorsUseOneDevicePixelGrid)
+{
+	for(int Height : {360, 720, 1080, 1440, 2160, 4320})
+		for(float Aspect : {1.f, 4.f / 3, 16.f / 9, 21.f / 9})
+			for(int Scale : {50, 75, 100, 125, 150})
+			{
+				const LucentHud::CLayout Layout(300 * Aspect, 300, Scale);
+				const float Pixel = 300.f / Height;
+				for(vec2 Origin : {vec2(0, 0), vec2(-13.25f, 4.125f)})
+				{
+					const LucentHud::CPixelGrid Grid(Origin, {Pixel, Pixel});
+					const struct
+					{
+						LucentHud::CRect m_Rect;
+						float m_Scale;
+					} Samples[] = {
+						{Layout.Timer(80, true, true, 20), Layout.m_Scale},
+						{Layout.Hotbar(6), Layout.m_Scale * LucentHud::HotbarFactor},
+						{Layout.Slot(2, 6), Layout.m_Scale * LucentHud::HotbarFactor},
+						{Layout.Coordinates(Layout.Unit(90), false, true), Layout.m_Scale},
+						{{11, 43, Layout.Unit(36), Layout.Unit(12)}, Layout.m_Scale},
+						{{11, 43, Layout.Unit(72), Layout.Unit(18)}, Layout.m_Scale}};
+					for(const auto &Sample : Samples)
+					{
+						auto Logical = Sample.m_Rect;
+						Logical.x += Pixel * .37f;
+						Logical.y += Pixel * .49f;
+						const auto G = LucentHud::CPanelGeometry::Calculate(Logical, Sample.m_Scale, Grid);
+						ASSERT_GT(G.m_Count, 0);
+						EXPECT_LE(std::abs(G.m_Bounds.x - Logical.x), Pixel / 2 + .0001f);
+						EXPECT_LE(std::abs(G.m_Bounds.y - Logical.y), Pixel / 2 + .0001f);
+						EXPECT_LE(std::abs(G.m_Bounds.x + G.m_Bounds.w - Logical.x - Logical.w), Pixel / 2 + .0001f);
+						EXPECT_LE(std::abs(G.m_Bounds.y + G.m_Bounds.h - Logical.y - Logical.h), Pixel / 2 + .0001f);
+						for(vec2 Point : {vec2(G.m_Bounds.x, G.m_Bounds.y), vec2(G.m_Bounds.x + G.m_Bounds.w, G.m_Bounds.y + G.m_Bounds.h),
+							    Grid.Snap({Logical.x + Logical.w / 2, Logical.y + Layout.Unit(3)})})
+						{
+							for(int Axis = 0; Axis < 2; ++Axis)
+							{
+								const float Phase = (Point[Axis] - Origin[Axis]) / Pixel;
+								EXPECT_NEAR(Phase, std::round(Phase), .002f);
+								EXPECT_NEAR(Grid.Snap(Point)[Axis], Point[Axis], Pixel * .002f);
+							}
+						}
+						EXPECT_NEAR(2 * G.m_Radius / Pixel, std::round(2 * G.m_Radius / Pixel), .002f);
+						EXPECT_NEAR(2 * G.m_BorderWidth / Pixel, std::round(2 * G.m_BorderWidth / Pixel), .002f);
+					}
+				}
+			}
+}
+
+TEST(LucentHud, RoundedPanelCoverageIsNestedClosedAndSmoothAtPhysicalResolution)
+{
+	for(int Height : {360, 720, 1080, 1440, 2160, 4320})
+		for(float Scale : {.5f, 1.f, 1.5f})
+			for(float Width : {6.f, 22.f, 120.f})
+				for(float HeightUnits : {8.f, 12.f, 18.f, 24.f, 31.f})
+				{
+					const float Pixel = 300.f / Height;
+					const LucentHud::CPixelGrid Grid({0, 0}, {Pixel, Pixel});
+					const auto G = LucentHud::CPanelGeometry::Calculate({-7.33f, 5.22f, Width * Scale, HeightUnits * Scale}, Scale, Grid);
+					ASSERT_GT(G.m_Count, 0);
+					EXPECT_LE(G.m_Count, LucentHud::CPanelGeometry::MaxPoints);
+					EXPECT_LE(G.m_Radius, std::min(G.m_Bounds.w, G.m_Bounds.h) / 2);
+					EXPECT_NEAR(2 * G.m_Feather, Pixel, .00001f);
+					EXPECT_GT(G.m_BorderPeak, 0);
+					EXPECT_LE(G.m_BorderPeak, 1);
+					const float ChordError = (G.m_Radius + G.m_Feather) * (1 - std::cos(pi / (4 * G.m_Steps)));
+					EXPECT_LE(ChordError / Pixel, .126f);
+					const auto Offsets = G.BorderOffsets();
+					EXPECT_GT(G.m_Radius + Offsets[0], 0);
+					for(int I = 1; I < 4; ++I)
+						EXPECT_GE(Offsets[I], Offsets[I - 1]);
+					double PreviousArea = 0;
+					for(float Offset : Offsets)
+					{
+						const auto Boundary = G.Boundary(Offset);
+						double Area = 0;
+						for(int I = 0; I < G.m_Count; ++I)
+						{
+							const auto P = Boundary[I], Q = Boundary[(I + 1) % G.m_Count];
+							EXPECT_TRUE(std::isfinite(P.x) && std::isfinite(P.y));
+							EXPECT_NEAR(length(G.m_Normals[I]), 1, .000001f);
+							EXPECT_GE(P.x, G.m_Bounds.x - G.m_Feather - .0001f);
+							EXPECT_LE(P.x, G.m_Bounds.x + G.m_Bounds.w + G.m_Feather + .0001f);
+							EXPECT_GE(P.y, G.m_Bounds.y - G.m_Feather - .0001f);
+							EXPECT_LE(P.y, G.m_Bounds.y + G.m_Bounds.h + G.m_Feather + .0001f);
+							Area += double(P.x) * Q.y - double(Q.x) * P.y;
+						}
+						EXPECT_GT(Area, 0);
+						EXPECT_GE(Area + .0001, PreviousArea);
+						PreviousArea = Area;
+					}
+				}
+}
+
+TEST(LucentHud, TinyAndInvalidPanelCoverageNeverInvertsCorners)
+{
+	const float Nan = std::numeric_limits<float>::quiet_NaN(), Infinity = std::numeric_limits<float>::infinity();
+	const LucentHud::CPixelGrid Grid({0, 0}, {.25f, .25f});
+	for(const auto Rect : {LucentHud::CRect{0, 0, 0, 10}, {0, 0, -1, 10}, {0, 0, 10, 0}, {Nan, 0, 10, 10}, {0, 0, Infinity, 10}})
+		EXPECT_EQ(LucentHud::CPanelGeometry::Calculate(Rect, 1, Grid).m_Count, 0);
+	for(float Scale : {0.f, -1.f, Nan, Infinity})
+		EXPECT_EQ(LucentHud::CPanelGeometry::Calculate({0, 0, 10, 10}, Scale, Grid).m_Count, 0);
+	for(float Side : {.01f, .1f, .25f, .375f, .5f, 1.f})
+	{
+		const auto G = LucentHud::CPanelGeometry::Calculate({.03f, .07f, Side, Side}, 1, Grid);
+		if(G.m_Count == 0)
+			continue;
+		EXPECT_GT(G.m_Feather, 0);
+		EXPECT_GT(G.m_Radius + G.BorderOffsets()[0], 0);
+		EXPECT_TRUE(std::isfinite(G.m_BorderPeak));
+		EXPECT_LE(G.m_BorderPeak, 1);
+	}
+	const LucentHud::CPixelGrid InvalidGrid({Nan, Infinity}, {0, Nan});
+	const auto Point = InvalidGrid.Snap({2.3f, 4.7f});
+	EXPECT_TRUE(std::isfinite(Point.x) && std::isfinite(Point.y));
 }
