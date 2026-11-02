@@ -1,5 +1,7 @@
 #include "layout.h"
 #include "visuals.h"
+#include "modifier_tooltip.h"
+#include <game/client/lucent/ui/scopes.h>
 
 #include <base/str.h>
 #include <base/time.h>
@@ -82,6 +84,8 @@ void CHud::RenderLucentStatus(int ClientId, const CNetObj_Character *pCharacter,
 		int m_Quad;
 		bool m_Jump;
 		bool m_Number;
+		const char *m_pModifierName = nullptr;
+		const void *m_pModifierId = nullptr;
 	};
 	std::array<CItem, LucentHud::MaxStatusItems> aItems{};
 	std::array<float, LucentHud::MaxStatusItems> aWidths{};
@@ -91,6 +95,17 @@ void CHud::RenderLucentStatus(int ClientId, const CNetObj_Character *pCharacter,
 		{
 			aItems[Count] = {Texture, Quad, Jump, Number};
 			aWidths[Count++] = 8;
+		}
+	};
+	auto AddModifier = [&](bool Active, IGraphics::CTextureHandle Texture, int &Quad, const char *pName) {
+		const int Index = Count;
+		Add(Active, Texture, Quad);
+		if(Count > Index)
+		{
+			aItems[Index].m_pModifierName = pName;
+			// The actual modifier's HUD quad member is a stable identity, including
+			// when the active item order changes or a language/skin is reloaded.
+			aItems[Index].m_pModifierId = &Quad;
 		}
 	};
 	char aJumps[96] = "";
@@ -116,26 +131,26 @@ void CHud::RenderLucentStatus(int ClientId, const CNetObj_Character *pCharacter,
 		}
 	}
 	const int JumpCount = Count;
-	Add(Core.m_EndlessJump, GameClient()->m_HudSkin.m_SpriteHudEndlessJump, m_EndlessJumpOffset);
-	Add(Core.m_EndlessHook, GameClient()->m_HudSkin.m_SpriteHudEndlessHook, m_EndlessHookOffset);
-	Add(Core.m_Jetpack, GameClient()->m_HudSkin.m_SpriteHudJetpack, m_JetpackOffset);
-	Add(Core.m_HasTelegunGun && Core.m_aWeapons[WEAPON_GUN].m_Got, GameClient()->m_HudSkin.m_SpriteHudTeleportGun, m_TeleportGunOffset);
-	Add(Core.m_HasTelegunGrenade && Core.m_aWeapons[WEAPON_GRENADE].m_Got, GameClient()->m_HudSkin.m_SpriteHudTeleportGrenade, m_TeleportGrenadeOffset);
-	Add(Core.m_HasTelegunLaser && Core.m_aWeapons[WEAPON_LASER].m_Got, GameClient()->m_HudSkin.m_SpriteHudTeleportLaser, m_TeleportLaserOffset);
-	Add(Core.m_Solo, GameClient()->m_HudSkin.m_SpriteHudSolo, m_SoloOffset);
-	Add(Core.m_CollisionDisabled, GameClient()->m_HudSkin.m_SpriteHudCollisionDisabled, m_CollisionDisabledOffset);
-	Add(Core.m_HookHitDisabled, GameClient()->m_HudSkin.m_SpriteHudHookHitDisabled, m_HookHitDisabledOffset);
-	Add(Core.m_HammerHitDisabled, GameClient()->m_HudSkin.m_SpriteHudHammerHitDisabled, m_HammerHitDisabledOffset);
-	Add(Core.m_GrenadeHitDisabled && Core.m_HasTelegunGun && Core.m_aWeapons[WEAPON_GUN].m_Got, GameClient()->m_HudSkin.m_SpriteHudGunHitDisabled, m_GunHitDisabledOffset);
-	Add(Core.m_ShotgunHitDisabled && Core.m_aWeapons[WEAPON_SHOTGUN].m_Got, GameClient()->m_HudSkin.m_SpriteHudShotgunHitDisabled, m_ShotgunHitDisabledOffset);
-	Add(Core.m_GrenadeHitDisabled && Core.m_aWeapons[WEAPON_GRENADE].m_Got, GameClient()->m_HudSkin.m_SpriteHudGrenadeHitDisabled, m_GrenadeHitDisabledOffset);
-	Add(Core.m_LaserHitDisabled && Core.m_aWeapons[WEAPON_LASER].m_Got, GameClient()->m_HudSkin.m_SpriteHudLaserHitDisabled, m_LaserHitDisabledOffset);
+	AddModifier(Core.m_EndlessJump, GameClient()->m_HudSkin.m_SpriteHudEndlessJump, m_EndlessJumpOffset, Localize("Endless jump", "Lucent HUD modifier"));
+	AddModifier(Core.m_EndlessHook, GameClient()->m_HudSkin.m_SpriteHudEndlessHook, m_EndlessHookOffset, Localize("Endless hook", "Lucent HUD modifier"));
+	AddModifier(Core.m_Jetpack, GameClient()->m_HudSkin.m_SpriteHudJetpack, m_JetpackOffset, Localize("Jetpack", "Lucent HUD modifier"));
+	AddModifier(Core.m_HasTelegunGun && Core.m_aWeapons[WEAPON_GUN].m_Got, GameClient()->m_HudSkin.m_SpriteHudTeleportGun, m_TeleportGunOffset, Localize("Teleport gun", "Lucent HUD modifier"));
+	AddModifier(Core.m_HasTelegunGrenade && Core.m_aWeapons[WEAPON_GRENADE].m_Got, GameClient()->m_HudSkin.m_SpriteHudTeleportGrenade, m_TeleportGrenadeOffset, Localize("Teleport grenade", "Lucent HUD modifier"));
+	AddModifier(Core.m_HasTelegunLaser && Core.m_aWeapons[WEAPON_LASER].m_Got, GameClient()->m_HudSkin.m_SpriteHudTeleportLaser, m_TeleportLaserOffset, Localize("Teleport laser", "Lucent HUD modifier"));
+	AddModifier(Core.m_Solo, GameClient()->m_HudSkin.m_SpriteHudSolo, m_SoloOffset, Localize("Solo", "Lucent HUD modifier"));
+	AddModifier(Core.m_CollisionDisabled, GameClient()->m_HudSkin.m_SpriteHudCollisionDisabled, m_CollisionDisabledOffset, Localize("Collision disabled", "Lucent HUD modifier"));
+	AddModifier(Core.m_HookHitDisabled, GameClient()->m_HudSkin.m_SpriteHudHookHitDisabled, m_HookHitDisabledOffset, Localize("Hook collision disabled", "Lucent HUD modifier"));
+	AddModifier(Core.m_HammerHitDisabled, GameClient()->m_HudSkin.m_SpriteHudHammerHitDisabled, m_HammerHitDisabledOffset, Localize("Hammer hit disabled", "Lucent HUD modifier"));
+	AddModifier(Core.m_GrenadeHitDisabled && Core.m_HasTelegunGun && Core.m_aWeapons[WEAPON_GUN].m_Got, GameClient()->m_HudSkin.m_SpriteHudGunHitDisabled, m_GunHitDisabledOffset, Localize("Gun hit disabled", "Lucent HUD modifier"));
+	AddModifier(Core.m_ShotgunHitDisabled && Core.m_aWeapons[WEAPON_SHOTGUN].m_Got, GameClient()->m_HudSkin.m_SpriteHudShotgunHitDisabled, m_ShotgunHitDisabledOffset, Localize("Shotgun hit disabled", "Lucent HUD modifier"));
+	AddModifier(Core.m_GrenadeHitDisabled && Core.m_aWeapons[WEAPON_GRENADE].m_Got, GameClient()->m_HudSkin.m_SpriteHudGrenadeHitDisabled, m_GrenadeHitDisabledOffset, Localize("Grenade hit disabled", "Lucent HUD modifier"));
+	AddModifier(Core.m_LaserHitDisabled && Core.m_aWeapons[WEAPON_LASER].m_Got, GameClient()->m_HudSkin.m_SpriteHudLaserHitDisabled, m_LaserHitDisabledOffset, Localize("Laser hit disabled", "Lucent HUD modifier"));
 	const int Flags = Snapshot.m_HasExtendedDisplayInfo ? Snapshot.m_ExtendedData.m_Flags : 0;
-	Add(Flags & CHARACTERFLAG_LOCK_MODE, GameClient()->m_HudSkin.m_SpriteHudLockMode, m_LockModeOffset);
-	Add(Flags & CHARACTERFLAG_PRACTICE_MODE, GameClient()->m_HudSkin.m_SpriteHudPracticeMode, m_PracticeModeOffset);
-	Add(Flags & CHARACTERFLAG_TEAM0_MODE, GameClient()->m_HudSkin.m_SpriteHudTeam0Mode, m_Team0ModeOffset);
-	Add(Core.m_DeepFrozen, GameClient()->m_HudSkin.m_SpriteHudDeepFrozen, m_DeepFrozenOffset);
-	Add(Core.m_LiveFrozen, GameClient()->m_HudSkin.m_SpriteHudLiveFrozen, m_LiveFrozenOffset);
+	AddModifier(Flags & CHARACTERFLAG_LOCK_MODE, GameClient()->m_HudSkin.m_SpriteHudLockMode, m_LockModeOffset, Localize("Locked team", "Lucent HUD modifier"));
+	AddModifier(Flags & CHARACTERFLAG_PRACTICE_MODE, GameClient()->m_HudSkin.m_SpriteHudPracticeMode, m_PracticeModeOffset, Localize("Practice mode", "Lucent HUD modifier"));
+	AddModifier(Flags & CHARACTERFLAG_TEAM0_MODE, GameClient()->m_HudSkin.m_SpriteHudTeam0Mode, m_Team0ModeOffset, Localize("Team 0 mode", "Lucent HUD modifier"));
+	AddModifier(Core.m_DeepFrozen, GameClient()->m_HudSkin.m_SpriteHudDeepFrozen, m_DeepFrozenOffset, Localize("Deep freeze", "Lucent HUD modifier"));
+	AddModifier(Core.m_LiveFrozen, GameClient()->m_HudSkin.m_SpriteHudLiveFrozen, m_LiveFrozenOffset, Localize("Live freeze", "Lucent HUD modifier"));
 	bool ChatVisible = g_Config.m_ClShowChat != 0;
 #if defined(CONF_VIDEORECORDER)
 	if(IVideo::Current())
@@ -156,6 +171,16 @@ void CHud::RenderLucentStatus(int ClientId, const CNetObj_Character *pCharacter,
 		Graphics()->QuadsSetRotation(0);
 		Graphics()->RenderQuadContainerEx(m_HudQuadContainerIndex, aItems[i].m_Quad, 1,
 			Rect.x - (aItems[i].m_Jump ? 5 * IconScale : 0), Rect.y - (aItems[i].m_Jump ? 29 * IconScale : 0), IconScale, IconScale);
+		if(aItems[i].m_pModifierName && GameClient()->m_Chat.UiCursorActive() && !Ui()->IsPopupOpen())
+		{
+			const CUIRect Hit = LucentHud::ModifierHitRect(Rect, {m_Width, m_Height}, *Ui()->Screen());
+			if(Ui()->MouseHovered(&Hit))
+			{
+				LucentUi::CScope Style(Ui());
+				Ui()->SetHotItem(aItems[i].m_pModifierId);
+				Ui()->DoToolTip({aItems[i].m_pModifierId, Hit, aItems[i].m_pModifierName, -1.f, CTooltip::DefaultFontSize, false, true});
+			}
+		}
 		if(aItems[i].m_Number)
 		{
 			const float Width = TextRender()->TextWidth(Layout.Unit(LucentHud::CaptionSize), aJumps);

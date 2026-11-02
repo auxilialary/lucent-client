@@ -815,9 +815,27 @@ void CGameClient::OnRender()
 
 	UpdateSpectatorCursor();
 
+	// Chat owns a read-only UI hover frame before HUD rendering. It must not
+	// deactivate the higher-priority chat line input or acquire widget focus.
+	const bool ChatCursorFrame = m_Chat.UiCursorActive();
+	if(ChatCursorFrame)
+	{
+		Ui()->StartCheck();
+		Ui()->Update(true);
+	}
+
 	// render all systems
 	for(auto &pComponent : m_vpAll)
 		pComponent->OnRender();
+	if(ChatCursorFrame)
+	{
+		Ui()->FinishCheck();
+		if(m_Chat.UiCursorActive())
+		{
+			Ui()->MapScreen();
+			RenderTools()->RenderCursor(Ui()->MousePos(), 24.f);
+		}
+	}
 	Ui()->OnRenderTooltip();
 
 	// clear all events/input for this frame

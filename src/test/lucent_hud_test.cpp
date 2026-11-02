@@ -11,7 +11,9 @@
 #include <engine/storage.h>
 
 #include <game/client/components/chat.h>
+#include <game/client/tooltips.h>
 #include <game/client/lucent/hud/layout.h>
+#include <game/client/lucent/hud/modifier_tooltip.h>
 #include <game/client/lucent/hud/visuals.h>
 #include <game/client/lucent/hud/weapon_scale.h>
 #include <game/client/lucent/motion/transition.h>
@@ -21,6 +23,7 @@
 #include <gtest/gtest.h>
 
 #include <cmath>
+#include <cctype>
 #include <filesystem>
 #include <fstream>
 #include <iterator>
@@ -1150,4 +1153,91 @@ TEST(LucentScoreboard, HeaderClockKeepsRoundCountdownAndRaceTimeSemantics)
 	EXPECT_EQ(LucentScoreboard::RoundTime(5000, 50, 2000, 0, -4000, true, false), 20);
 	EXPECT_EQ(LucentScoreboard::RoundTime(100, 50, 2000, 0, 0, false, false), 0);
 	EXPECT_EQ(LucentScoreboard::RoundTime(10000, 50, 0, 1, 0, false, false), 0);
+}
+
+TEST(LucentHudChat, CursorOwnershipTracksChatAndOverlayPriority)
+{
+	for(bool Chat : {false, true})
+		for(bool Menus : {false, true})
+			for(bool Console : {false, true})
+				EXPECT_EQ(CChat::OwnsUiCursor(Chat, Menus, Console), Chat && !Menus && !Console);
+	// Both chat modes use the same policy; closing chat immediately releases input.
+	EXPECT_TRUE(CChat::OwnsUiCursor(true, false, false));
+	EXPECT_FALSE(CChat::OwnsUiCursor(false, false, false));
+	EXPECT_FALSE(CChat::OwnsUiCursor(true, true, false));
+	EXPECT_TRUE(CChat::OwnsUiCursor(true, false, false));
+}
+
+TEST(LucentHudChat, ModifierHoverUsesOnlyTheDrawnIconAtEveryHudScale)
+{
+	for(float Aspect : {4.f / 3, 1649.f / 928, 16.f / 9, 21.f / 9})
+		for(int Scale : {50, 75, 100, 125, 150})
+		{
+			const LucentHud::CLayout Layout(300 * Aspect, 300, Scale);
+			std::array<float, LucentHud::MaxStatusItems> Widths{};
+			Widths.fill(8);
+			const auto Status = Layout.Status(Widths, 6, 0, 2);
+			const CUIRect UiScreen{0, 0, 600 * Aspect, 600};
+			for(int Item = 2; Item < 6; ++Item)
+			{
+				const auto Icon = Status.m_aItems[Item];
+				const auto Hit = LucentHud::ModifierHitRect(Icon, {300 * Aspect, 300}, UiScreen);
+				EXPECT_FLOAT_EQ(Hit.x, Icon.x * 2);
+				EXPECT_FLOAT_EQ(Hit.y, Icon.y * 2);
+				EXPECT_FLOAT_EQ(Hit.w, Icon.w * 2);
+				EXPECT_FLOAT_EQ(Hit.h, Icon.h * 2);
+				EXPECT_TRUE(Hit.Inside({Hit.x + Hit.w / 2, Hit.y + Hit.h / 2}));
+				EXPECT_FALSE(Hit.Inside({Hit.x - .01f, Hit.y + Hit.h / 2}));
+				EXPECT_FALSE(Hit.Inside({Hit.x + Hit.w + .01f, Hit.y + Hit.h / 2}));
+				EXPECT_FALSE(Hit.Inside({Hit.x + Hit.w / 2, Hit.y - .01f}));
+				EXPECT_FALSE(Hit.Inside({Hit.x + Hit.w / 2, Hit.y + Hit.h + .01f}));
+			}
+		}
+}
+
+TEST(LucentHudChat, ProductionRoutingPreservesTypingAndModifierIdentity)
+{
+	const auto Root = std::filesystem::path(__FILE__).parent_path().parent_path().parent_path();
+	const auto Read = [&](const char *pFile) {
+		std::ifstream File(Root / pFile);
+		EXPECT_TRUE(File.good());
+		std::string Text((std::istreambuf_iterator<char>(File)), std::istreambuf_iterator<char>());
+		Text.erase(std::remove_if(Text.begin(), Text.end(), [](unsigned char C) { return std::isspace(C); }), Text.end());
+		return Text;
+	};
+	const auto Chat = Read("src/game/client/components/chat.cpp");
+	EXPECT_NE(Chat.find("if(!UiCursorActive())returnfalse;"), std::string::npos);
+	EXPECT_NE(Chat.find("Ui()->ConvertMouseMove(&X,&Y,CursorType);Ui()->OnCursorMove(X,Y);returntrue;"), std::string::npos);
+	const auto Client = Read("src/game/client/gameclient.cpp");
+	EXPECT_LT(Client.find("Ui()->Update(true)"), Client.find("pComponent->OnRender()"));
+	EXPECT_NE(Client.find("if(m_Chat.UiCursorActive()){Ui()->MapScreen();RenderTools()->RenderCursor("), std::string::npos);
+	const auto Ui = Read("src/game/client/ui.cpp");
+	EXPECT_NE(Ui.find("!KeepActiveInput&&pActiveInput&&m_pLastActiveItem"), std::string::npos);
+	const auto Hud = Read("src/game/client/lucent/hud/hud.cpp");
+	EXPECT_NE(Hud.find("aItems[Index].m_pModifierId=&Quad"), std::string::npos);
+	EXPECT_NE(Hud.find("aItems[i].m_pModifierName&&GameClient()->m_Chat.UiCursorActive()"), std::string::npos);
+	EXPECT_NE(Hud.find("Ui()->DoToolTip({aItems[i].m_pModifierId,Hit,aItems[i].m_pModifierName,-1.f,CTooltip::DefaultFontSize,false,true})"), std::string::npos);
+	const auto Tooltip = Hud.find("Ui()->DoToolTip(");
+	ASSERT_NE(Tooltip, std::string::npos);
+	EXPECT_LT(Tooltip, Hud.find("voidCHud::RenderLucentHotbar("));
+	EXPECT_EQ(Hud.find("Ui()->DoToolTip(", Tooltip + 1), std::string::npos);
+}
+
+TEST(LucentHudChat, ModifierTooltipFollowsAboveCursorAndClampsAtScreenEdges)
+{
+	const CUIRect Screen{0, 0, 1066, 600};
+	const auto First = CTooltip::AboveCursor({0, 0, 150, 24}, {500, 500}, Screen, 5);
+	EXPECT_FLOAT_EQ(First.x + First.w / 2, 500);
+	EXPECT_FLOAT_EQ(First.y + First.h, 495);
+	const auto Moved = CTooltip::AboveCursor({0, 0, 150, 24}, {507, 496}, Screen, 5);
+	EXPECT_FLOAT_EQ(Moved.x - First.x, 7);
+	EXPECT_FLOAT_EQ(Moved.y - First.y, -4);
+	for(vec2 Mouse : {vec2(0, 0), vec2(1066, 600), vec2(4, 596), vec2(1062, 4)})
+	{
+		const auto Rect = CTooltip::AboveCursor({0, 0, 150, 24}, Mouse, Screen, 5);
+		EXPECT_GE(Rect.x, 5);
+		EXPECT_GE(Rect.y, 5);
+		EXPECT_LE(Rect.x + Rect.w, Screen.w - 5);
+		EXPECT_LE(Rect.y + Rect.h, Screen.h - 5);
+	}
 }

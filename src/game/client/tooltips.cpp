@@ -48,6 +48,7 @@ void CTooltips::DoToolTip(const CTooltip &Tooltip)
 
 	StoredTooltip.m_OnScreen = true;
 	StoredTooltip.m_LucentStyle = Ui()->LucentStyle();
+	StoredTooltip.m_FollowCursor = Tooltip.m_FollowCursor;
 
 	if(Ui()->HotItem() == StoredTooltip.m_pId)
 	{
@@ -101,7 +102,11 @@ void CTooltips::OnRender()
 		Rect.h = std::min(Rect.h, pScreen->h - 2 * Margin);
 
 		// On top of the current Rect
-		if(Tooltip.m_Truncated && Tooltip.m_Rect.x + Rect.w < pScreen->w && Tooltip.m_Rect.y + Rect.h < pScreen->h)
+		if(Tooltip.m_FollowCursor)
+		{
+			Rect = CTooltip::AboveCursor(Rect, Ui()->MousePos(), *pScreen, Margin);
+		}
+		else if(Tooltip.m_Truncated && Tooltip.m_Rect.x + Rect.w < pScreen->w && Tooltip.m_Rect.y + Rect.h < pScreen->h)
 		{
 			Rect.x = Tooltip.m_Rect.x;
 			Rect.y = Tooltip.m_Rect.y;
@@ -151,7 +156,7 @@ void CTooltips::OnRender()
 		}
 
 		if(Tooltip.m_LucentStyle)
-			LucentUi::TooltipSurface(Rect, Tooltip.m_Rect, *pScreen, Margin, Padding, AlphaFactor);
+			LucentUi::TooltipSurface(Rect, Tooltip.m_Rect, *pScreen, Margin, Padding, AlphaFactor, Tooltip.m_FollowCursor);
 		else
 			Rect.Draw(ColorRGBA(0.2f, 0.2f, 0.2f, 0.8f * AlphaFactor), IGraphics::CORNER_ALL, Padding);
 		Rect.Margin(Padding, &Rect);

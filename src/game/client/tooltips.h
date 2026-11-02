@@ -4,6 +4,7 @@
 #include <game/client/component.h>
 #include <game/client/ui_rect.h>
 
+#include <algorithm>
 #include <cstdint>
 #include <functional>
 #include <optional>
@@ -12,8 +13,9 @@
 class CTooltip
 {
 public:
-	CTooltip(const void *pId, const CUIRect &Rect, const char *pText, float WidthHint, float FontSize, bool Truncated) :
-		m_pId(pId), m_Rect(Rect), m_pText(pText), m_WidthHint(WidthHint), m_FontSize(FontSize), m_Truncated(Truncated), m_OnScreen(false) {}
+	static constexpr float DefaultFontSize = 14.f;
+	CTooltip(const void *pId, const CUIRect &Rect, const char *pText, float WidthHint, float FontSize, bool Truncated, bool FollowCursor = false) :
+		m_pId(pId), m_Rect(Rect), m_pText(pText), m_WidthHint(WidthHint), m_FontSize(FontSize), m_Truncated(Truncated), m_FollowCursor(FollowCursor), m_OnScreen(false) {}
 
 	const void *m_pId;
 	CUIRect m_Rect;
@@ -22,6 +24,14 @@ public:
 	float m_FontSize;
 	bool m_Truncated;
 	bool m_LucentStyle = false;
+	bool m_FollowCursor = false;
+	static CUIRect AboveCursor(CUIRect Rect, vec2 Mouse, const CUIRect &Screen, float Margin)
+	{
+		const float Left = Screen.x + Margin, Top = Screen.y + Margin;
+		Rect.x = std::clamp(Mouse.x - Rect.w / 2, Left, std::max(Left, Screen.x + Screen.w - Margin - Rect.w));
+		Rect.y = std::clamp(Mouse.y - Rect.h - Margin, Top, std::max(Top, Screen.y + Screen.h - Margin - Rect.h));
+		return Rect;
+	}
 	bool m_OnScreen; // used to know if the tooltip should be rendered.
 };
 

@@ -1,4 +1,5 @@
 #include "surfaces.h"
+
 #include "controls.h"
 
 #include <game/client/lucent/motion/clock.h>
@@ -48,14 +49,17 @@ namespace LucentUi
 		Inner.Draw(LucentStyle::Style::Surface, Corners, RADIUS);
 	}
 
-	void TooltipSurface(CUIRect &Rect, const CUIRect &Anchor, const CUIRect &Screen, float Margin, float Radius, float Alpha)
+	void TooltipSurface(CUIRect &Rect, const CUIRect &Anchor, const CUIRect &Screen, float Margin, float Radius, float Alpha, bool KeepPosition)
 	{
-		// Header hints always sit below the complete header, away from search.
-		Rect.x = std::clamp(Anchor.x + Anchor.w - Rect.w, Margin, Screen.w - Rect.w - Margin);
-		Rect.y = Anchor.y + Anchor.h + Margin;
-		if(Rect.y + Rect.h > Screen.h - Margin)
-			Rect.y = Anchor.y - Rect.h - Margin;
-		Rect.y = std::clamp(Rect.y, Margin, Screen.h - Rect.h - Margin);
+		if(!KeepPosition)
+		{
+			// Header hints always sit below the complete header, away from search.
+			Rect.x = std::clamp(Anchor.x + Anchor.w - Rect.w, Margin, Screen.w - Rect.w - Margin);
+			Rect.y = Anchor.y + Anchor.h + Margin;
+			if(Rect.y + Rect.h > Screen.h - Margin)
+				Rect.y = Anchor.y - Rect.h - Margin;
+			Rect.y = std::clamp(Rect.y, Margin, Screen.h - Rect.h - Margin);
+		}
 		Rect.Draw(ColorRGBA(.078f, .067f, .098f, .98f * Alpha), IGraphics::CORNER_ALL, Radius);
 	}
 

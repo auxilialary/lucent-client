@@ -166,6 +166,8 @@ public:
 	static constexpr float MESSAGE_TEE_PADDING_RIGHT = 0.5f;
 
 	bool IsActive() const { return m_Mode != MODE_NONE; }
+	static constexpr bool OwnsUiCursor(bool ChatActive, bool MenusActive, bool ConsoleActive) { return ChatActive && !MenusActive && !ConsoleActive; }
+	bool UiCursorActive() const;
 	// Same current-state predicate as OnPrepareLines, without waiting for a render pass.
 	static constexpr bool ExpandedState(bool ShowHistory, bool InputActive, int ShowChat) { return ShowHistory || (InputActive && ShowChat == 1) || ShowChat == 2; }
 	bool IsExpanded() const { return ExpandedState(m_Show, IsActive(), g_Config.m_ClShowChat); }
@@ -185,6 +187,7 @@ public:
 	void OnRelease() override;
 	void OnMessage(int MsgType, void *pRawMsg) override;
 	bool OnInput(const IInput::CEvent &Event) override;
+	bool OnCursorMove(float X, float Y, IInput::ECursorType CursorType) override;
 	void OnInit() override;
 
 	void RebuildChat();

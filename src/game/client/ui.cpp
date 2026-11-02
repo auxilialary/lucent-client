@@ -21,7 +21,7 @@
 
 #include <game/localization.h>
 
-constexpr float TOOLTIP_FONTSIZE = 14.0f;
+constexpr float TOOLTIP_FONTSIZE = CTooltip::DefaultFontSize;
 
 void CUIElement::Init(CUi *pUI, int RequestedRectCount)
 {
@@ -187,7 +187,7 @@ void CUi::OnCursorMove(float X, float Y)
 	m_UpdatedMouseDelta += vec2(X, Y);
 }
 
-void CUi::Update()
+void CUi::Update(bool KeepActiveInput)
 {
 	const vec2 WindowSize = vec2(Graphics()->WindowWidth(), Graphics()->WindowHeight());
 	const CUIRect *pScreen = Screen();
@@ -256,7 +256,7 @@ void CUi::Update()
 	if(Enabled())
 	{
 		CLineInput *pActiveInput = CLineInput::GetActiveInput();
-		if(pActiveInput && m_pLastActiveItem && pActiveInput != m_pLastActiveItem)
+		if(!KeepActiveInput && pActiveInput && m_pLastActiveItem && pActiveInput != m_pLastActiveItem)
 			pActiveInput->Deactivate();
 	}
 	else

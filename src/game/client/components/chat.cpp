@@ -247,6 +247,22 @@ void CChat::OnInit()
 	Console()->Chain("cl_chat_width", ConchainChatWidth, this);
 }
 
+bool CChat::UiCursorActive() const
+{
+	return OwnsUiCursor(IsActive(), GameClient()->m_Menus.IsActive(), GameClient()->m_GameConsole.IsActive());
+}
+
+bool CChat::OnCursorMove(float X, float Y, IInput::ECursorType CursorType)
+{
+	if(!UiCursorActive())
+		return false;
+	// Like the menu and E Client chat cursor: consume UI motion before Controls,
+	// preserving both main/dummy gameplay aim without changing SDL mouse modes.
+	Ui()->ConvertMouseMove(&X, &Y, CursorType);
+	Ui()->OnCursorMove(X, Y);
+	return true;
+}
+
 bool CChat::OnInput(const IInput::CEvent &Event)
 {
 	if(m_Mode == MODE_NONE)

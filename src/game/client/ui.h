@@ -518,7 +518,8 @@ public:
 
 	void SetEnabled(bool Enabled) { m_Enabled = Enabled; }
 	bool Enabled() const { return m_Enabled; }
-	void Update();
+	// Read-only overlays may update hover without revoking chat line-input focus.
+	void Update(bool KeepActiveInput = false);
 	void DebugRender(float X, float Y);
 
 	vec2 MousePos() const { return m_MousePos; }

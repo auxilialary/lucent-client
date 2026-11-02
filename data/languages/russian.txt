@@ -4072,3 +4072,79 @@ Zoom
 [Lucent]
 Zoom smoothness (ms)
 == Плавность масштабирования (мс)
+
+[Lucent HUD modifier]
+Endless jump
+== Бесконечные прыжки
+
+[Lucent HUD modifier]
+Endless hook
+== Бесконечный крюк
+
+[Lucent HUD modifier]
+Jetpack
+== Джетпак
+
+[Lucent HUD modifier]
+Teleport gun
+== Телепорт-пистолет
+
+[Lucent HUD modifier]
+Teleport grenade
+== Телепорт-гранатомёт
+
+[Lucent HUD modifier]
+Teleport laser
+== Телепорт-лазер
+
+[Lucent HUD modifier]
+Solo
+== Соло
+
+[Lucent HUD modifier]
+Collision disabled
+== Столкновения отключены
+
+[Lucent HUD modifier]
+Hook collision disabled
+== Зацеп игроков отключён
+
+[Lucent HUD modifier]
+Hammer hit disabled
+== Удары молотом отключены
+
+[Lucent HUD modifier]
+Gun hit disabled
+== Попадания пистолета отключены
+
+[Lucent HUD modifier]
+Shotgun hit disabled
+== Попадания дробовика отключены
+
+[Lucent HUD modifier]
+Grenade hit disabled
+== Попадания гранат отключены
+
+[Lucent HUD modifier]
+Laser hit disabled
+== Попадания лазера отключены
+
+[Lucent HUD modifier]
+Locked team
+== Команда закрыта
+
+[Lucent HUD modifier]
+Practice mode
+== Режим практики
+
+[Lucent HUD modifier]
+Team 0 mode
+== Режим команды 0
+
+[Lucent HUD modifier]
+Deep freeze
+== Глубокая заморозка
+
+[Lucent HUD modifier]
+Live freeze
+== Живая заморозка
