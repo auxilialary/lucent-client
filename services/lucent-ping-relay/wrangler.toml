@@ -1,0 +1,21 @@
+name = "lucent-ping-relay"
+main = "src/worker.js"
+compatibility_date = "2026-07-30"
+workers_dev = true
+
+[[durable_objects.bindings]]
+name = "PING_ROOMS"
+class_name = "PingRoom"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["PingRoom"]
+
+[observability]
+enabled = false
+
+# Choose a namespace ID unique to this service in your account before deployment.
+[[ratelimits]]
+name = "CONNECT_RATE"
+namespace_id = "1001"
+simple = { limit = 60, period = 60 }

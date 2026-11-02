@@ -2780,6 +2780,26 @@ if(CLIENT)
     lucent/console/presentation.cpp
     lucent/console/presentation.h
     lucent/console/selection.h
+    lucent/game/ping.h
+    lucent/game/ping_component.cpp
+    lucent/game/ping_component.h
+    lucent/game/ping_config_variables.h
+    lucent/game/ping_geometry.cpp
+    lucent/game/ping_geometry.h
+    lucent/game/ping_identity.h
+    lucent/game/ping_protocol.cpp
+    lucent/game/ping_protocol.h
+    lucent/game/ping_relay.cpp
+    lucent/game/ping_relay.h
+    lucent/game/ping_relay_protocol.cpp
+    lucent/game/ping_renderer.cpp
+    lucent/game/ping_renderer.h
+    lucent/game/ping_sender.cpp
+    lucent/game/ping_sender.h
+    lucent/game/ping_transport.cpp
+    lucent/game/ping_transport.h
+    lucent/game/ping_websocket.cpp
+    lucent/game/ping_websocket.h
     lucent/lucent_startup.cpp
     lucent/lucent_startup.h
     lucent/lucent_style.h
@@ -3550,6 +3570,8 @@ if((GTEST_FOUND OR DOWNLOAD_GTEST) AND SERVER)
     jsonwriter_test.cpp
     linereader_test.cpp
     lucent_console_test.cpp
+    lucent_ping_relay_test.cpp
+    lucent_ping_transport_test.cpp
     lucent_player_test.cpp
     lucent_skin_manager_test.cpp
     map_download_test.cpp
@@ -3599,6 +3621,11 @@ if((GTEST_FOUND OR DOWNLOAD_GTEST) AND SERVER)
     src/engine/client/sqlite.cpp
     src/game/client/components/censor.cpp
     src/game/client/components/censor.h
+    src/game/client/lucent/game/ping_protocol.cpp
+    src/game/client/lucent/game/ping_relay.cpp
+    src/game/client/lucent/game/ping_relay_protocol.cpp
+    src/game/client/lucent/game/ping_transport.cpp
+    src/game/client/lucent/game/ping_websocket.cpp
     src/game/client/lucent/skins/texture_quality.cpp
     src/game/client/skin.cpp
     src/game/client/ui_rect.cpp
@@ -4447,4 +4474,19 @@ if(CLIENT)
   add_executable(lucent-browser-test EXCLUDE_FROM_ALL src/game/client/lucent/tests/browser_test.cc)
   target_include_directories(lucent-browser-test PRIVATE src)
   target_compile_features(lucent-browser-test PRIVATE cxx_std_20)
+endif()
+
+if(CLIENT)
+  add_executable(lucent-ping-test EXCLUDE_FROM_ALL src/game/client/lucent/tests/ping_test.cc src/game/client/lucent/game/ping_geometry.cpp)
+  target_include_directories(lucent-ping-test PRIVATE src)
+  target_compile_features(lucent-ping-test PRIVATE cxx_std_20)
+endif()
+
+if(WIN32)
+  if(TARGET game-client)
+    target_link_libraries(game-client winhttp)
+  endif()
+  if(TARGET testrunner)
+    target_link_libraries(testrunner winhttp)
+  endif()
 endif()
