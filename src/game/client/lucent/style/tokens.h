@@ -69,6 +69,17 @@ namespace LucentStyle
 		constexpr float SceneBase = .25f, SceneHover = .75f, ScenePressed = .10f, SceneIdle = .025f;
 		constexpr float Disabled = .35f, Selected = .13f, Hover = .045f, Pressed = .07f;
 	}
+	// Approved scoreboard surfaces and identity tags; independent of team colors.
+	namespace Scoreboard
+	{
+		inline const ColorRGBA Surface(28 / 255.f, 25 / 255.f, 33 / 255.f, .96f);
+		inline const ColorRGBA ClanSurface(73 / 255.f, 55 / 255.f, 69 / 255.f, .98f);
+		inline const ColorRGBA ClanText(234 / 255.f, 193 / 255.f, 217 / 255.f, 1);
+		inline const ColorRGBA Nickname(240 / 255.f, 232 / 255.f, 239 / 255.f, 1);
+		constexpr float GroupTint = .16f, GroupBorderLighten = .28f, GroupFillAlpha = .96f, GroupBorderAlpha = .72f;
+		constexpr float ClanFontScale = .92f, ClanPadding = 4.f, ClanGap = 3.f;
+	}
+
 	namespace Checkbox
 	{
 		constexpr float Size = 14, Border = 1.1f, DotSize = 7, LeftInset = 5;

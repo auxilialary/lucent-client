@@ -92,7 +92,9 @@ foreach ($target in $Targets) {
     if ($target -notmatch '^[a-zA-Z0-9_.-]+$' -or ($target -ne 'all' -and $target -notin $modelTargets.name)) { throw "Unknown or invalid CLion target: $target" }
 }
 $cmake = $cache.CMAKE_COMMAND
-$ninja = $cache.CMAKE_MAKE_PROGRAM
+# CMake regeneration may save the same CLion Ninja executable using its DOS
+# alias. Resolve its existing file path before comparing the environment marker.
+$ninja = (Get-Item -LiteralPath $cache.CMAKE_MAKE_PROGRAM).FullName
 if (!(Same-Path $cmake $api.Index.cmake.paths.cmake)) { throw 'CLion cache and File API use different CMake executables.' }
 $normalizedCmake = $cmake.Replace('\', '/')
 if ($normalizedCmake -notmatch '^(.*)/bin/cmake/[^/]+/[^/]+/bin/cmake.exe$') { throw 'Cannot identify CLion installation from its cached bundled CMake.' }

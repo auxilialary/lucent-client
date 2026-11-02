@@ -128,10 +128,28 @@ struct STextGlyphOpacity
 	}
 };
 
+// Visible bitmap columns, independent of cursor advances and atlas padding.
+struct STextInkBounds
+{
+	float m_Left = 0, m_Right = 0;
+	bool m_Valid = false;
+	void Include(float Left, float Right)
+	{
+		if(Right <= Left)
+			return;
+		m_Left = m_Valid ? std::min(m_Left, Left) : Left;
+		m_Right = m_Valid ? std::max(m_Right, Right) : Right;
+		m_Valid = true;
+	}
+	float Width() const { return m_Valid ? m_Right - m_Left : 0; }
+};
+
 class CTextCursor
 {
 public:
 	int m_Flags = TEXTFLAG_RENDER;
+	bool m_TrackInk = false;
+	STextInkBounds m_Ink;
 	int m_LineCount = 1;
 	int m_GlyphCount = 0;
 	int m_CharCount = 0;
@@ -184,6 +202,24 @@ public:
 	STextBoundingBox BoundingBox() const;
 	void SetPosition(vec2 Position);
 };
+
+inline float CTextCursor::Height() const
+{
+	return m_LineCount * (m_AlignedFontSize + m_AlignedLineSpacing);
+}
+
+inline STextBoundingBox CTextCursor::BoundingBox() const
+{
+	return {m_StartX, m_StartY, m_LongestLineWidth, Height()};
+}
+
+inline void CTextCursor::SetPosition(vec2 Position)
+{
+	m_StartX = Position.x;
+	m_StartY = Position.y;
+	m_X = Position.x;
+	m_Y = Position.y;
+}
 
 struct STextContainerUsages
 {

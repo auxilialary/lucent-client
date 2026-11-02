@@ -51,6 +51,7 @@ struct SGlyph
 	float m_Width;
 	float m_Height;
 	float m_CharWidth;
+	float m_InkLeft, m_InkRight;
 	float m_CharHeight;
 	float m_OffsetX;
 	float m_OffsetY;
@@ -570,6 +571,17 @@ private:
 			Glyph.m_Width = Width;
 			Glyph.m_CharHeight = RealHeight;
 			Glyph.m_CharWidth = RealWidth;
+			// Ignore transparent atlas/outline padding; retain actual grayscale ink.
+			int First = int(RealWidth), Last = -1;
+			for(unsigned Row = 0; Row < RealHeight; ++Row)
+				for(unsigned Column = 0; Column < RealWidth; ++Column)
+					if(pBitmap->buffer[Row * pBitmap->pitch + Column])
+					{
+						First = std::min(First, int(Column));
+						Last = std::max(Last, int(Column));
+					}
+			Glyph.m_InkLeft = Last >= First ? x + First : 0;
+			Glyph.m_InkRight = Last >= First ? x + Last + 1 : 0;
 			Glyph.m_OffsetX = (Glyph.m_Face->glyph->metrics.horiBearingX >> 6);
 			Glyph.m_OffsetY = -((Glyph.m_Face->glyph->metrics.height >> 6) - (Glyph.m_Face->glyph->metrics.horiBearingY >> 6));
 			Glyph.m_AdvanceX = (Glyph.m_Face->glyph->advance.x >> 6);
@@ -927,24 +939,6 @@ struct STextContainer
 		m_ContainerIndex = STextContainerIndex{};
 	}
 };
-
-float CTextCursor::Height() const
-{
-	return m_LineCount * (m_AlignedFontSize + m_AlignedLineSpacing);
-}
-
-STextBoundingBox CTextCursor::BoundingBox() const
-{
-	return {m_StartX, m_StartY, m_LongestLineWidth, Height()};
-}
-
-void CTextCursor::SetPosition(vec2 Position)
-{
-	m_StartX = Position.x;
-	m_StartY = Position.y;
-	m_X = Position.x;
-	m_Y = Position.y;
-}
 
 struct SFontLanguageVariant
 {
@@ -1847,6 +1841,9 @@ public:
 					const float TmpY = (DrawY + pCursor->m_AlignedFontSize);
 					const float CharX = (DrawX + CharKerning) + BearingX;
 					const float CharY = TmpY - BearingY;
+					if(pCursor->m_TrackInk && pGlyph->m_Width > 0)
+						pCursor->m_Ink.Include(CharX + pGlyph->m_InkLeft / pGlyph->m_Width * CharWidth,
+							CharX + pGlyph->m_InkRight / pGlyph->m_Width * CharWidth);
 
 					// Check if we have any color split
 					ColorRGBA Color = m_Color;

@@ -1689,59 +1689,6 @@ void CUi::RenderProgressBar(CUIRect ProgressBar, float Progress)
 	ProgressBar.Draw(ColorRGBA(1.0f, 1.0f, 1.0f, 0.5f), IGraphics::CORNER_ALL, Rounding);
 }
 
-void CCachedText::Update(ITextRender *pTextRender, const char *pText, float FontSize, float LineWidth, int CursorFlags)
-{
-	if(m_FontSize == FontSize && m_LineWidth == LineWidth && m_CursorFlags == CursorFlags && m_Text == pText)
-		return;
-
-	// The render flags of a text container are fixed when it is created and depend on the
-	// line width, so only text and font size changes can reuse the existing container and
-	// upload the new quads into its buffer instead of allocating a new one.
-	const bool ReuseContainer = m_TextContainerIndex.Valid() && m_LineWidth == LineWidth && m_CursorFlags == CursorFlags;
-
-	m_Text = pText;
-	m_FontSize = FontSize;
-	m_LineWidth = LineWidth;
-	m_CursorFlags = CursorFlags;
-
-	CTextCursor Cursor;
-	Cursor.m_FontSize = FontSize;
-	Cursor.m_LineWidth = LineWidth;
-	Cursor.m_Flags = CursorFlags;
-
-	// The color is applied when rendering, so it must not be baked into the quads.
-	const ColorRGBA OldColor = pTextRender->GetTextColor();
-	pTextRender->TextColor(pTextRender->DefaultTextColor());
-	if(ReuseContainer)
-		pTextRender->RecreateTextContainerSoft(m_TextContainerIndex, &Cursor, m_Text.c_str());
-	else
-		pTextRender->RecreateTextContainer(m_TextContainerIndex, &Cursor, m_Text.c_str());
-	pTextRender->TextColor(OldColor);
-
-	m_BoundingBox = Cursor.BoundingBox();
-	m_MaxCharacterHeight = Cursor.m_MaxCharacterHeight;
-	m_AlignedFontSize = Cursor.m_AlignedFontSize;
-}
-
-void CCachedText::Render(ITextRender *pTextRender, vec2 Pos, ColorRGBA Color) const
-{
-	if(!m_TextContainerIndex.Valid())
-		return;
-	// The quads are built with the default color, so the outline has to be faded here
-	// instead of inheriting the alpha from the baked vertex color.
-	pTextRender->RenderTextContainer(m_TextContainerIndex, Color, pTextRender->DefaultTextOutlineColor().WithMultipliedAlpha(Color.a), Pos.x, Pos.y);
-}
-
-void CCachedText::Reset(ITextRender *pTextRender)
-{
-	pTextRender->DeleteTextContainer(m_TextContainerIndex);
-	m_Text.clear();
-	m_FontSize = -1.0f;
-	m_LineWidth = -1.0f;
-	m_CursorFlags = 0;
-	m_BoundingBox = {0.0f, 0.0f, 0.0f, 0.0f};
-	m_MaxCharacterHeight = 0.0f;
-}
 
 void CUi::RenderTime(CUIRect TimeRect, float FontSize, int Seconds, bool NotFinished, int Millis, bool TrueMilliseconds, CCachedText &SecondsText, CCachedText &MillisText, ColorRGBA Color) const
 {

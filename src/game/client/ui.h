@@ -3,6 +3,7 @@
 #ifndef GAME_CLIENT_UI_H
 #define GAME_CLIENT_UI_H
 
+#include "cached_text.h"
 #include "lineinput.h"
 #include "tooltips.h"
 #include "ui_rect.h"
@@ -304,40 +305,6 @@ struct SPopupMenuProperties
 	float m_BorderWidth = 1.f;
 	ColorRGBA m_BorderColor = ColorRGBA(0.5f, 0.5f, 0.5f, 0.75f);
 	ColorRGBA m_BackgroundColor = ColorRGBA(0.0f, 0.0f, 0.0f, 0.75f);
-};
-
-/**
- * Text that keeps its text container across frames and is only rebuilt when the text or
- * its layout changes, for text that is rendered every frame. The color is applied when
- * rendering, so changing it does not rebuild the container.
- *
- * The container must be released with @link Reset @endlink before the text render drops
- * its containers, which happens on window resize and language change.
- */
-class CCachedText
-{
-	STextContainerIndex m_TextContainerIndex;
-	std::string m_Text;
-	float m_FontSize = -1.0f;
-	float m_LineWidth = -1.0f;
-	int m_CursorFlags = 0;
-	STextBoundingBox m_BoundingBox = {0.0f, 0.0f, 0.0f, 0.0f};
-	float m_MaxCharacterHeight = 0.0f;
-	float m_AlignedFontSize = 0.0f;
-
-public:
-	CCachedText() = default;
-	// Copying would leave two owners for the same text container.
-	CCachedText(const CCachedText &) = delete;
-	CCachedText &operator=(const CCachedText &) = delete;
-
-	void Update(ITextRender *pTextRender, const char *pText, float FontSize, float LineWidth = -1.0f, int CursorFlags = TEXTFLAG_RENDER);
-	void Render(ITextRender *pTextRender, vec2 Pos, ColorRGBA Color) const;
-	void Reset(ITextRender *pTextRender);
-
-	float Width() const { return m_BoundingBox.m_W; }
-	float MaxCharacterHeight() const { return m_MaxCharacterHeight; }
-	float AlignedFontSize() const { return m_AlignedFontSize; }
 };
 
 class CUi

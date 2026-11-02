@@ -2642,6 +2642,7 @@ if(CLIENT)
     animstate.cpp
     animstate.h
     assets.cpp
+    cached_text.h
     component.cpp
     component.h
     components/background.cpp
@@ -2822,6 +2823,14 @@ if(CLIENT)
     lucent/motion/radial_transition.h
     lucent/motion/text_motion.h
     lucent/motion/transition.h
+    lucent/scoreboard/identity_text.h
+    lucent/scoreboard/layout.h
+    lucent/scoreboard/panel.h
+    lucent/scoreboard/points.cpp
+    lucent/scoreboard/points.h
+    lucent/scoreboard/renderer.cpp
+    lucent/scoreboard/renderer.h
+    lucent/scoreboard/row_data.h
     lucent/settings/general.cpp
     lucent/settings/general.h
     lucent/settings/layout.h
@@ -2843,10 +2852,6 @@ if(CLIENT)
     lucent/settings/sound.h
     lucent/skins/texture_quality.cpp
     lucent/skins/texture_quality.h
-    lucent/scoreboard/layout.h
-    lucent/scoreboard/panel.h
-    lucent/scoreboard/points.cpp
-    lucent/scoreboard/points.h
     lucent/style/gradient.h
     lucent/style/tokens.h
     lucent/ui.h
@@ -3673,6 +3678,11 @@ if((GTEST_FOUND OR DOWNLOAD_GTEST) AND SERVER)
   )
   target_link_libraries(${TARGET_TESTRUNNER} ${PNG_LIBRARIES} ${GTEST_LIBRARIES} ${LIBS_SERVER})
   target_include_directories(${TARGET_TESTRUNNER} SYSTEM PRIVATE ${GTEST_INCLUDE_DIRS})
+  if(FREETYPE_FOUND)
+    target_link_libraries(${TARGET_TESTRUNNER} ${FREETYPE_LIBRARIES})
+    target_include_directories(${TARGET_TESTRUNNER} SYSTEM PRIVATE ${FREETYPE_INCLUDE_DIRS})
+    target_compile_definitions(${TARGET_TESTRUNNER} PRIVATE CONF_SCOREBOARD_FREETYPE_TEST)
+  endif()
 
   list(APPEND TARGETS_OWN ${TARGET_TESTRUNNER})
   list(APPEND TARGETS_LINK ${TARGET_TESTRUNNER})
