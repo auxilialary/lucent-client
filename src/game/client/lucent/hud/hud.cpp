@@ -184,6 +184,8 @@ void CHud::RenderLucentHotbar(int ClientId, const CNetObj_Character *pCharacter)
 	const int ActiveWeapon = GameClient()->m_aClients[ClientId].m_RenderCur.m_Weapon;
 	static_assert(NUM_WEAPONS == 6);
 	const auto Weapons = LucentHud::Weapons(Owned, ActiveWeapon, Snapshot.m_HasExtendedData);
+	const double Now = time() / (double)time_freq();
+	m_LucentWeaponScale.Update(Weapons, ActiveWeapon, ClientId, Now);
 	if(Weapons.m_Count == 0)
 		return;
 	const LucentHud::CLayout Layout(m_Width, m_Height, g_Config.m_LucentHudScale);
@@ -192,7 +194,6 @@ void CHud::RenderLucentHotbar(int ClientId, const CNetObj_Character *pCharacter)
 	const float BarScale = Layout.m_Scale * LucentHud::HotbarFactor;
 	LucentHud::Panel(Graphics(), Bar, Alpha, BarScale);
 	std::array<float, NUM_WEAPONS> aSelection;
-	const double Now = time() / (double)time_freq();
 	for(int Weapon = 0; Weapon < NUM_WEAPONS; ++Weapon)
 		aSelection[Weapon] = m_aLucentWeaponSelection[Weapon].Update(Weapon == ActiveWeapon, Now, true, LucentStyle::Motion::Selection);
 	for(int Slot = 0; Slot < Weapons.m_Count; ++Slot)
@@ -206,7 +207,10 @@ void CHud::RenderLucentHotbar(int ClientId, const CNetObj_Character *pCharacter)
 		Graphics()->TextureSet(GameClient()->m_GameSkin.m_aSpritePickupWeapons[Weapon]);
 		Graphics()->SetColor(1, 1, 1, Alpha * (.90f + .10f * Selection));
 		Graphics()->QuadsSetRotation(pi * 7 / 4);
-		Graphics()->RenderQuadContainerAsSprite(m_HudQuadContainerIndex, m_aWeaponOffset[Weapon], Rect.x + Rect.w / 2, Rect.y + Rect.h / 2, LucentHud::WeaponIconScale * BarScale, LucentHud::WeaponIconScale * BarScale);
+		// The source quad is centered at the origin; keep its center fixed while
+		// scaling both axes, independently of the slot highlight/opacity transition.
+		const float SpriteScale = LucentHud::WeaponIconScale * BarScale * m_LucentWeaponScale.Scale(Weapon);
+		Graphics()->RenderQuadContainerAsSprite(m_HudQuadContainerIndex, m_aWeaponOffset[Weapon], Rect.x + Rect.w / 2, Rect.y + Rect.h / 2, SpriteScale, SpriteScale);
 		Graphics()->QuadsSetRotation(0);
 		Graphics()->SetColor(1, 1, 1, 1);
 		if(!Active)
