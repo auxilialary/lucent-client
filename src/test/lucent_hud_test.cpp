@@ -12,6 +12,7 @@
 #include <game/client/components/chat.h>
 #include <game/client/lucent/hud/layout.h>
 #include <game/client/lucent/hud/visuals.h>
+#include <game/client/lucent/hud/weapon_scale.h>
 #include <game/client/lucent/motion/transition.h>
 
 #include <gtest/gtest.h>
@@ -209,22 +210,23 @@ TEST(LucentHud, RotatedWeaponQuadsStayWithinProportionallyReducedHotbar)
 		for(int Count = 1; Count <= 6; ++Count)
 			for(int SlotIndex = 0; SlotIndex < Count; ++SlotIndex)
 				for(const auto &Weapon : aWeapons)
-				{
-					SCOPED_TRACE(Weapon.m_pName);
-					const auto Bar = Layout.Hotbar(Count);
-					const auto Slot = Layout.Slot(SlotIndex, Count);
-					const float Normalization = std::hypot(Weapon.m_W, Weapon.m_H);
-					const float QuadW = Weapon.m_VisualSize * .25f * Weapon.m_W / Normalization;
-					const float QuadH = Weapon.m_VisualSize * .25f * Weapon.m_H / Normalization;
-					// At pi*7/4 both axis-aligned extents are (W+H)/sqrt(2).
-					const float HalfExtent = (QuadW + QuadH) / std::sqrt(2.f) * LucentHud::WeaponIconScale * LucentHud::HotbarFactor * Layout.m_Scale / 2;
-					const float CenterX = Slot.x + Slot.w / 2, CenterY = Slot.y + Slot.h / 2;
-					EXPECT_GE(CenterX - HalfExtent, Slot.x - .001f);
-					EXPECT_LE(CenterX + HalfExtent, Slot.x + Slot.w + .001f);
-					// The existing outer padding accommodates the rotated hammer vertically.
-					EXPECT_GE(CenterY - HalfExtent, Bar.y - .001f);
-					EXPECT_LE(CenterY + HalfExtent, Bar.y + Bar.h + .001f);
-				}
+					for(float AnimatedScale : {.75f, .8125f, .9375f, 1.f})
+					{
+						SCOPED_TRACE(Weapon.m_pName);
+						const auto Bar = Layout.Hotbar(Count);
+						const auto Slot = Layout.Slot(SlotIndex, Count);
+						const float Normalization = std::hypot(Weapon.m_W, Weapon.m_H);
+						const float QuadW = Weapon.m_VisualSize * .25f * Weapon.m_W / Normalization;
+						const float QuadH = Weapon.m_VisualSize * .25f * Weapon.m_H / Normalization;
+						// At pi*7/4 both axis-aligned extents are (W+H)/sqrt(2).
+						const float HalfExtent = (QuadW + QuadH) / std::sqrt(2.f) * LucentHud::WeaponIconScale * LucentHud::HotbarFactor * Layout.m_Scale * AnimatedScale / 2;
+						const float CenterX = Slot.x + Slot.w / 2, CenterY = Slot.y + Slot.h / 2;
+						EXPECT_GE(CenterX - HalfExtent, Slot.x - .001f);
+						EXPECT_LE(CenterX + HalfExtent, Slot.x + Slot.w + .001f);
+						// The existing outer padding accommodates the rotated hammer vertically.
+						EXPECT_GE(CenterY - HalfExtent, Bar.y - .001f);
+						EXPECT_LE(CenterY + HalfExtent, Bar.y + Bar.h + .001f);
+					}
 	}
 }
 
@@ -713,4 +715,80 @@ TEST(LucentHud, WeaponSelectionRetargetsFromVisibleValueAtEveryFrameRate)
 		EXPECT_FLOAT_EQ(Selection.Update(true, 11 + Duration / 2, true, Duration), Fading);
 		EXPECT_FLOAT_EQ(Selection.Update(true, 12, true, Duration), 1);
 	}
+}
+
+TEST(LucentHud, WeaponScaleMovesBothSpritesAndRetargetsWithoutJumps)
+{
+	LucentHud::CWeaponScale State;
+	const auto Inventory = LucentHud::Weapons(63, 0, true);
+	State.Update(Inventory, 0, 7, 10);
+	EXPECT_FLOAT_EQ(State.Scale(0), 1);
+	EXPECT_FLOAT_EQ(State.Scale(1), .75f);
+	State.Update(Inventory, 1, 7, 11);
+	EXPECT_FLOAT_EQ(State.Scale(0), 1);
+	EXPECT_FLOAT_EQ(State.Scale(1), .75f);
+	State.Update(Inventory, 1, 7, 11.1);
+	// Half of 200 ms, cubic ease-out = 0.875 in both directions.
+	EXPECT_NEAR(State.Scale(0), .78125f, .000001f);
+	EXPECT_NEAR(State.Scale(1), .96875f, .000001f);
+	const float Old = State.Scale(0), New = State.Scale(1);
+	State.Update(Inventory, 0, 7, 11.1);
+	EXPECT_FLOAT_EQ(State.Scale(0), Old);
+	EXPECT_FLOAT_EQ(State.Scale(1), New);
+	State.Update(Inventory, 0, 7, 11.3);
+	EXPECT_FLOAT_EQ(State.Scale(0), 1);
+	EXPECT_FLOAT_EQ(State.Scale(1), .75f);
+
+	for(int Fps : {30, 60, 144, 240})
+	{
+		State = {};
+		State.Update(Inventory, 0, 7, 20);
+		State.Update(Inventory, 1, 7, 21);
+		float PreviousOld = 1, PreviousNew = .75f;
+		for(int Frame = 1; Frame <= (int)std::ceil(.2 * Fps); ++Frame)
+		{
+			State.Update(Inventory, 1, 7, 21 + std::min(Frame / double(Fps), .2));
+			EXPECT_LE(State.Scale(0), PreviousOld);
+			EXPECT_GE(State.Scale(1), PreviousNew);
+			EXPECT_GE(State.Scale(0), .75f);
+			EXPECT_LE(State.Scale(1), 1);
+			PreviousOld = State.Scale(0);
+			PreviousNew = State.Scale(1);
+		}
+		EXPECT_FLOAT_EQ(State.Scale(0), .75f);
+		EXPECT_FLOAT_EQ(State.Scale(1), 1);
+	}
+}
+
+TEST(LucentHud, WeaponScaleHandlesInventoryNinjaOwnerAndSessionReset)
+{
+	LucentHud::CWeaponScale State;
+	for(unsigned Mask = 0; Mask < 64; ++Mask)
+		for(int Active = 0; Active < 6; ++Active)
+		{
+			State = {};
+			const auto Inventory = LucentHud::Weapons(Mask, Active, true);
+			State.Update(Inventory, Active, 7, 10);
+			for(int Slot = 0; Slot < Inventory.m_Count; ++Slot)
+				EXPECT_FLOAT_EQ(State.Scale(Inventory.m_aIds[Slot]), Inventory.m_aIds[Slot] == Active ? 1.f : .75f);
+		}
+	State = {};
+	State.Update(LucentHud::Weapons(31, 0, true), 0, 7, 20);
+	State.Update(LucentHud::Weapons(63, 5, true), 5, 7, 21);
+	EXPECT_FLOAT_EQ(State.Scale(5), .75f); // Newly obtained ninja grows from inactive size.
+	State.Update(LucentHud::Weapons(63, 5, true), 5, 7, 21.2);
+	EXPECT_FLOAT_EQ(State.Scale(5), 1);
+	State.Update(LucentHud::Weapons(31, 0, true), 0, 7, 22);
+	State.Update(LucentHud::Weapons(63, 5, true), 5, 7, 23);
+	EXPECT_FLOAT_EQ(State.Scale(5), .75f); // Expired ninja cannot reuse the old full scale.
+	State.Update(LucentHud::Weapons(63, 2, true), 2, 8, 23.01);
+	EXPECT_FLOAT_EQ(State.Scale(2), 1); // Spectator/dummy owner switch starts settled.
+	EXPECT_FLOAT_EQ(State.Scale(5), .75f);
+	State.Update({}, -1, 8, 24);
+	State.Update(LucentHud::Weapons(0, 4, false), 4, 8, 25);
+	EXPECT_FLOAT_EQ(State.Scale(4), 1); // Unknown inventory uses only the active snapshot weapon.
+	State = {}; // CHud::OnReset clears the same presentation state on connection changes.
+	State.Update(LucentHud::Weapons(63, 3, true), 3, 8, 26);
+	EXPECT_FLOAT_EQ(State.Scale(3), 1);
+	EXPECT_FLOAT_EQ(State.Scale(4), .75f);
 }

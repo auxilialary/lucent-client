@@ -87,6 +87,7 @@ void CHud::OnReset()
 	m_LucentAlignment = {};
 	for(auto &Selection : m_aLucentWeaponSelection)
 		Selection = {};
+	m_LucentWeaponScale = {};
 	m_TimeCpDiff = 0.0f;
 	m_DDRaceTime = 0;
 	m_FinishTimeLastReceivedTick = 0;

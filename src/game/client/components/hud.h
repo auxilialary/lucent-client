@@ -11,6 +11,7 @@
 #include <game/client/component.h>
 #include <game/client/lucent/hud/layout.h>
 #include <game/client/lucent/hud/tee_alignment.h>
+#include <game/client/lucent/hud/weapon_scale.h>
 #include <game/client/lucent/motion/transition.h>
 #include <game/client/render.h>
 
@@ -106,6 +107,7 @@ class CHud : public CComponent
 	LucentHud::CRect m_LucentHotbarBounds = {};
 	LucentHud::Alignment::CState m_LucentAlignment;
 	LucentStyle::Motion::CTransition m_aLucentWeaponSelection[6];
+	LucentHud::CWeaponScale m_LucentWeaponScale;
 	struct CAlignmentVisual
 	{
 		int m_Id = -1;
