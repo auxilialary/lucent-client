@@ -19,6 +19,8 @@
 #include <generated/client_data.h>
 
 #include <game/client/gameclient.h>
+#include <game/client/lineinput.h>
+#include <game/client/lucent/skins/texture_quality.h>
 #include <game/localization.h>
 
 #include <optional>
@@ -26,6 +28,7 @@
 using namespace std::chrono_literals;
 
 CSkins::CAbstractSkinLoadJob::CAbstractSkinLoadJob(CSkins *pSkins, const char *pName) :
+	m_TextureLimit(pSkins->m_AppliedTextureLimit),
 	m_pSkins(pSkins)
 {
 	str_copy(m_aName, pName);
@@ -286,7 +289,7 @@ static void CheckMetrics(CSkin::CSkinMetricVariable &Metrics, const uint8_t *pIm
 	Metrics.m_MaxHeight = CheckHeight;
 }
 
-bool CSkins::LoadSkinData(const char *pName, CSkinLoadData &Data) const
+bool CSkins::LoadSkinData(const char *pName, CSkinLoadData &Data, int TextureLimit) const
 {
 	if(!Graphics()->CheckImageDivisibility(pName, Data.m_Info, g_pData->m_aSprites[SPRITE_TEE_BODY].m_pSet->m_Gridx, g_pData->m_aSprites[SPRITE_TEE_BODY].m_pSet->m_Gridy, true))
 	{
@@ -297,6 +300,13 @@ bool CSkins::LoadSkinData(const char *pName, CSkinLoadData &Data) const
 	if(!Graphics()->IsImageFormatRgba(pName, Data.m_Info))
 	{
 		log_error("skins", "Skin format is not RGBA: %s", pName);
+		Data.m_Info.Free();
+		return false;
+	}
+
+	if(!LucentSkins::LimitTexture(Data.m_Info, TextureLimit, g_pData->m_aSprites[SPRITE_TEE_BODY].m_pSet->m_Gridx, g_pData->m_aSprites[SPRITE_TEE_BODY].m_pSet->m_Gridy))
+	{
+		log_error("skins", "Skin texture reduction failed: %s", pName);
 		Data.m_Info.Free();
 		return false;
 	}
@@ -350,7 +360,8 @@ bool CSkins::LoadSkinData(const char *pName, CSkinLoadData &Data) const
 				}
 			}
 		}
-		const vec3 NormalizedColor = normalize(vec3(aColors[0], aColors[1], aColors[2]));
+		const vec3 Sum(aColors[0], aColors[1], aColors[2]);
+		const vec3 NormalizedColor = length(Sum) > 0 ? normalize(Sum) : vec3(1, 1, 1);
 		Data.m_BloodColor = ColorRGBA(NormalizedColor.x, NormalizedColor.y, NormalizedColor.z);
 	}
 
@@ -439,6 +450,14 @@ void CSkins::LoadSkinFinish(CSkinContainer *pSkinContainer, const CSkinLoadData 
 		Skin.m_ColorableSkin.m_aEyes[i] = Graphics()->LoadSpriteTexture(Data.m_InfoGrayscale, std::nullopt, &g_pData->m_aSprites[SPRITE_TEE_EYE_NORMAL + i]);
 	}
 
+	if(!Skin.m_OriginalSkin.m_Body.IsValid() || !Skin.m_ColorableSkin.m_Body.IsValid())
+	{
+		Skin.m_OriginalSkin.Unload(Graphics());
+		Skin.m_ColorableSkin.Unload(Graphics());
+		log_error("skins", "Skin GPU texture upload failed: %s", pSkinContainer->Name());
+		pSkinContainer->SetState(CSkinContainer::EState::ERROR);
+		return;
+	}
 	Skin.m_Metrics = Data.m_Metrics;
 	Skin.m_BloodColor = Data.m_BloodColor;
 
@@ -473,7 +492,7 @@ void CSkins::LoadSkinDirect(const char *pName)
 		log_error("skins", "Failed to load PNG of skin '%s' from '%s'", pName, aPath);
 		SkinIt->second->SetState(CSkinContainer::EState::ERROR);
 	}
-	else if(LoadSkinData(pName, DefaultSkinData))
+	else if(LoadSkinData(pName, DefaultSkinData, m_AppliedTextureLimit))
 	{
 		LoadSkinFinish(SkinIt->second.get(), DefaultSkinData);
 	}
@@ -520,6 +539,17 @@ void CSkins::OnShutdown()
 
 void CSkins::OnUpdate()
 {
+	if(m_AppliedTextureLimit != g_Config.m_ClLucentSkinTextureLimit)
+	{
+		GameClient()->RefreshSkins(CSkinDescriptor::FLAG_SIX | CSkinDescriptor::FLAG_SEVEN);
+		return;
+	}
+	if(m_SettingsRefreshPending && !CLineInput::GetActiveInput())
+	{
+		GameClient()->RefreshSkins(CSkinDescriptor::FLAG_SIX);
+		return;
+	}
+
 	// Only update skins periodically to reduce FPS impact
 	const std::chrono::nanoseconds StartTime = time_get_nanoseconds();
 	const std::chrono::nanoseconds MaxTime = std::chrono::milliseconds(std::clamp(round_to_int(Client()->RenderFrameTime() * 50000.0f), 25, 500));
@@ -642,9 +672,14 @@ void CSkins::UpdateFinishLoading(CSkinLoadingStats &Stats, std::chrono::nanoseco
 		if(pSkinContainer->m_pLoadJob->State() == IJob::STATE_DONE && pSkinContainer->m_pLoadJob->m_Data.m_Info.m_pData)
 		{
 			LoadSkinFinish(pSkinContainer.get(), pSkinContainer->m_pLoadJob->m_Data);
-			GameClient()->OnSkinUpdate(pSkinContainer->Name());
+			if(pSkinContainer->State() == CSkinContainer::EState::LOADED)
+			{
+				GameClient()->OnSkinUpdate(pSkinContainer->Name());
+				Stats.m_NumLoaded++;
+			}
+			else
+				Stats.m_NumError++;
 			pSkinContainer->m_pLoadJob = nullptr;
-			Stats.m_NumLoaded++;
 			if(time_get_nanoseconds() - StartTime >= MaxTime)
 			{
 				// Avoid using too much frame time for loading skins
@@ -683,6 +718,8 @@ void CSkins::RefreshEventSkins()
 
 void CSkins::Refresh(TSkinLoadedCallback &&SkinLoadedCallback)
 {
+	m_SettingsRefreshPending = false;
+	m_AppliedTextureLimit = g_Config.m_ClLucentSkinTextureLimit;
 	for(auto &[_, pSkinContainer] : m_Skins)
 	{
 		if(pSkinContainer->m_pLoadJob)
@@ -964,7 +1001,7 @@ void CSkins::CSkinLoadJob::Run()
 		{
 			return;
 		}
-		m_pSkins->LoadSkinData(m_aName, m_Data);
+		m_pSkins->LoadSkinData(m_aName, m_Data, m_TextureLimit);
 	}
 	else
 	{
@@ -975,6 +1012,7 @@ void CSkins::CSkinLoadJob::Run()
 CSkins::CSkinDownloadJob::CSkinDownloadJob(CSkins *pSkins, const char *pName) :
 	CAbstractSkinLoadJob(pSkins, pName)
 {
+	str_copy(m_aBaseUrl, g_Config.m_ClDownloadCommunitySkins ? g_Config.m_ClSkinCommunityDownloadUrl : g_Config.m_ClSkinDownloadUrl);
 }
 
 bool CSkins::CSkinDownloadJob::Abort()
@@ -995,7 +1033,7 @@ bool CSkins::CSkinDownloadJob::Abort()
 
 void CSkins::CSkinDownloadJob::Run()
 {
-	const char *pBaseUrl = g_Config.m_ClDownloadCommunitySkins != 0 ? g_Config.m_ClSkinCommunityDownloadUrl : g_Config.m_ClSkinDownloadUrl;
+	const char *pBaseUrl = m_aBaseUrl;
 
 	char aEscapedName[256];
 	EscapeUrl(aEscapedName, m_aName);
@@ -1033,7 +1071,7 @@ void CSkins::CSkinDownloadJob::Run()
 				{
 					return;
 				}
-				m_pSkins->LoadSkinData(m_aName, m_Data);
+				m_pSkins->LoadSkinData(m_aName, m_Data, m_TextureLimit);
 			}
 			free(pPngData);
 		}
@@ -1096,7 +1134,7 @@ void CSkins::CSkinDownloadJob::Run()
 		{
 			return;
 		}
-		m_pSkins->LoadSkinData(m_aName, m_Data);
+		m_pSkins->LoadSkinData(m_aName, m_Data, m_TextureLimit);
 	}
 	else
 	{
