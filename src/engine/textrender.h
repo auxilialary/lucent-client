@@ -276,6 +276,12 @@ public:
 	float RenderOpacity() const { return m_RenderOpacity; }
 	void SetRenderOpacity(float Opacity) { m_RenderOpacity = std::clamp(Opacity, 0.f, 1.f); }
 	virtual bool LoadFonts() = 0;
+	// Called between frames, after the standard text-container invalidation.
+	// Empty filename selects DDNet. Failure also restores DDNet.
+	virtual void InitializeCustomFonts() = 0;
+	virtual bool SetCustomFont(const char *pFilename) = 0;
+	virtual const char *CustomFont() const = 0;
+	virtual bool ImportCustomFont(const char *pAbsolutePath, char *pFilename, size_t FilenameSize) = 0;
 	virtual void SetFontPreset(EFontPreset FontPreset) = 0;
 	virtual void SetFontLanguageVariant(const char *pLanguageFile) = 0;
 

@@ -166,3 +166,33 @@ TEST(LucentSettingsWorkspace, CursorWheelUsesRegisteredConfig)
 			EXPECT_FLOAT_EQ(LucentGameView::CursorScale(g_Config.m_LucentCursorSize), Next / 100.f);
 		}
 }
+
+TEST(LucentFontManagerConfig, ChoiceAndFontsSectionSurviveFreshSessions)
+{
+	CConfigRestore Restore;
+	CTestInfo Info;
+	Info.m_DeleteTestStorageFilesOnSuccess = true;
+	auto Storage = Info.CreateTestStorage();
+	ASSERT_NE(Storage, nullptr);
+	{
+		CConfigSession Session(Storage.get());
+		EXPECT_STREQ(g_Config.m_ClLucentFont, "");
+		Session.m_pConsole->ExecuteLine("cl_lucent_font \"Шрифт-0123456789abcdef.ttf\"", IConsole::CLIENT_ID_UNSPECIFIED);
+		Session.m_pConsole->ExecuteLine("cl_lucent_settings_page 3", IConsole::CLIENT_ID_UNSPECIFIED);
+		ASSERT_TRUE(Session.m_pConfig->Save());
+	}
+	{
+		CConfigSession Session(Storage.get());
+		EXPECT_STREQ(g_Config.m_ClLucentFont, "");
+		ASSERT_TRUE(Session.m_pConsole->ExecuteFile(CONFIG_FILE, IConsole::CLIENT_ID_UNSPECIFIED));
+		EXPECT_STREQ(g_Config.m_ClLucentFont, "Шрифт-0123456789abcdef.ttf");
+		EXPECT_EQ(g_Config.m_ClLucentSettingsPage, LucentSettings::PAGE_FONTS);
+		Session.m_pConfig->Reset("cl_lucent_font");
+		ASSERT_TRUE(Session.m_pConfig->Save());
+	}
+	{
+		CConfigSession Session(Storage.get());
+		ASSERT_TRUE(Session.m_pConsole->ExecuteFile(CONFIG_FILE, IConsole::CLIENT_ID_UNSPECIFIED));
+		EXPECT_STREQ(g_Config.m_ClLucentFont, "");
+	}
+}

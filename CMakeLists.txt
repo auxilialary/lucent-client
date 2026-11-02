@@ -2358,6 +2358,7 @@ set_src(ENGINE_SHARED GLOB_RECURSE src/engine/shared
   engine.cpp
   fifo.cpp
   fifo.h
+  font_manager.h
   filecollection.cpp
   filecollection.h
   global_uuid_manager.cpp
@@ -2595,6 +2596,7 @@ if(CLIENT)
     checksum.h
     client.cpp
     client.h
+    custom_font.h
     demoedit.cpp
     demoedit.h
     discord.cpp
@@ -2612,6 +2614,7 @@ if(CLIENT)
     graphics_threaded_sprites.cpp
     input.cpp
     input.h
+    legacy_fonts.h
     keyboard.cpp
     keyboard.h
     keynames.cpp
@@ -2833,6 +2836,8 @@ if(CLIENT)
     lucent/scoreboard/renderer.cpp
     lucent/scoreboard/renderer.h
     lucent/scoreboard/row_data.h
+    lucent/settings/fonts.cpp
+    lucent/settings/fonts.h
     lucent/settings/general.cpp
     lucent/settings/general.h
     lucent/settings/layout.h
@@ -3590,6 +3595,7 @@ if((GTEST_FOUND OR DOWNLOAD_GTEST) AND SERVER)
     jsonwriter_test.cpp
     linereader_test.cpp
     lucent_console_test.cpp
+    lucent_font_manager_test.cpp
     lucent_gameview_test.cpp
     lucent_hud_test.cpp
     lucent_tee_alignment_test.cpp

@@ -643,6 +643,7 @@ public:
 	void OnWindowResize() override;
 
 	void InitializeLanguage() override;
+	int64_t m_LastCustomFontCheck = 0, m_CustomFontModified = 0;
 	bool m_LanguageChanged = false;
 	void OnLanguageChange();
 	void HandleLanguageChanged();

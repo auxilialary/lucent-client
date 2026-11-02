@@ -1,5 +1,8 @@
 /* (c) Magnus Auvinen. See licence.txt in the root of the distribution for more information. */
 /* If you are missing that file, acquire a complete release at teeworlds.com.                */
+#include "custom_font.h"
+#include "legacy_fonts.h"
+
 #include <base/dbg.h>
 #include <base/log.h>
 #include <base/math.h>
@@ -20,6 +23,7 @@
 #include <chrono>
 #include <cstddef>
 #include <limits>
+#include <string>
 #include <tuple>
 #include <unordered_map>
 #include <vector>
@@ -327,6 +331,7 @@ private:
 
 	// Font faces
 	FT_Face m_DefaultFace = nullptr;
+	FT_Face m_CustomFace = nullptr;
 	FT_Face m_IconFace = nullptr;
 	FT_Face m_VariantFace = nullptr;
 	FT_Face m_SelectedFace = nullptr;
@@ -406,7 +411,7 @@ private:
 
 	FT_UInt GetCharGlyph(int Chr, FT_Face *pFace, bool AllowReplacementCharacter)
 	{
-		for(FT_Face Face : {m_SelectedFace, m_DefaultFace, m_VariantFace})
+		for(FT_Face Face : {m_SelectedFace, m_SelectedFace ? nullptr : m_CustomFace, m_DefaultFace, m_VariantFace})
 		{
 			if(Face && Face->charmap)
 			{
@@ -617,6 +622,12 @@ public:
 		{
 			delete[] pTextureData;
 		}
+	}
+
+	void SetCustomFace(FT_Face Face)
+	{
+		m_CustomFace = Face;
+		Clear();
 	}
 
 	FT_Face DefaultFace() const
@@ -957,6 +968,8 @@ class CTextRender : public IEngineTextRender
 
 	CGlyphMap *m_pGlyphMap;
 	std::vector<void *> m_vpFontData;
+	std::unique_ptr<CCustomFontFace> m_pCustomFont;
+	std::string m_CustomFontFilename;
 
 	std::vector<SFontLanguageVariant> m_vVariants;
 
@@ -1156,6 +1169,9 @@ public:
 		delete m_pGlyphMap;
 		m_pGlyphMap = nullptr;
 
+		m_pCustomFont.reset();
+		m_CustomFontFilename.clear();
+
 		if(m_FTLibrary != nullptr)
 			FT_Done_FreeType(m_FTLibrary);
 		m_FTLibrary = nullptr;
@@ -1169,6 +1185,41 @@ public:
 		m_pConsole = nullptr;
 		m_pGraphics = nullptr;
 		m_pStorage = nullptr;
+	}
+
+	void InitializeCustomFonts() override
+	{
+		log_info("fonts", "Initializing fonts from other clients");
+		const auto Sources = LucentFonts::OtherClientFontDirectories(Storage());
+		const int Imported = LucentFonts::ImportOtherClientFonts(Storage(), m_FTLibrary, Sources);
+		log_info("fonts", "Font initialization complete: %d new fonts from %d directories", Imported, (int)Sources.size());
+	}
+
+	bool SetCustomFont(const char *pFilename) override
+	{
+		std::unique_ptr<CCustomFontFace> pCandidate;
+		bool Success = true;
+		if(pFilename[0])
+		{
+			pCandidate = std::make_unique<CCustomFontFace>();
+			char aPath[IO_MAX_PATH_LENGTH];
+			str_format(aPath, sizeof(aPath), "%s/%s", LucentFonts::Directory, pFilename);
+			Success = LucentFonts::ManagedFilename(pFilename) && pCandidate->Load(Storage(), m_FTLibrary, aPath, IStorage::TYPE_SAVE);
+			if(!Success)
+				pCandidate.reset();
+		}
+		// Purge glyph references BEFORE retiring the previous face/backing memory.
+		m_pGlyphMap->SetCustomFace(pCandidate ? pCandidate->Face() : nullptr);
+		m_pCustomFont = std::move(pCandidate);
+		m_CustomFontFilename = Success ? pFilename : "";
+		return Success;
+	}
+
+	const char *CustomFont() const override { return m_CustomFontFilename.c_str(); }
+
+	bool ImportCustomFont(const char *pAbsolutePath, char *pFilename, size_t FilenameSize) override
+	{
+		return ImportCustomFontFile(Storage(), m_FTLibrary, pAbsolutePath, pFilename, FilenameSize);
 	}
 
 	bool LoadFonts() override

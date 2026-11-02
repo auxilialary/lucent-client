@@ -7,4 +7,6 @@ MACRO_CONFIG_INT(ClLucentSkinTextureLimit, cl_lucent_skin_texture_limit, 1024, 1
 #include "hud/config_variables.h"
 
 MACRO_CONFIG_INT(ClLucentSettingsWorkspace, cl_lucent_settings_workspace, 0, 0, 1, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Settings workspace: 0 DDNet, 1 Lucent")
-MACRO_CONFIG_INT(ClLucentSettingsPage, cl_lucent_settings_page, 0, 0, 2, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Last Lucent settings section")
+MACRO_CONFIG_INT(ClLucentSettingsPage, cl_lucent_settings_page, 0, 0, 3, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Last Lucent settings section")
+
+MACRO_CONFIG_STR(ClLucentFont, cl_lucent_font, 256, "", CFGFLAG_CLIENT | CFGFLAG_SAVE, "Lucent custom font filename; empty uses standard DDNet")

@@ -368,7 +368,10 @@ void CGameClient::OnInit()
 	{
 		Client()->AddWarning(SWarning(Localize("Some fonts could not be loaded. Check the local console for details.")));
 	}
+	TextRender()->InitializeCustomFonts();
 	TextRender()->SetFontLanguageVariant(g_Config.m_ClLanguagefile);
+	if(!TextRender()->SetCustomFont(g_Config.m_ClLucentFont))
+		g_Config.m_ClLucentFont[0] = 0;
 
 	// Present from the first safe frame with fonts, before component loading.
 	m_Menus.RenderLoadingDirect("", "", std::nullopt);
@@ -450,6 +453,29 @@ void CGameClient::OnInit()
 void CGameClient::OnUpdate()
 {
 	HandleLanguageChanged();
+	bool FontFileChanged = false;
+	if(TextRender()->CustomFont()[0] && time_get() - m_LastCustomFontCheck > time_freq())
+	{
+		m_LastCustomFontCheck = time_get();
+		char aFontPath[IO_MAX_PATH_LENGTH];
+		str_format(aFontPath, sizeof(aFontPath), "lucent/fonts/%s", TextRender()->CustomFont());
+		time_t Created, Modified;
+		if(!Storage()->RetrieveTimes(aFontPath, IStorage::TYPE_SAVE, &Created, &Modified))
+			g_Config.m_ClLucentFont[0] = 0;
+		else
+		{
+			FontFileChanged = m_CustomFontModified != 0 && m_CustomFontModified != Modified;
+			m_CustomFontModified = Modified;
+		}
+	}
+	if(FontFileChanged || str_comp(TextRender()->CustomFont(), g_Config.m_ClLucentFont) != 0)
+	{
+		// Same complete cache invalidation as language changes, before any drawing.
+		Client()->OnWindowResize();
+		if(!TextRender()->SetCustomFont(g_Config.m_ClLucentFont))
+			g_Config.m_ClLucentFont[0] = 0;
+		m_CustomFontModified = 0;
+	}
 
 	CUIElementBase::Init(Ui()); // update static pointer because game and editor use separate UI
 

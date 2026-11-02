@@ -8,7 +8,8 @@ namespace LucentSettings
 	{
 		PAGE_CURSOR,
 		PAGE_WEAPONS,
-		PAGE_CAMERA
+		PAGE_CAMERA,
+		PAGE_FONTS
 	};
 	struct CPageDescription
 	{
@@ -16,7 +17,7 @@ namespace LucentSettings
 		const char *m_pLabel;
 	};
 	// Stable persisted IDs; append sections without reinterpreting old configs.
-	inline constexpr CPageDescription Pages[] = {{PAGE_CURSOR, "Cursor"}, {PAGE_WEAPONS, "Weapons"}, {PAGE_CAMERA, "Camera"}};
+	inline constexpr CPageDescription Pages[] = {{PAGE_CURSOR, "Cursor"}, {PAGE_WEAPONS, "Weapons"}, {PAGE_CAMERA, "Camera"}, {PAGE_FONTS, "Fonts"}};
 	inline constexpr int PageCount = sizeof(Pages) / sizeof(Pages[0]);
 	inline int PageIndex(int Id)
 	{

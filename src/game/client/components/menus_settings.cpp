@@ -19,6 +19,7 @@
 #include <game/client/gameclient.h>
 #include <game/client/lucent/gameview/presentation.h>
 #include <game/client/lucent/localization.h>
+#include <game/client/lucent/settings/fonts.h>
 #include <game/client/lucent/settings/general.h>
 #include <game/client/lucent/settings/player.h>
 #include <game/client/lucent/settings/presentation.h>
@@ -73,6 +74,9 @@ void CMenus::RenderSettings(CUIRect MainView)
 	MainView = Layout.m_Content;
 	MainView.Margin(20.0f, &MainView);
 
+	if(!Lucent || g_Config.m_ClLucentSettingsPage != LucentSettings::PAGE_FONTS)
+		LucentSettings::LeaveFonts(Ui());
+
 	if(Lucent || g_Config.m_UiSettingsPage != SETTINGS_GENERAL)
 		LucentSettings::LeaveGeneral(Ui());
 
@@ -110,7 +114,10 @@ void CMenus::RenderSettings(CUIRect MainView)
 		if(Lucent)
 		{
 			LucentUi::CScope Style(Ui());
-			RenderLucentPresentationSettings(MainView);
+			if(g_Config.m_ClLucentSettingsPage == LucentSettings::PAGE_FONTS)
+				LucentSettings::RenderFonts(Ui(), TextRender(), Storage(), MainView);
+			else
+				RenderLucentPresentationSettings(MainView);
 		}
 		else if(g_Config.m_UiSettingsPage == SETTINGS_LANGUAGE)
 		{
@@ -178,7 +185,8 @@ void CMenus::RenderSettings(CUIRect MainView)
 	const char *apLucentTabs[LucentSettings::PageCount];
 	for(int i = 0; i < LucentSettings::PageCount; ++i)
 		apLucentTabs[i] = LCNTLocalize(LucentSettings::Pages[i].m_pLabel);
-	const char *apLucentIcons[] = {FontIcon::EYE, FontIcon::BRUSH, FontIcon::CAMERA};
+	const char *apLucentIcons[] = {FontIcon::EYE, FontIcon::BRUSH, FontIcon::CAMERA, FontIcon::FONT};
+	static_assert(std::size(apLucentIcons) == LucentSettings::PageCount);
 	m_LucentSettings.Render(Ui(), TextRender(), Selected, Lucent ? apLucentTabs : apTabs, Lucent ? apLucentIcons : nullptr, g_Config.m_ClLucentSettingsWorkspace, WorkspaceOpacity);
 	if(m_LucentSettings.BackRequested())
 	{

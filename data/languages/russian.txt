@@ -4148,3 +4148,55 @@ Deep freeze
 [Lucent HUD modifier]
 Live freeze
 == Живая заморозка
+
+[Lucent]
+Fonts
+== Шрифты
+
+[Lucent]
+Import font
+== Импорт шрифта
+
+[Lucent]
+Up
+== Вверх
+
+[Lucent]
+Open
+== Открыть
+
+[Lucent]
+Cancel
+== Отмена
+
+[Lucent]
+Refresh
+== Обновить
+
+[Lucent]
+Standard DDNet
+== Стандартный DDNet
+
+[Lucent]
+Folder is not accessible
+== Папка недоступна
+
+[Lucent]
+TTF / OTF - select a file or enter an absolute path
+== TTF / OTF — выберите файл или введите полный путь
+
+[Lucent]
+Could not import font. Choose a valid TTF or OTF file up to 32 MiB.
+== Не удалось импортировать шрифт. Выберите исправный TTF или OTF размером до 32 МиБ.
+
+[Lucent]
+Font is unavailable. Using standard DDNet.
+== Шрифт недоступен. Используется стандартный DDNet.
+
+[Lucent]
+Player joined the game
+== Игрок присоединился к игре
+
+[Lucent]
+Selection applies immediately. Missing glyphs use DDNet fallbacks.
+== Выбор применяется сразу. Недостающие символы берутся из шрифтов DDNet.

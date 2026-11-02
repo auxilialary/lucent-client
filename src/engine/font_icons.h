@@ -49,6 +49,7 @@ namespace FontIcon
 	inline const char *const FOLDER = "\uF07B";
 	inline const char *const FOLDER_OPEN = "\uF07C";
 	inline const char *const FOLDER_TREE = "\uF802";
+	inline const char *const FONT = "\uF031";
 	inline const char *const FORWARD = "\uF04E";
 	inline const char *const FORWARD_FAST = "\uF050";
 	inline const char *const FORWARD_STEP = "\uF051";
