@@ -817,6 +817,8 @@ public:
 		IGraphics::CTextureHandle m_SpritePickupHammer;
 
 		IGraphics::CTextureHandle m_aSpritePickupWeapons[6];
+		// Same original pickup pixels, neutral mip selection for Lucent hotbar only.
+		IGraphics::CTextureHandle m_aLucentHudWeapons[6];
 		IGraphics::CTextureHandle m_aSpritePickupWeaponArmor[4];
 
 		// flags

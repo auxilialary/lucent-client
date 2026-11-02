@@ -22,6 +22,12 @@ namespace TextureFlag
 	inline constexpr uint32_t TO_3D_TEXTURE = 1 << 1;
 	inline constexpr uint32_t TO_2D_ARRAY_TEXTURE = 1 << 2;
 	inline constexpr uint32_t NO_2D_TEXTURE = 1 << 3;
+	inline constexpr uint32_t UI_SPRITE = 1 << 4;
+	inline float LodBias(uint32_t Flags, float GlobalBias) { return Flags & UI_SPRITE ? 0.f : GlobalBias; }
+	inline bool LimitMipLevels(uint32_t Flags, int Width, int Height)
+	{
+		return !(Flags & UI_SPRITE) && Width >= 1024 && Height >= 1024;
+	}
 };
 
 enum class EPrimitiveType
@@ -956,7 +962,7 @@ public:
 	bool UnloadTextTextures(CTextureHandle &TextTexture, CTextureHandle &TextOutlineTexture) override;
 	bool UpdateTextTexture(CTextureHandle TextureId, int x, int y, size_t Width, size_t Height, uint8_t *pData, bool IsMovedPointer) override;
 
-	CTextureHandle LoadSpriteTexture(const CImageInfo &FromImageInfo, const std::optional<CImageInfo> &FallbackImageInfo, const struct CDataSprite *pSprite) override;
+	CTextureHandle LoadSpriteTexture(const CImageInfo &FromImageInfo, const std::optional<CImageInfo> &FallbackImageInfo, const struct CDataSprite *pSprite, int Flags = 0) override;
 
 	bool IsImageSubFullyTransparent(const CImageInfo &FromImageInfo, int x, int y, int w, int h) override;
 	bool IsSpriteTextureFullyTransparent(const CImageInfo &FromImageInfo, const struct CDataSprite *pSprite) override;

@@ -3,6 +3,7 @@
 #include <base/str.h>
 #include <base/time.h>
 
+#include <engine/client/graphics_threaded.h>
 #include <engine/config.h>
 #include <engine/console.h>
 #include <engine/kernel.h>
@@ -791,4 +792,29 @@ TEST(LucentHud, WeaponScaleHandlesInventoryNinjaOwnerAndSessionReset)
 	State.Update(LucentHud::Weapons(63, 3, true), 3, 8, 26);
 	EXPECT_FLOAT_EQ(State.Scale(3), 1);
 	EXPECT_FLOAT_EQ(State.Scale(4), .75f);
+}
+
+TEST(LucentHud, NeutralWeaponSamplingPreservesMipmapsAndWorldPolicy)
+{
+	for(float Bias : {-15.f, -.5f, 0.f, .5f, 15.f})
+	{
+		EXPECT_FLOAT_EQ(TextureFlag::LodBias(0, Bias), Bias);
+		EXPECT_FLOAT_EQ(TextureFlag::LodBias(TextureFlag::UI_SPRITE, Bias), 0);
+	}
+	EXPECT_EQ(TextureFlag::UI_SPRITE & TextureFlag::NO_MIPMAPS, 0u);
+	EXPECT_TRUE(TextureFlag::LimitMipLevels(0, 2048, 1536));
+	EXPECT_FALSE(TextureFlag::LimitMipLevels(TextureFlag::UI_SPRITE, 2048, 1536));
+	EXPECT_FALSE(TextureFlag::LimitMipLevels(0, 256, 64));
+	EXPECT_EQ(TextureFlag::UI_SPRITE & (TextureFlag::NO_2D_TEXTURE | TextureFlag::TO_3D_TEXTURE | TextureFlag::TO_2D_ARRAY_TEXTURE), 0u);
+	// At 1080p the original shotgun crop is 256x64, while its active
+	// unrotated quad is about 65.5x16.4 px. Shrinking to .75 raises the
+	// necessary LOD by log2(1/.75); a negative bias underfilters both states.
+	const float PixelsPerUnit = 1080.f / 300;
+	const float ActiveWidth = 24.f * 8 / std::hypot(8.f, 2.f) * LucentHud::WeaponIconScale * LucentHud::HotbarFactor * PixelsPerUnit;
+	const float ActiveLod = std::log2(256 / ActiveWidth);
+	const float InactiveLod = std::log2(256 / (ActiveWidth * .75f));
+	EXPECT_GT(InactiveLod, ActiveLod);
+	EXPECT_NEAR(InactiveLod - ActiveLod, std::log2(1.f / .75f), .000001f);
+	EXPECT_LT(InactiveLod + TextureFlag::LodBias(0, -.5f), InactiveLod);
+	EXPECT_FLOAT_EQ(InactiveLod + TextureFlag::LodBias(TextureFlag::UI_SPRITE, -.5f), InactiveLod);
 }

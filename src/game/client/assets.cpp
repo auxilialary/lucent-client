@@ -109,6 +109,8 @@ void CGameClient::LoadGameSkin(const char *pPath, bool AsDir)
 		Graphics()->UnloadTexture(&m_GameSkin.m_SpritePickupNinja);
 		Graphics()->UnloadTexture(&m_GameSkin.m_SpritePickupGun);
 		Graphics()->UnloadTexture(&m_GameSkin.m_SpritePickupHammer);
+		for(auto &Texture : m_GameSkin.m_aLucentHudWeapons)
+			Graphics()->UnloadTexture(&Texture);
 
 		std::fill(std::begin(m_GameSkin.m_aSpritePickupWeapons), std::end(m_GameSkin.m_aSpritePickupWeapons), IGraphics::CTextureHandle());
 		std::fill(std::begin(m_GameSkin.m_aSpritePickupWeaponArmor), std::end(m_GameSkin.m_aSpritePickupWeaponArmor), IGraphics::CTextureHandle());
@@ -238,6 +240,11 @@ void CGameClient::LoadGameSkin(const char *pPath, bool AsDir)
 		m_GameSkin.m_aSpritePickupWeapons[3] = m_GameSkin.m_SpritePickupGrenade;
 		m_GameSkin.m_aSpritePickupWeapons[4] = m_GameSkin.m_SpritePickupLaser;
 		m_GameSkin.m_aSpritePickupWeapons[5] = m_GameSkin.m_SpritePickupNinja;
+		const int aHudPickupIds[] = {SPRITE_PICKUP_HAMMER, SPRITE_PICKUP_GUN, SPRITE_PICKUP_SHOTGUN, SPRITE_PICKUP_GRENADE, SPRITE_PICKUP_LASER, SPRITE_PICKUP_NINJA};
+		for(int Weapon = 0; Weapon < 6; ++Weapon)
+		{
+			m_GameSkin.m_aLucentHudWeapons[Weapon] = Graphics()->LoadSpriteTexture(ImgInfo, FallbackImgInfo, &g_pData->m_aSprites[aHudPickupIds[Weapon]], IGraphics::TEXLOAD_UI_SPRITE);
+		}
 
 		m_GameSkin.m_aSpritePickupWeaponArmor[0] = m_GameSkin.m_SpritePickupArmorShotgun;
 		m_GameSkin.m_aSpritePickupWeaponArmor[1] = m_GameSkin.m_SpritePickupArmorGrenade;

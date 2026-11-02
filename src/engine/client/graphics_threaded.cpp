@@ -319,7 +319,7 @@ void CGraphics_Threaded::UnloadTexture(CTextureHandle *pIndex)
 	FreeTextureIndex(pIndex);
 }
 
-IGraphics::CTextureHandle CGraphics_Threaded::LoadSpriteTexture(const CImageInfo &FromImageInfo, const std::optional<CImageInfo> &FallbackImageInfo, const CDataSprite *pSprite)
+IGraphics::CTextureHandle CGraphics_Threaded::LoadSpriteTexture(const CImageInfo &FromImageInfo, const std::optional<CImageInfo> &FallbackImageInfo, const CDataSprite *pSprite, int Flags)
 {
 	int ImageGridX = FromImageInfo.m_Width / pSprite->m_pSet->m_Gridx;
 	int ImageGridY = FromImageInfo.m_Height / pSprite->m_pSet->m_Gridy;
@@ -332,7 +332,7 @@ IGraphics::CTextureHandle CGraphics_Threaded::LoadSpriteTexture(const CImageInfo
 	if(FallbackImageInfo.has_value() && IsImageSubFullyTransparent(FromImageInfo, x, y, w, h))
 	{
 		log_warn("graphics", "Asset '%s' appears to be invisible, falling back to default", pSprite->m_pName);
-		return LoadSpriteTexture(FallbackImageInfo.value(), std::nullopt, pSprite);
+		return LoadSpriteTexture(FallbackImageInfo.value(), std::nullopt, pSprite, Flags);
 	}
 
 	CImageInfo SpriteInfo;
@@ -341,7 +341,7 @@ IGraphics::CTextureHandle CGraphics_Threaded::LoadSpriteTexture(const CImageInfo
 	SpriteInfo.m_Format = FromImageInfo.m_Format;
 	SpriteInfo.Allocate();
 	SpriteInfo.CopyRectFrom(FromImageInfo, x, y, w, h, 0, 0);
-	return LoadTextureRawMove(SpriteInfo, 0, pSprite->m_pName);
+	return LoadTextureRawMove(SpriteInfo, Flags, pSprite->m_pName);
 }
 
 bool CGraphics_Threaded::IsImageSubFullyTransparent(const CImageInfo &FromImageInfo, int x, int y, int w, int h)
@@ -405,6 +405,8 @@ static CCommandBuffer::SCommand_Texture_Create LoadTextureCreateCommand(int Text
 		Cmd.m_Flags |= TextureFlag::TO_3D_TEXTURE;
 	if((Flags & IGraphics::TEXLOAD_NO_2D_TEXTURE) != 0)
 		Cmd.m_Flags |= TextureFlag::NO_2D_TEXTURE;
+	if((Flags & IGraphics::TEXLOAD_UI_SPRITE) != 0)
+		Cmd.m_Flags |= TextureFlag::UI_SPRITE;
 
 	return Cmd;
 }

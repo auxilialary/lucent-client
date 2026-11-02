@@ -927,6 +927,7 @@ class CCommandProcessorFragment_Vulkan : public CCommandProcessorFragment_GLBase
 	VkFence m_GetPresentedImgDataHelperFence = VK_NULL_HANDLE;
 
 	std::array<VkSampler, SUPPORTED_SAMPLER_TYPE_COUNT> m_aSamplers;
+	std::array<VkSampler, 2> m_aUnbiasedSamplers{};
 
 	class IStorage *m_pStorage;
 
@@ -2673,9 +2674,9 @@ protected:
 			VkFormat ImgFormat = Format;
 			VkImageView ImgView = CreateTextureImageView(Texture.m_Img, ImgFormat, VK_IMAGE_VIEW_TYPE_2D, 1, MipMapLevelCount);
 			Texture.m_ImgView = ImgView;
-			VkSampler ImgSampler = GetTextureSampler(SUPPORTED_SAMPLER_TYPE_REPEAT);
+			VkSampler ImgSampler = GetTextureSampler(SUPPORTED_SAMPLER_TYPE_REPEAT, Flags);
 			Texture.m_aSamplers[0] = ImgSampler;
-			ImgSampler = GetTextureSampler(SUPPORTED_SAMPLER_TYPE_CLAMP_TO_EDGE);
+			ImgSampler = GetTextureSampler(SUPPORTED_SAMPLER_TYPE_CLAMP_TO_EDGE, Flags);
 			Texture.m_aSamplers[1] = ImgSampler;
 
 			if(!CreateNewTexturedStandardDescriptorSets(ImageIndex, 0))
@@ -2856,7 +2857,7 @@ protected:
 		return CreateImageView(TexImage, ImgFormat, ViewType, Depth, MipMapLevelCount);
 	}
 
-	[[nodiscard]] bool CreateTextureSamplersImpl(VkSampler &CreatedSampler, VkSamplerAddressMode AddrModeU, VkSamplerAddressMode AddrModeV, VkSamplerAddressMode AddrModeW)
+	[[nodiscard]] bool CreateTextureSamplersImpl(VkSampler &CreatedSampler, VkSamplerAddressMode AddrModeU, VkSamplerAddressMode AddrModeV, VkSamplerAddressMode AddrModeW, uint32_t Flags = 0)
 	{
 		VkSamplerCreateInfo SamplerInfo{};
 		SamplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
@@ -2872,7 +2873,7 @@ protected:
 		SamplerInfo.compareEnable = VK_FALSE;
 		SamplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
 		SamplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-		SamplerInfo.mipLodBias = (m_GlobalTextureLodBIAS / 1000.0f);
+		SamplerInfo.mipLodBias = TextureFlag::LodBias(Flags, m_GlobalTextureLodBIAS / 1000.0f);
 		SamplerInfo.minLod = -1000;
 		SamplerInfo.maxLod = 1000;
 
@@ -2890,6 +2891,8 @@ protected:
 		Ret &= CreateTextureSamplersImpl(m_aSamplers[SUPPORTED_SAMPLER_TYPE_REPEAT], VkSamplerAddressMode::VK_SAMPLER_ADDRESS_MODE_REPEAT, VkSamplerAddressMode::VK_SAMPLER_ADDRESS_MODE_REPEAT, VkSamplerAddressMode::VK_SAMPLER_ADDRESS_MODE_REPEAT);
 		Ret &= CreateTextureSamplersImpl(m_aSamplers[SUPPORTED_SAMPLER_TYPE_CLAMP_TO_EDGE], VkSamplerAddressMode::VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VkSamplerAddressMode::VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VkSamplerAddressMode::VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE);
 		Ret &= CreateTextureSamplersImpl(m_aSamplers[SUPPORTED_SAMPLER_TYPE_2D_TEXTURE_ARRAY], VkSamplerAddressMode::VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VkSamplerAddressMode::VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VkSamplerAddressMode::VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT);
+		Ret &= CreateTextureSamplersImpl(m_aUnbiasedSamplers[SUPPORTED_SAMPLER_TYPE_REPEAT], VK_SAMPLER_ADDRESS_MODE_REPEAT, VK_SAMPLER_ADDRESS_MODE_REPEAT, VK_SAMPLER_ADDRESS_MODE_REPEAT, TextureFlag::UI_SPRITE);
+		Ret &= CreateTextureSamplersImpl(m_aUnbiasedSamplers[SUPPORTED_SAMPLER_TYPE_CLAMP_TO_EDGE], VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, TextureFlag::UI_SPRITE);
 		return Ret;
 	}
 
@@ -2898,10 +2901,14 @@ protected:
 		vkDestroySampler(m_VKDevice, m_aSamplers[SUPPORTED_SAMPLER_TYPE_REPEAT], nullptr);
 		vkDestroySampler(m_VKDevice, m_aSamplers[SUPPORTED_SAMPLER_TYPE_CLAMP_TO_EDGE], nullptr);
 		vkDestroySampler(m_VKDevice, m_aSamplers[SUPPORTED_SAMPLER_TYPE_2D_TEXTURE_ARRAY], nullptr);
+		for(auto Sampler : m_aUnbiasedSamplers)
+			vkDestroySampler(m_VKDevice, Sampler, nullptr);
 	}
 
-	VkSampler GetTextureSampler(ESupportedSamplerTypes SamplerType)
+	VkSampler GetTextureSampler(ESupportedSamplerTypes SamplerType, uint32_t Flags = 0)
 	{
+		if((Flags & TextureFlag::UI_SPRITE) && SamplerType != SUPPORTED_SAMPLER_TYPE_2D_TEXTURE_ARRAY)
+			return m_aUnbiasedSamplers[SamplerType];
 		return m_aSamplers[SamplerType];
 	}
 

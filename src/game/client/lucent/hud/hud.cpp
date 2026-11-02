@@ -204,7 +204,8 @@ void CHud::RenderLucentHotbar(int ClientId, const CNetObj_Character *pCharacter)
 		const float Selection = aSelection[Weapon];
 		if(Selection > 0)
 			LucentHud::SelectedSlot(Graphics(), Rect, Alpha, BarScale, Selection);
-		Graphics()->TextureSet(GameClient()->m_GameSkin.m_aSpritePickupWeapons[Weapon]);
+		const auto HudTexture = GameClient()->m_GameSkin.m_aLucentHudWeapons[Weapon];
+		Graphics()->TextureSet(HudTexture.IsValid() ? HudTexture : GameClient()->m_GameSkin.m_aSpritePickupWeapons[Weapon]);
 		Graphics()->SetColor(1, 1, 1, Alpha * (.90f + .10f * Selection));
 		Graphics()->QuadsSetRotation(pi * 7 / 4);
 		// The source quad is centered at the origin; keep its center fixed while
