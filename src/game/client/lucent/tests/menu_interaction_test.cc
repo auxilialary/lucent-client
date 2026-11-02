@@ -1,3 +1,6 @@
+#include <game/client/lucent/gameview/presentation.h>
+
+#include <string_view>
 // Standalone: compile with lucent_menu_interaction.cpp and the src include directory.
 #include <game/client/lucent/menu/interaction.h>
 #include <game/client/lucent/menu/server_controls.h>
@@ -15,8 +18,38 @@
 		} \
 	} while(false)
 
+CConfig g_Config;
+
 int main()
 {
+	// Cursor rendering must remain at its normal size by default and clamp
+	// console/config values to the supported visual range.
+	CHECK(LucentGameView::CursorScale(DefaultConfig::LucentCursorSize) == 1.f);
+	CHECK(LucentGameView::CursorScale(-100) == .05f);
+	CHECK(LucentGameView::CursorScale(5000) == 5.f);
+	int ConfigCount = 0;
+	// Validate the actual declarations used by the engine save/console machinery.
+#define MACRO_CONFIG_INT(Name, ScriptName, Def, Min, Max, Flags, Desc) \
+	CHECK((Flags & CFGFLAG_SAVE) && (Flags & CFGFLAG_CLIENT)); \
+	CHECK((Def) >= (Min) && (Def) <= (Max)); \
+	CHECK(std::string_view(#ScriptName).starts_with("lucent_")); \
+	++ConfigCount;
+#include <game/client/lucent/gameview/config_variables.h>
+#undef MACRO_CONFIG_INT
+	CHECK(ConfigCount == 13);
+	int *apX[] = {&g_Config.m_LucentWeaponHammerX, &g_Config.m_LucentWeaponGunX, &g_Config.m_LucentWeaponShotgunX, &g_Config.m_LucentWeaponGrenadeX, &g_Config.m_LucentWeaponLaserX, &g_Config.m_LucentWeaponNinjaX};
+	int *apY[] = {&g_Config.m_LucentWeaponHammerY, &g_Config.m_LucentWeaponGunY, &g_Config.m_LucentWeaponShotgunY, &g_Config.m_LucentWeaponGrenadeY, &g_Config.m_LucentWeaponLaserY, &g_Config.m_LucentWeaponNinjaY};
+	for(int Weapon = 0; Weapon < 6; ++Weapon)
+	{
+		CHECK(LucentGameView::WeaponOffset(Weapon) == vec2(0, 0));
+		*apX[Weapon] = 100 - Weapon;
+		*apY[Weapon] = -100 + Weapon;
+	}
+	for(int Weapon = 0; Weapon < 6; ++Weapon)
+		CHECK(LucentGameView::WeaponOffset(Weapon) == vec2(100 - Weapon, -100 + Weapon));
+	CHECK(LucentGameView::WeaponOffset(-1) == vec2(0, 0));
+	CHECK(LucentGameView::WeaponOffset(6) == vec2(0, 0));
+
 	for(int Fps : {30, 60, 144, 240})
 	{
 		CLucentServerControls Controls;

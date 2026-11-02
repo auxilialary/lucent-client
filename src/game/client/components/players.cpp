@@ -23,6 +23,7 @@
 #include <game/client/components/skins.h>
 #include <game/client/components/sounds.h>
 #include <game/client/gameclient.h>
+#include <game/client/lucent/gameview/presentation.h>
 #include <game/collision.h>
 #include <game/gamecore.h>
 #include <game/mapitems.h>
@@ -698,6 +699,9 @@ void CPlayers::RenderPlayer(
 
 			float Recoil = 0.0f;
 			vec2 WeaponPosition;
+			// Shift only local weapon art, attached hands and muzzle art. Effects,
+			// projectiles and all simulation positions retain their original coordinates.
+			const vec2 VisualOffset = ClientId == GameClient()->m_Snap.m_LocalClientId ? LucentGameView::WeaponOffset(CurrentWeapon) : vec2(0, 0);
 			bool IsSit = Inactive && !InAir && Stationary;
 
 			if(Player.m_Weapon == WEAPON_HAMMER)
@@ -723,7 +727,7 @@ void CPlayers::RenderPlayer(
 					Graphics()->QuadsSetRotation(Direction.x < 0.0f ? 100.0f : 500.0f);
 				}
 
-				Graphics()->RenderQuadContainerAsSprite(m_WeaponEmoteQuadContainerIndex, QuadOffset, WeaponPosition.x, WeaponPosition.y);
+				Graphics()->RenderQuadContainerAsSprite(m_WeaponEmoteQuadContainerIndex, QuadOffset, WeaponPosition.x + VisualOffset.x, WeaponPosition.y + VisualOffset.y);
 			}
 			else if(Player.m_Weapon == WEAPON_NINJA)
 			{
@@ -743,7 +747,7 @@ void CPlayers::RenderPlayer(
 					Graphics()->QuadsSetRotation(-pi / 2 + State.GetAttach()->m_Angle * pi * 2.0f);
 					GameClient()->m_Effects.PowerupShine(WeaponPosition - vec2(32.0f, 0.0f), vec2(32.0f, 12.0f), Alpha);
 				}
-				Graphics()->RenderQuadContainerAsSprite(m_WeaponEmoteQuadContainerIndex, QuadOffset, WeaponPosition.x, WeaponPosition.y);
+				Graphics()->RenderQuadContainerAsSprite(m_WeaponEmoteQuadContainerIndex, QuadOffset, WeaponPosition.x + VisualOffset.x, WeaponPosition.y + VisualOffset.y);
 
 				// HADOKEN
 				if(AttackTime <= 1.0f / 6.0f && g_pData->m_Weapons.m_aId[CurrentWeapon].m_NumSpriteMuzzles)
@@ -781,7 +785,7 @@ void CPlayers::RenderPlayer(
 						float OffsetX = g_pData->m_Weapons.m_aId[CurrentWeapon].m_Muzzleoffsetx;
 						WeaponPosition -= HadokenDirection * OffsetX;
 						Graphics()->TextureSet(GameClient()->m_GameSkin.m_aaSpriteWeaponsMuzzles[CurrentWeapon][IteX]);
-						Graphics()->RenderQuadContainerAsSprite(m_aWeaponSpriteMuzzleQuadContainerIndex[CurrentWeapon], QuadOffset, WeaponPosition.x, WeaponPosition.y);
+						Graphics()->RenderQuadContainerAsSprite(m_aWeaponSpriteMuzzleQuadContainerIndex[CurrentWeapon], QuadOffset, WeaponPosition.x + VisualOffset.x, WeaponPosition.y + VisualOffset.y);
 					}
 				}
 			}
@@ -799,7 +803,7 @@ void CPlayers::RenderPlayer(
 				if(Player.m_Weapon == WEAPON_GUN && g_Config.m_ClOldGunPosition)
 					WeaponPosition.y -= 8.0f;
 				Graphics()->QuadsSetRotation(State.GetAttach()->m_Angle * pi * 2.0f + Angle);
-				Graphics()->RenderQuadContainerAsSprite(m_WeaponEmoteQuadContainerIndex, QuadOffset, WeaponPosition.x, WeaponPosition.y);
+				Graphics()->RenderQuadContainerAsSprite(m_WeaponEmoteQuadContainerIndex, QuadOffset, WeaponPosition.x + VisualOffset.x, WeaponPosition.y + VisualOffset.y);
 			}
 
 			if(Player.m_Weapon == WEAPON_GUN || Player.m_Weapon == WEAPON_SHOTGUN)
@@ -834,7 +838,7 @@ void CPlayers::RenderPlayer(
 						vec2 DirectionY(-Direction.y, Direction.x);
 						vec2 MuzzlePos = WeaponPosition + Direction * g_pData->m_Weapons.m_aId[CurrentWeapon].m_Muzzleoffsetx + DirectionY * OffsetY;
 						Graphics()->TextureSet(GameClient()->m_GameSkin.m_aaSpriteWeaponsMuzzles[CurrentWeapon][IteX]);
-						Graphics()->RenderQuadContainerAsSprite(m_aWeaponSpriteMuzzleQuadContainerIndex[CurrentWeapon], QuadOffset, MuzzlePos.x, MuzzlePos.y);
+						Graphics()->RenderQuadContainerAsSprite(m_aWeaponSpriteMuzzleQuadContainerIndex[CurrentWeapon], QuadOffset, MuzzlePos.x + VisualOffset.x, MuzzlePos.y + VisualOffset.y);
 					}
 				}
 			}
@@ -843,9 +847,9 @@ void CPlayers::RenderPlayer(
 
 			switch(Player.m_Weapon)
 			{
-			case WEAPON_GUN: RenderHand(&RenderInfo, WeaponPosition, Direction, -3.0f * pi / 4.0f, vec2(-15.0f, 4.0f), Alpha); break;
-			case WEAPON_SHOTGUN: RenderHand(&RenderInfo, WeaponPosition, Direction, -pi / 2.0f, vec2(-5.0f, 4.0f), Alpha); break;
-			case WEAPON_GRENADE: RenderHand(&RenderInfo, WeaponPosition, Direction, -pi / 2.0f, vec2(-4.0f, 7.0f), Alpha); break;
+			case WEAPON_GUN: RenderHand(&RenderInfo, WeaponPosition + VisualOffset, Direction, -3.0f * pi / 4.0f, vec2(-15.0f, 4.0f), Alpha); break;
+			case WEAPON_SHOTGUN: RenderHand(&RenderInfo, WeaponPosition + VisualOffset, Direction, -pi / 2.0f, vec2(-5.0f, 4.0f), Alpha); break;
+			case WEAPON_GRENADE: RenderHand(&RenderInfo, WeaponPosition + VisualOffset, Direction, -pi / 2.0f, vec2(-4.0f, 7.0f), Alpha); break;
 			}
 		}
 	}
