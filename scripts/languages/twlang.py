@@ -56,8 +56,8 @@ def decode(fileobj, elements_per_key, allow_context=True):
 
 def check_file(path):
 	with open(path, encoding="utf-8") as fileobj:
-		matches = re.findall(r"(Localize|Localizable)\s*\(\s*\"((?:(?:\\\")|[^\"])+)\"(?:\s*,\s*\"((?:(?:\\\")|[^\"])+)\")?\s*\)", fileobj.read())
-	return matches
+		matches = re.findall(r"(Localize|Localizable|LCNTLocalize)\s*\(\s*\"((?:(?:\\\")|[^\"])+)\"(?:\s*,\s*\"((?:(?:\\\")|[^\"])+)\")?\s*\)", fileobj.read())
+	return [("Localize", text, "Lucent") if kind == "LCNTLocalize" else (kind, text, context) for kind, text, context in matches]
 
 
 @functools.lru_cache(None)

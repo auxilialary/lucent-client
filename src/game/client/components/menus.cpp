@@ -819,6 +819,7 @@ void CMenus::OnInterfacesInit(CGameClient *pClient)
 
 void CMenus::OnInit()
 {
+	m_LucentSettings.Init(Graphics());
 	if(g_Config.m_ClShowWelcome)
 	{
 		m_Popup = POPUP_LANGUAGE;
@@ -2344,6 +2345,10 @@ void CMenus::SetActive(bool Active)
 
 void CMenus::OnShutdown()
 {
+	m_LucentSettings.Shutdown(Graphics());
+	if(m_LucentCursorQuad >= 0)
+		Graphics()->DeleteQuadContainer(m_LucentCursorQuad);
+	m_LucentCursorQuad = -1;
 	m_LucentPreview.Shutdown(Graphics());
 	m_MenusStart.ResetLogo(TextRender());
 	m_LucentStartup.ResetLogo(TextRender());
@@ -2427,6 +2432,7 @@ void CMenus::OnWindowResize()
 
 void CMenus::OnRender()
 {
+	m_LucentCursorPreviewActive = false;
 	if(Client()->State() != IClient::STATE_ONLINE && Client()->State() != IClient::STATE_DEMOPLAYBACK)
 		SetActive(true);
 
@@ -2463,7 +2469,8 @@ void CMenus::OnRender()
 	if(IsActive())
 	{
 		Ui()->RenderBackButton();
-		RenderTools()->RenderCursor(Ui()->MousePos(), 24.0f);
+		if(!m_LucentCursorPreviewActive)
+			RenderTools()->RenderCursor(Ui()->MousePos(), 24.0f);
 	}
 
 	// render debug information

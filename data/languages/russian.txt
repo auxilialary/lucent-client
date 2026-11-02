@@ -3826,3 +3826,249 @@ Use community source
 
 Official DDNet
 == Официальный DDNet
+
+Client settings
+== Настройки клиента
+
+Cursor
+== Курсор
+
+Camera
+== Камера
+
+Size and appearance of the game cursor
+== Размер и отображение игрового курсора
+
+Local weapon artwork and visual offsets
+== Отображение оружия и визуальные смещения
+
+Zoom, movement and spectator camera
+== Масштаб, движение и камера наблюдателя
+
+Current size
+== Текущий размер
+
+Visual offsets
+== Визуальные смещения
+
+Cursor movement
+== Движение курсора
+
+Spectator camera
+== Камера наблюдателя
+
+Scaled to fit
+== Вписано в область просмотра
+
+Cursor size
+== Размер курсора
+
+Reset weapon
+== Сбросить оружие
+
+Visual offset X
+== Визуальное смещение X
+
+Visual offset Y
+== Визуальное смещение Y
+
+Size reference
+== Ориентир размера
+
+Magnified x%.1f
+== Увеличено x%.1f
+
+Preview scale: %.0f%%
+== Масштаб предпросмотра: %.0f%%
+
+[Lucent]
+Back
+== Назад
+
+[Lucent]
+Camera
+== Камера
+
+[Lucent]
+Camera deadzone
+== Мёртвая зона камеры
+
+[Lucent]
+Camera follow factor
+== Коэффициент следования камеры
+
+[Lucent]
+Current size
+== Текущий размер
+
+[Lucent]
+Cursor
+== Курсор
+
+[Lucent]
+Cursor movement
+== Движение курсора
+
+[Lucent]
+Cursor size
+== Размер курсора
+
+[Lucent]
+DDNet
+== DDNet
+
+[Lucent]
+Default zoom
+== Ст. масштаб
+
+[Lucent]
+Dynamic Camera
+== Динамическая камера
+
+[Lucent]
+Dynamic camera deadzone
+== Мёртвая зона динамической камеры
+
+[Lucent]
+Dynamic camera follow factor
+== Коэффициент следования динамической камеры
+
+[Lucent]
+Dynamic camera mouse sensitivity
+== Чувствительность мыши динамической камеры
+
+[Lucent]
+Dynamic camera smoothness
+== Плавность динамической камеры
+
+[Lucent]
+Dynamic camera stabilizing
+== Стабилизация динамической камеры
+
+[Lucent]
+Dynamic maximum distance
+== Максимальная динамическая дистанция
+
+[Lucent]
+Dynamic minimum distance
+== Минимальная динамическая дистанция
+
+[Lucent]
+Grenade
+== Гранатомёт
+
+[Lucent]
+Gun
+== Пистолет
+
+[Lucent]
+Hammer
+== Молот
+
+[Lucent]
+Laser
+== Лазер
+
+[Lucent]
+Limit maximum zoom
+== Ограничить максимальный масштаб
+
+[Lucent]
+Local weapon artwork only. Projectiles keep their actual positions.
+== Только отображение оружия. Положение снарядов не меняется.
+
+[Lucent]
+Lucent
+== Lucent
+
+[Lucent]
+Lucent Client needs to be restarted to complete update!
+== Для завершения обновления перезапустите Lucent Client!
+
+[Lucent]
+Magnified x%.1f
+== Увеличено x%.1f
+
+[Lucent]
+Maximum cursor distance
+== Максимальная дистанция курсора
+
+[Lucent]
+Minimum cursor distance
+== Минимальная дистанция курсора
+
+[Lucent]
+Ninja
+== Ниндзя
+
+[Lucent]
+Preview
+== Предпросмотр
+
+[Lucent]
+Preview scale: %.0f%%
+== Масштаб предпросмотра: %.0f%%
+
+[Lucent]
+Reset
+== Сброс
+
+[Lucent]
+Reset weapon
+== Сбросить оружие
+
+[Lucent]
+Restart
+== Рестарт
+
+[Lucent]
+Shotgun
+== Дробовик
+
+[Lucent]
+Size reference
+== Ориентир размера
+
+[Lucent]
+Spectating smoothness (ms)
+== Плавность наблюдения (мс)
+
+[Lucent]
+Spectator camera
+== Камера наблюдателя
+
+[Lucent]
+Synchronize spectator camera on zoom reset
+== Синхронизировать камеру наблюдателя при сбросе масштаба
+
+[Lucent]
+Use the mouse wheel to change cursor size
+== Размер курсора можно менять колёсиком мыши
+
+[Lucent]
+Visual offset X
+== Визуальное смещение X
+
+[Lucent]
+Visual offset Y
+== Визуальное смещение Y
+
+[Lucent]
+Visual offsets
+== Визуальные смещения
+
+[Lucent]
+Weapons
+== Оружия
+
+[Lucent]
+You must restart the game for all settings to take effect.
+== Перезапустите игру для применения изменений.
+
+[Lucent]
+Zoom
+== Масштаб
+
+[Lucent]
+Zoom smoothness (ms)
+== Плавность масштабирования (мс)

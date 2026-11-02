@@ -7,7 +7,7 @@
 
 namespace LucentSettings
 {
-	// Transient presentation state only. The selected page remains owned by DDNet.
+	// Transient presentation state only. Selected pages remain owned by saved configuration.
 	struct CNavigation
 	{
 		LucentStyle::Motion::CTransition m_Expansion;
@@ -19,8 +19,8 @@ namespace LucentSettings
 			return m_Expansion.Update(Target, Now, Animate, LucentStyle::Motion::Hover);
 		}
 		void Reset() { *this = CNavigation(); }
-		void Focus(int Category) { m_Focus = std::clamp(Category, 0, CategoryCount - 1); }
-		void Move(int Direction) { Focus((m_Focus + Direction + CategoryCount) % CategoryCount); }
+		void Focus(int Category, int Count = CategoryCount) { m_Focus = std::clamp(Category, 0, Count - 1); }
+		void Move(int Direction, int Count = CategoryCount) { Focus((m_Focus + Direction + Count) % Count, Count); }
 		void Scroll(float Distance, const CLayout &Layout) { m_Scroll = std::clamp(m_Scroll + Distance, 0.f, Layout.MaxScroll()); }
 		void RevealFocus(const CLayout &Layout)
 		{

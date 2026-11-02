@@ -1655,6 +1655,8 @@ set(EXPECTED_DATA
   gui_cursor.png
   gui_icons.png
   gui_logo.png
+  lucent/ddnet.png
+  lucent/client.png
   hud.png
   languages/README.txt
   languages/arabic.txt

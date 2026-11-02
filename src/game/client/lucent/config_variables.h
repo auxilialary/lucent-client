@@ -5,3 +5,6 @@ MACRO_CONFIG_INT(ClLucentSkinTextureLimit, cl_lucent_skin_texture_limit, 1024, 1
 #include "gameview/config_variables.h"
 
 #include "hud/config_variables.h"
+
+MACRO_CONFIG_INT(ClLucentSettingsWorkspace, cl_lucent_settings_workspace, 0, 0, 1, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Settings workspace: 0 DDNet, 1 Lucent")
+MACRO_CONFIG_INT(ClLucentSettingsPage, cl_lucent_settings_page, 0, 0, 2, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Last Lucent settings section")

@@ -138,6 +138,14 @@ public:
 
 	CScrollRegion();
 	void Reset();
+	// A nested interaction can own wheel input without carrying page inertia.
+	void StopScrolling()
+	{
+		m_ScrollDirection = SCROLLRELATIVE_NONE;
+		m_AnimTime = 0;
+		m_AnimInitScrollPos = m_AnimTargetScrollPos = m_ScrollPos;
+		m_RequestScrollPos = -1;
+	}
 
 	// Optional known content size clamps the offset before laying out this frame.
 	void Begin(CUIRect *pClipRect, const CScrollRegionParams *pParams = nullptr, float ContentSize = -1.0f);

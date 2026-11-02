@@ -26,6 +26,7 @@
 #include <game/client/lucent/browser/browser_state.h>
 #include <game/client/lucent/lucent_startup.h>
 #include <game/client/lucent/settings/sidebar.h>
+#include <game/client/lucent/settings/mode.h>
 #include <game/client/lucent/browser/map_preview.h>
 #include <game/client/ui.h>
 #include <game/voting.h>
@@ -41,6 +42,9 @@ class CMenus : public CComponent
 {
 	CLucentStartup m_LucentStartup;
 	LucentSettings::CSidebar m_LucentSettings;
+	LucentSettings::CModePresentation m_LucentWorkspacePresentation;
+	bool m_LucentCursorPreviewActive = false;
+	int m_LucentCursorQuad = -1;
 	CLucentBrowserState m_LucentBrowser;
 	CLucentMapPreview m_LucentPreview;
 	double m_LucentBrowserTime = 0;
@@ -494,6 +498,7 @@ protected:
 	void RenderMenubar(CUIRect Box, IClient::EClientState ClientState);
 	void RenderLucentGameNavigation(CUIRect View);
 	void RenderLucentGameView(CUIRect View);
+	void RenderLucentPresentationSettings(CUIRect View);
 	void RenderNews(CUIRect MainView);
 	static void ConchainBackgroundEntities(IConsole::IResult *pResult, void *pUserData, IConsole::FCommandCallback pfnCallback, void *pCallbackUserData);
 	static void ConchainUpdateMusicState(IConsole::IResult *pResult, void *pUserData, IConsole::FCommandCallback pfnCallback, void *pCallbackUserData);
@@ -594,6 +599,7 @@ protected:
 
 	// found in menus_settings.cpp
 	void RenderSettings(CUIRect MainView);
+	void RenderSettingsRestart(CUIRect RestartBar, bool Lucent);
 	bool RenderHslaScrollbars(CUIRect *pRect, unsigned int *pColor, bool Alpha, float DarkestLight, bool Lucent = false);
 
 	// found in menus_settings_assets.cpp

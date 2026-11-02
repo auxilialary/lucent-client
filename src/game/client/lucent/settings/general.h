@@ -133,7 +133,7 @@ namespace LucentSettings
 	{
 		CUIRect m_Left, m_Right;
 		bool m_TwoColumns;
-		static constexpr float RowHeight = 28, RowGap = 2, SectionGap = 14;
+		static constexpr float RowHeight = 28, RowGap = 2, SectionGap = 14, SectionHeadingGap = 4;
 		static CGeneralLayout Calculate(CUIRect View)
 		{
 			const float Width = std::max(0.f, View.w);
@@ -142,6 +142,7 @@ namespace LucentSettings
 			return {{View.x, View.y, Left, View.h}, {View.x + (Wide ? Left + 24 : 0), View.y, Wide ? std::min(500.f, Width - Left - 24) : Left, View.h}, Wide};
 		}
 		static constexpr float SliderHeight = 28, ValueWidth = 64, HeaderGap = 8;
+		static float SliderRowHeight(float CaptionHeight) { return SliderHeight + std::max(18.f, CaptionHeight + 4); }
 		static CUIRect ContentRegion(CUIRect Column) { return SettingsContentRegion(Column); }
 
 		static void SliderRegions(CUIRect Block, CUIRect &Caption, CUIRect &Value, CUIRect &Rail)
@@ -169,7 +170,7 @@ namespace LucentSettings
 			const auto Section = [&](EGeneralSection Name, CUIRect Column) {
 				const float H = std::max(18.f, Measure(Name, Column.w) + 2);
 				Heading(Name, CUIRect{Column.x, Y, Column.w, H});
-				Y += H + 4;
+				Y += H + SectionHeadingGap;
 			};
 			const auto Check = [&](C Control, CUIRect Column) {
 				if(!State.m_Visible[int(Control)])
@@ -187,7 +188,7 @@ namespace LucentSettings
 				Block.h = SliderHeight;
 				CUIRect Caption, Value, Rail;
 				SliderRegions(Block, Caption, Value, Rail);
-				Block.h += std::max(18.f, Measure(Control, std::max(1.f, Caption.w)) + 4);
+				Block.h = SliderRowHeight(Measure(Control, std::max(1.f, Caption.w)));
 				Draw(Control, Block);
 				Y += (Block.h + RowGap) * State.m_Reveal[int(Control)];
 			};

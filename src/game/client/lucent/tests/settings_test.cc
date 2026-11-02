@@ -1,3 +1,5 @@
+#include <game/client/lucent/settings/presentation.h>
+#include <game/client/lucent/settings/workspace.h>
 #include <game/client/lucent/settings/general.h>
 #include <game/client/lucent/settings/navigation.h>
 #include <game/client/lucent/settings/player.h>
@@ -200,8 +202,174 @@ static void CheckPlayerSettings(const char *pRoot)
 	std::puts("Player profile bindings/callbacks, name/code search, popup/focus contracts and resize/scale geometry passed");
 }
 
+static void CheckPresentationLayout()
+{
+	using Nav = LucentSettings::CLayout;
+	using Form = LucentSettings::CGeneralLayout;
+	const auto Inside = [](CUIRect Inner, CUIRect Outer) {
+		CHECK(Inner.w >= 0 && Inner.h >= 0);
+		CHECK(Inner.x >= Outer.x - .01f && Inner.y >= Outer.y - .01f);
+		CHECK(Inner.x + Inner.w <= Outer.x + Outer.w + .01f);
+		CHECK(Inner.y + Inner.h <= Outer.y + Outer.h + .01f);
+	};
+	const auto Equal = [](CUIRect A, CUIRect B) {
+		CHECK(A.x == B.x && A.y == B.y && A.w == B.w && A.h == B.h);
+	};
+	for(const vec2 Resolution : {vec2(1280, 720), vec2(1649, 928), vec2(1920, 1080), vec2(2560, 1440), vec2(3840, 2160), vec2(640, 960)})
+		for(float MappingHeight : {480.f, 600.f, 900.f})
+			for(float Reveal : {0.f, .5f, 1.f})
+			{
+				const CUIRect Screen{17, 31, MappingHeight * Resolution.x / Resolution.y, MappingHeight};
+				const auto DDNet = Nav::Calculate(Screen, Reveal);
+				const auto Lucent = Nav::Calculate(Screen, Reveal, LucentSettings::PageCount);
+				Inside(DDNet.m_WorkspaceRow, DDNet.m_Sidebar);
+				if(DDNet.m_WorkspacesExpanded)
+				{
+					Inside(DDNet.m_aWorkspaces[0], DDNet.m_WorkspaceRow);
+					Inside(DDNet.m_aWorkspaces[1], DDNet.m_WorkspaceRow);
+					CHECK(DDNet.m_aWorkspaces[0].y == DDNet.m_aWorkspaces[1].y);
+					CHECK(DDNet.m_aWorkspaces[0].h == DDNet.m_aWorkspaces[1].h);
+					CHECK(DDNet.m_aWorkspaces[0].x + DDNet.m_aWorkspaces[0].w <= DDNet.m_aWorkspaces[1].x);
+				}
+				else
+				{
+					CHECK(DDNet.m_aWorkspaces[0].w == 0 && DDNet.m_aWorkspaces[1].w == 0);
+					for(int Active : {0, 1})
+					{
+						const auto Icon = DDNet.WorkspaceIcon(Active);
+						Inside(Icon, DDNet.m_WorkspaceRow);
+						if(Reveal == 0) CHECK(std::abs(Icon.x + Icon.w / 2 - (DDNet.m_Sidebar.x + DDNet.m_Sidebar.w / 2)) < .01f);
+					}
+				}
+				CHECK(DDNet.m_WorkspaceRow.y + DDNet.m_WorkspaceRow.h <= DDNet.m_Viewport.y);
+				CHECK(DDNet.MaxScroll() == 0);
+				CHECK(Lucent.MaxScroll() == 0);
+				for(int i = 0; i < LucentSettings::CategoryCount; ++i)
+				{
+					const auto Row = DDNet.Row(i, 0);
+					Inside(Row, DDNet.m_Viewport);
+					CHECK(DDNet.Hitbox(i, 0).h == LucentSettings::RowHeight);
+				}
+
+				CHECK(DDNet.m_Viewport.y + DDNet.m_Viewport.h <= DDNet.m_Back.y);
+				CHECK(DDNet.m_Content.y == Screen.y);
+				CHECK(DDNet.m_Content.h == Screen.h);
+				CHECK(DDNet.m_Sidebar.w <= LucentSettings::ExpandedWidth);
+				Equal(DDNet.m_Sidebar, Lucent.m_Sidebar);
+				Equal(DDNet.m_Content, Lucent.m_Content);
+				Equal(DDNet.m_Viewport, Lucent.m_Viewport);
+				Equal(DDNet.m_Back, Lucent.m_Back);
+				CUIRect Content = DDNet.m_Content;
+				Content.Margin(20, &Content); // the single production margin before either dispatch
+				const auto Columns = Form::Calculate(Content);
+				for(CUIRect Column : {Columns.m_Left, Columns.m_Right})
+				{
+					Inside(Column, Content);
+					const auto Region = Form::ContentRegion(Column);
+					CUIRect Caption, Value, Rail;
+					const CUIRect Block{Region.x, Region.y, Region.w, Form::SliderRowHeight(13)};
+					Form::SliderRegions(Block, Caption, Value, Rail);
+					Inside(Caption, Block); Inside(Value, Block); Inside(Rail, Block);
+					CHECK(Caption.x + Caption.w <= Value.x);
+					CHECK(Value.y + Value.h <= Rail.y);
+				}
+				if(Columns.m_TwoColumns)
+					CHECK(Columns.m_Left.x + Columns.m_Left.w <= Columns.m_Right.x);
+				CHECK(Lucent.MaxScroll() <= DDNet.MaxScroll());
+			}
+	// Actual Ui()->Screen() mapping at the reported physical resolution.
+	for(float Reveal : {0.f, .5f, 1.f})
+	{
+		const auto Screen = Nav::Calculate({0, 0, 600.f * 1649 / 928, 600}, Reveal);
+		CHECK(Screen.MaxScroll() == 0);
+		CHECK(Screen.m_Viewport.h >= LucentSettings::CategoryCount * LucentSettings::RowHeight);
+	}
+	const auto Small = Nav::Calculate({0, 0, 640, 300}, 1);
+	CHECK(Small.MaxScroll() > 0);
+	CHECK(Small.m_Sidebar.h <= 280);
+
+	// Visual geometry must not snap at the old .99 expansion threshold.
+	for(int i : {0, 1})
+	{
+		const auto Before = Nav::Calculate({0, 0, 1066, 600}, .989f);
+		const auto After = Nav::Calculate({0, 0, 1066, 600}, .991f);
+		CHECK(std::abs(Before.WorkspaceIcon(i).x - After.WorkspaceIcon(i).x) < 1.f);
+		CHECK(std::abs(Before.WorkspaceVisual(i).x - After.WorkspaceVisual(i).x) < 1.f);
+		CHECK(std::abs(Before.WorkspaceVisual(i).w - After.WorkspaceVisual(i).w) < 1.f);
+		for(int Step = 0; Step <= 100; ++Step)
+		{
+			const auto Layout = Nav::Calculate({0, 0, 1066, 600}, Step / 100.f);
+			Inside(Layout.WorkspaceIcon(i), Layout.WorkspaceVisual(i));
+		}
+	}
+	LucentSettings::CModePresentation Workspace;
+	Workspace.UpdateMode(0, true);
+	Workspace.SelectMode(true);
+	Workspace.UpdateMode(.01, true);
+	Workspace.UpdateMode(.05, true);
+	CHECK(!Workspace.m_ShownAdvanced && !Workspace.ContentInteractive());
+	const float Opacity = Workspace.m_ModeReveal.m_Value;
+	CHECK(Opacity > 0 && Opacity < 1);
+	Workspace.SelectMode(false); // fast reversal keeps the current page visible
+	Workspace.UpdateMode(.06, true);
+	CHECK(Workspace.m_ModeReveal.m_Value == Opacity);
+	Workspace.UpdateMode(.3, true);
+	CHECK(!Workspace.m_ShownAdvanced && Workspace.ContentInteractive());
+	Workspace.SelectMode(true);
+	Workspace.UpdateMode(.31, true);
+	Workspace.UpdateMode(.5, true);
+	CHECK(Workspace.m_ShownAdvanced && !Workspace.ContentInteractive());
+	Workspace.UpdateMode(.7, true);
+	CHECK(Workspace.ContentInteractive());
+	Workspace.SelectMode(false);
+	Workspace.UpdateMode(.71, false);
+	CHECK(!Workspace.m_ShownAdvanced && Workspace.ContentInteractive());
+
+	CHECK(LucentSettings::CPreviewLayout::WheelValue(5, -1) == 5);
+	CHECK(LucentSettings::CPreviewLayout::WheelValue(500, 1) == 500);
+	CHECK(LucentSettings::CPreviewLayout::WheelValue(100, 1) == 105);
+	CHECK(LucentSettings::CPreviewLayout::WheelValue(100, -1) == 95);
+
+	LucentSettings::CNavigation Navigation;
+	Navigation.Focus(2, 3);
+	Navigation.Move(1, 3); CHECK(Navigation.m_Focus == 0);
+	Navigation.Move(-1, 3); CHECK(Navigation.m_Focus == 2);
+	Navigation.Focus(10, 3); CHECK(Navigation.m_Focus == 2);
+	for(float Width : {180.f, 240.f, 332.f})
+		for(float Size : {3.2f, 26.88f, 64.f, 320.f})
+		{
+			const CUIRect Area{10, 20, Width, LucentSettings::CPreviewLayout::Height};
+			const auto Preview = LucentSettings::CPreviewLayout::Calculate(Area, {Size, Size}, {0, 0}, true);
+			Inside(Preview.m_Sprite, Preview.m_Actual);
+			if(Preview.m_Magnification > 1) Inside(Preview.m_LoupeSprite, Preview.m_Loupe);
+		}
+	std::puts("Shared DDNet/Lucent sidebar bounds, General columns/sliders, navigation counts and preview geometry passed");
+}
+
 int main(int argc, char **argv)
 {
+	CheckPresentationLayout();
+	{
+		using namespace LucentSettings;
+		int Workspace = 0, Lucent = 0, DDNet = 0;
+		NormalizeWorkspace(Workspace, Lucent, DDNet);
+		CHECK(Workspace == WorkspaceDDNet);
+		DDNet = 6; // Graphics
+		Workspace = WorkspaceLucent;
+		Lucent = 2; // Camera
+		NormalizeWorkspace(Workspace, Lucent, DDNet);
+		CHECK(Workspace == WorkspaceLucent && Lucent == 2 && DDNet == 6);
+		Workspace = WorkspaceDDNet;
+		NormalizeWorkspace(Workspace, Lucent, DDNet);
+		CHECK(DDNet == 6 && Lucent == 2);
+		for(int Invalid : {-100, -1, 42, 10000})
+		{
+			Workspace = Lucent = DDNet = Invalid;
+			NormalizeWorkspace(Workspace, Lucent, DDNet);
+			CHECK(Workspace == WorkspaceDDNet && Lucent == 0 && DDNet == 0);
+		}
+	}
+
 	CheckPlayerSettings(argc > 1 ? argv[1] : nullptr);
 	using namespace LucentSettings;
 	using C = EGeneralControl;
@@ -678,8 +846,12 @@ int main(int argc, char **argv)
 				}
 			}
 	const auto Normal = CLayout::Calculate({0, 0, 1000, 800}, 1);
-	CHECK(Normal.m_Sidebar.w == ExpandedWidth && Normal.MaxScroll() == 0);
-	CHECK(Normal.m_Sidebar.h == CategoryCount * RowHeight + RowHeight + FooterGap + 2 * Padding);
+	CHECK(Normal.m_Sidebar.w == ExpandedWidth);
+	CHECK(Normal.MaxScroll() == CategoryCount * RowHeight - Normal.m_Viewport.h);
+	CHECK(Normal.m_aWorkspaces[0].y == Normal.m_aWorkspaces[1].y);
+	CHECK(Normal.m_aWorkspaces[0].y + Normal.m_aWorkspaces[0].h < Normal.m_Viewport.y);
+	CHECK(Normal.m_Sidebar.h == CategoryCount * RowHeight + 2 * RowHeight + FooterGap + 3 * Padding);
+	CHECK(Normal.MaxScroll() == 0);
 	for(float Size : {0.f, 1.f, 8.f})
 	{
 		const auto Tiny = CLayout::Calculate({0, 0, Size, Size}, 1);
@@ -903,7 +1075,38 @@ int main(int argc, char **argv)
   CHECK(Gallery.find("KeyPress(KEY_SPACE)")!=std::string::npos);
 
   std::puts("Skin Manager legacy bindings/actions, source snapshot/cache safety, texture reload and popup/input contracts passed");
-  const auto Controls = Source("src/game/client/lucent/ui/controls.cpp");
+  const auto Settings = Source("src/game/client/components/menus_settings.cpp");
+		CHECK(Settings.find("CPresentationLayout") == std::string::npos);
+		CHECK(Settings.find("MainView=*Ui()->Screen()") != std::string::npos);
+		const auto HeaderStart = Settings.find("voidCMenus::RenderSettings(");
+		const auto ContentStart = Settings.find("static_assert(SETTINGS_LENGTH", HeaderStart);
+		CHECK(HeaderStart != std::string::npos && ContentStart != std::string::npos);
+		const auto Toolbar = Settings.substr(HeaderStart, ContentStart - HeaderStart);
+		CHECK(Toolbar.find("LucentUi::Surface(") == std::string::npos);
+		CHECK(Toolbar.find("LucentUi::Divider(") == std::string::npos);
+		CHECK(Toolbar.find(".Draw(") == std::string::npos);
+
+		CHECK(Settings.find("m_LucentSettings.WorkspaceInput(") != std::string::npos);
+		CHECK(Settings.find("RenderQuadContainerAsSprite(m_LucentCursorQuad,0,Ui()->MouseX(),Ui()->MouseY(),Scale,Scale)") != std::string::npos);
+		CHECK(Settings.find("Scroll.StopScrolling()") != std::string::npos);
+		CHECK(Settings.find("HOTKEY_SCROLL_UP") != std::string::npos && Settings.find("HOTKEY_SCROLL_DOWN") != std::string::npos);
+		const auto Menu = Source("src/game/client/components/menus.cpp");
+		CHECK(Menu.find("if(!m_LucentCursorPreviewActive)RenderTools()->RenderCursor(") != std::string::npos);
+		const auto Sidebar = Source("src/game/client/lucent/settings/sidebar.cpp");
+		CHECK(Sidebar.find("lucent/ddnet.png") != std::string::npos && Sidebar.find("lucent/client.png") != std::string::npos);
+		CHECK(Sidebar.find("!pUi->MouseHovered(&m_Layout.m_aWorkspaces[0])") != std::string::npos);
+		CHECK(Sidebar.find("WorkspaceInput") != std::string::npos);
+
+		CHECK(Settings.find("m_LucentSettings.Begin(Ui(),MainView,Selected,") != std::string::npos);
+		CHECK(Settings.find("TakeCard(") == std::string::npos);
+		CHECK(Settings.find("constautoColumns=Layout::Calculate(View)") != std::string::npos);
+		CHECK(Settings.find("Layout::SliderRowHeight(CaptionHeight)") != std::string::npos);
+		CHECK(Settings.find("CPreviewLayout::Calculate(Rect,") != std::string::npos);
+		CHECK(Settings.find("ContentInput(Ui(),WorkspaceInteractive&&!m_LucentSettings.BlocksContent(Ui()))") != std::string::npos);
+		CHECK(Settings.find("LucentUi::SelectionCorners(Ui(),Rect,s_CursorPreviewCorners,true)") != std::string::npos);
+		CHECK(Settings.find("Size reference") == std::string::npos);
+		CHECK(Settings.find("WorkspaceFade(TextRender(),WorkspaceOpacity)") != std::string::npos);
+		const auto Controls = Source("src/game/client/lucent/ui/controls.cpp");
   CHECK(Controls.find("returnCheckBox(pUi,pId,pText,pMark,Rect,Flags,ControlRight,pUi->Enabled())") != std::string::npos);
   CHECK(Controls.find("constfloatActive=VisualEnabled?Highlight(") != std::string::npos);
   CHECK(Controls.find("VisualEnabled?LucentStyle::Style::CheckAlpha") != std::string::npos);

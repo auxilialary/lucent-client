@@ -1701,145 +1701,36 @@ void CMenus::RenderLucentGameNavigation(CUIRect View)
 
 void CMenus::RenderLucentGameView(CUIRect View)
 {
-	static int s_Category = 0;
-	static int s_Weapon = 0;
-	static int s_aTabs[4], s_aWeapons[6], s_Reset;
-	static CScrollRegion s_aScroll[4];
-	CUIRect Title, Tabs, Row;
+	static CScrollRegion s_Scroll;
+	CUIRect Title;
 	View.HSplitTop(34.f, &Title, &View);
-	Ui()->DoLabel(&Title, "GameView", 22.f, TEXTALIGN_ML);
-	View.HSplitTop(32.f, &Tabs, &View);
-	const char *apCategories[] = {"Cursor", "Weapons", "Camera", "Tuning"};
-	const float TabWidth = Tabs.w / 4.f;
-	for(int i = 0; i < 4; ++i)
-	{
-		Tabs.VSplitLeft(TabWidth, &Row, &Tabs);
-		Row.Margin(2.f, &Row);
-		if(LucentUi::Button(Ui(), TextRender(), &s_aTabs[i], Localize(apCategories[i]), Row, s_Category == i))
-			s_Category = i;
-	}
-	View.HSplitTop(12.f, nullptr, &View);
-	auto &Scroll = s_aScroll[s_Category];
-	Scroll.Begin(&View);
-	// All content uses one row spacing and the existing scaled/clipped DDNet UI.
-	auto NextRow = [&](float Height = 32.f) {
-		return LucentUi::PanelRow(View, Scroll, Height);
-	};
-	auto Slider = [&](int *pValue, const char *pName, int Min, int Max, const char *pSuffix = "") {
-		CUIRect Rect = NextRow();
-		return Ui()->DoScrollbarOption(pValue, pValue, &Rect, Localize(pName), Min, Max, &CUi::ms_LinearScrollbarScale, CUi::SCROLLBAR_OPTION_COMPACT | CUi::SCROLLBAR_OPTION_LUCENT, pSuffix);
-	};
+	Ui()->DoLabel(&Title, Localize("Tuning"), 22.f, TEXTALIGN_ML);
+	s_Scroll.Begin(&View);
 	auto Label = [&](const char *pText) {
-		CUIRect Rect = NextRow();
-		const float Size = std::min(12.f, 12.f * Rect.w / std::max(1.f, TextRender()->TextWidth(12.f, pText)));
-		Ui()->DoLabel(&Rect, pText, Size, TEXTALIGN_ML);
+		CUIRect Rect = LucentUi::PanelRow(View, s_Scroll, 32.f);
+		Ui()->DoLabel(&Rect, pText, 12.f, TEXTALIGN_ML);
 	};
-	auto Preview = [&](int Weapon, bool Cursor) {
-		CUIRect Rect = NextRow(180.f);
-		Rect.Draw(ColorRGBA(0.f, 0.f, 0.f, .25f), IGraphics::CORNER_ALL, 6.f);
-		Ui()->ClipEnable(&Rect);
-		const vec2 Center(Rect.x + Rect.w / 2.f, Rect.y + Rect.h / 2.f);
-		CUIRect Anchor = {Center.x - 2.f, Center.y - 2.f, 4.f, 4.f};
-		Anchor.Draw(ColorRGBA(.5f, .65f, 1.f, .7f), IGraphics::CORNER_ALL, 2.f);
-		float ScaleX, ScaleY;
-		const auto *pSprite = Cursor ? g_pData->m_Weapons.m_aId[Weapon].m_pSpriteCursor : g_pData->m_Weapons.m_aId[Weapon].m_pSpriteBody;
-		Graphics()->GetSpriteScale(pSprite, ScaleX, ScaleY);
-		const float Size = Cursor ? 64.f * LucentGameView::CursorScale(g_Config.m_LucentCursorSize) : g_pData->m_Weapons.m_aId[Weapon].m_VisualSize;
-		const vec2 Offset = Cursor ? vec2(0, 0) : LucentGameView::WeaponOffset(Weapon);
-		Graphics()->TextureSet(Cursor ? GameClient()->m_GameSkin.m_aSpriteWeaponCursors[Weapon] : GameClient()->m_GameSkin.m_aSpriteWeapons[Weapon]);
-		Graphics()->QuadsBegin();
-		Graphics()->SetColor(1.f, 1.f, 1.f, 1.f);
-		IGraphics::CQuadItem Quad(Center.x + Offset.x, Center.y + Offset.y, Size * ScaleX, Size * ScaleY);
-		Graphics()->QuadsDraw(&Quad, 1);
-		Graphics()->QuadsEnd();
-		Ui()->ClipDisable();
-	};
-	if(s_Category == 0)
-	{
-		Slider(&g_Config.m_LucentCursorSize, "Cursor size", 5, 500, "%");
-		Row = NextRow();
-		if(LucentUi::Button(Ui(), TextRender(), &s_Reset, Localize("Reset"), Row))
-			g_Config.m_LucentCursorSize = 100;
-		Preview(WEAPON_GUN, true);
-	}
-	else if(s_Category == 1)
-	{
-		const char *apWeapons[] = {"Hammer", "Gun", "Shotgun", "Grenade", "Laser", "Ninja"};
-		Row = NextRow();
-		const float Width = Row.w / 6.f;
-		for(int i = 0; i < 6; ++i)
-		{
-			CUIRect Button;
-			Row.VSplitLeft(Width, &Button, &Row);
-			if(LucentUi::Button(Ui(), TextRender(), &s_aWeapons[i], Localize(apWeapons[i]), Button, s_Weapon == i))
-				s_Weapon = i;
-		}
-		int *apX[] = {&g_Config.m_LucentWeaponHammerX, &g_Config.m_LucentWeaponGunX, &g_Config.m_LucentWeaponShotgunX, &g_Config.m_LucentWeaponGrenadeX, &g_Config.m_LucentWeaponLaserX, &g_Config.m_LucentWeaponNinjaX};
-		int *apY[] = {&g_Config.m_LucentWeaponHammerY, &g_Config.m_LucentWeaponGunY, &g_Config.m_LucentWeaponShotgunY, &g_Config.m_LucentWeaponGrenadeY, &g_Config.m_LucentWeaponLaserY, &g_Config.m_LucentWeaponNinjaY};
-		Slider(apX[s_Weapon], "Visual offset X", -100, 100);
-		Slider(apY[s_Weapon], "Visual offset Y", -100, 100);
-		Row = NextRow();
-		if(LucentUi::Button(Ui(), TextRender(), &s_Reset, Localize("Reset weapon"), Row))
-			*apX[s_Weapon] = *apY[s_Weapon] = 0;
-		Label(Localize("Local weapon artwork only. Projectiles keep their actual positions."));
-		Preview(s_Weapon, false);
-	}
-	else if(s_Category == 2)
-	{
-		if(Slider(&g_Config.m_ClDefaultZoom, "Default zoom", 0, 20))
-			GameClient()->m_Camera.SetZoom(CCamera::ZoomStepsToValue(g_Config.m_ClDefaultZoom - 10), g_Config.m_ClSmoothZoomTime, true);
-		Slider(&g_Config.m_ClSmoothZoomTime, "Zoom smoothness (ms)", 0, 5000);
-		Row = NextRow();
-		const bool Dynamic = g_Config.m_ClDyncam || g_Config.m_ClMouseFollowfactor > 0;
-		if(DoButton_CheckBox(&g_Config.m_ClDyncam, Localize("Dynamic Camera"), Dynamic, &Row))
-		{
-			g_Config.m_ClDyncam = !Dynamic;
-			if(Dynamic)
-				g_Config.m_ClMouseFollowfactor = 0;
-		}
-		Slider(&g_Config.m_ClMouseDeadzone, "Camera deadzone", 0, 3000);
-		Slider(&g_Config.m_ClMouseFollowfactor, "Camera follow factor", 0, 200);
-		Slider(&g_Config.m_ClMouseMinDistance, "Minimum cursor distance", 0, 5000);
-		Slider(&g_Config.m_ClMouseMaxDistance, "Maximum cursor distance", 0, 5000);
-		Slider(&g_Config.m_ClDyncamDeadzone, "Dynamic camera deadzone", 1, 1300);
-		Slider(&g_Config.m_ClDyncamFollowFactor, "Dynamic camera follow factor", 0, 200);
-		Slider(&g_Config.m_ClDyncamMinDistance, "Dynamic minimum distance", 0, 2000);
-		Slider(&g_Config.m_ClDyncamMaxDistance, "Dynamic maximum distance", 0, 2000);
-		Slider(&g_Config.m_ClDyncamMousesens, "Dynamic camera mouse sensitivity", 0, 100000);
-		Slider(&g_Config.m_ClDyncamSmoothness, "Dynamic camera smoothness", 0, 100);
-		Slider(&g_Config.m_ClDyncamStabilizing, "Dynamic camera stabilizing", 0, 100);
-		Slider(&g_Config.m_ClSmoothSpectatingTime, "Spectating smoothness (ms)", 0, 5000);
-		Row = NextRow();
-		if(DoButton_CheckBox(&g_Config.m_ClSpecAutoSync, Localize("Synchronize spectator camera on zoom reset"), g_Config.m_ClSpecAutoSync, &Row))
-			g_Config.m_ClSpecAutoSync ^= 1;
-		Row = NextRow();
-		if(DoButton_CheckBox(&g_Config.m_ClLimitMaxZoomLevel, Localize("Limit maximum zoom"), g_Config.m_ClLimitMaxZoomLevel, &Row))
-			g_Config.m_ClLimitMaxZoomLevel ^= 1;
-	}
+	char aText[160];
+	str_format(aText, sizeof(aText), "%s: %d (%s)", Localize("Tune zone"), GameClient()->m_aLocalTuneZone[g_Config.m_ClDummy], g_Config.m_ClDummy ? "dummy" : "main");
+	if(GameClient()->m_aLocalTuneZone[g_Config.m_ClDummy] < 0)
+		Label(Localize("Tune zone unavailable"));
 	else
+		Label(aText);
+	if(GameClient()->m_aExpectingTuningForZone[g_Config.m_ClDummy] >= 0)
+		Label(Localize("Waiting for tuning for the current zone"));
+	Label(Localize("Active client tuning (read only; includes protocol defaults)"));
+	const CTuningParams &Tuning = GameClient()->m_aTuning[g_Config.m_ClDummy];
+	for(int i = 0; i < CTuningParams::Num(); ++i)
 	{
-		char aText[160];
-		str_format(aText, sizeof(aText), "%s: %d (%s)", Localize("Tune zone"), GameClient()->m_aLocalTuneZone[g_Config.m_ClDummy], g_Config.m_ClDummy ? "dummy" : "main");
-		if(GameClient()->m_aLocalTuneZone[g_Config.m_ClDummy] < 0)
-			Label(Localize("Tune zone unavailable"));
-		else
-			Label(aText);
-		if(GameClient()->m_aExpectingTuningForZone[g_Config.m_ClDummy] >= 0)
-			Label(Localize("Waiting for tuning for the current zone"));
-		Label(Localize("Active client tuning (read only; includes protocol defaults)"));
-		const CTuningParams &Tuning = GameClient()->m_aTuning[g_Config.m_ClDummy];
-		for(int i = 0; i < CTuningParams::Num(); ++i)
+		// 0.7 removed laser_damage; do not present it as a supported value.
+		if(Client()->IsSixup() && i == 30)
+			continue;
+		float Value;
+		if(Tuning.Get(i, &Value))
 		{
-			// 0.7 removed laser_damage; do not present it as a supported value.
-			if(Client()->IsSixup() && i == 30)
-				continue;
-			float Value;
-			if(Tuning.Get(i, &Value))
-			{
-				str_format(aText, sizeof(aText), "%s: %.2f", CTuningParams::Name(i), Value);
-				Label(aText);
-			}
+			str_format(aText, sizeof(aText), "%s: %.2f", CTuningParams::Name(i), Value);
+			Label(aText);
 		}
 	}
-	Scroll.End();
+	s_Scroll.End();
 }
