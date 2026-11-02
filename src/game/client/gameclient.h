@@ -68,6 +68,7 @@
 #include "components/statboard.h"
 #include "components/touch_controls.h"
 #include "components/voting.h"
+#include "lucent/game/ping_component.h"
 
 #include <memory>
 #include <vector>
@@ -152,6 +153,7 @@ public:
 	// all components
 	CInfoMessages m_InfoMessages;
 	CCamera m_Camera;
+	CLucentPings m_LucentPings;
 	CChat m_Chat;
 	CCensor m_Censor;
 	CMotd m_Motd;

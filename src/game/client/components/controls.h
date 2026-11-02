@@ -54,6 +54,7 @@ public:
 	int SnapInput(int *pData);
 	void ClampMousePos();
 	void ResetInput(int Dummy);
+	vec2 CursorWorldPos() const;
 
 private:
 	static void ConKeyInputState(IConsole::IResult *pResult, void *pUserData);
@@ -62,7 +63,6 @@ private:
 	static void ConKeyInputNextPrevWeapon(IConsole::IResult *pResult, void *pUserData);
 	static void ConTpToCursor(IConsole::IResult *pResult, void *pUserData);
 	static void ConTpDummyToCursor(IConsole::IResult *pResult, void *pUserData);
-	vec2 CursorWorldPos() const;
 	void SendPracticeTeleportToCursor(int Conn);
 };
 #endif
