@@ -637,11 +637,12 @@ void CCommandProcessorFragment_OpenGL3_3::TextureCreate(int Slot, int Width, int
 
 #ifndef BACKEND_AS_OPENGL_ES
 			if(m_OpenGLTextureLodBIAS != 0 && !m_IsOpenGLES)
-				glSamplerParameterf(m_vTextures[Slot].m_Sampler, GL_TEXTURE_LOD_BIAS, ((GLfloat)m_OpenGLTextureLodBIAS / 1000.0f));
+				glSamplerParameterf(m_vTextures[Slot].m_Sampler, GL_TEXTURE_LOD_BIAS, TextureFlag::LodBias(Flags, m_OpenGLTextureLodBIAS / 1000.0f));
 #endif
 
-			// prevent mipmap display bugs, when zooming out far
-			if(Width >= 1024 && Height >= 1024)
+			// Preserve the world-texture workaround. Extracted UI sprites need the
+			// full chain even when a custom skin supplies very large source pixels.
+			if(TextureFlag::LimitMipLevels(Flags, Width, Height))
 			{
 				glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 5.f);
 				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LOD, 5);
