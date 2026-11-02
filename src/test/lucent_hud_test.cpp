@@ -15,6 +15,8 @@
 #include <game/client/lucent/hud/visuals.h>
 #include <game/client/lucent/hud/weapon_scale.h>
 #include <game/client/lucent/motion/transition.h>
+#include <game/client/lucent/scoreboard/layout.h>
+#include <game/client/lucent/scoreboard/panel.h>
 
 #include <gtest/gtest.h>
 
@@ -936,4 +938,216 @@ TEST(LucentHud, TinyAndInvalidPanelCoverageNeverInvertsCorners)
 	const LucentHud::CPixelGrid InvalidGrid({Nan, Infinity}, {0, Nan});
 	const auto Point = InvalidGrid.Snap({2.3f, 4.7f});
 	EXPECT_TRUE(std::isfinite(Point.x) && std::isfinite(Point.y));
+}
+
+// Scoreboard uses the same UI-independent geometry and Motion helpers as production.
+
+TEST(LucentScoreboard, AllPlayersAndSpectatorsFitAtSupportedAspectRatios)
+{
+	for(float Aspect : {.75f, 1.f, 4.f / 3, 16.f / 9, 21.f / 9, 32.f / 9})
+		for(int Count : {0, 1, 2, 16, 32, 64, 128})
+			for(bool Teams : {false, true})
+				for(int Red : {0, Count / 2, Count})
+					for(int Specs : {0, 1, 128 - Count})
+					{
+						if(Count + Specs > 128)
+							continue;
+						const int R = Teams ? Red : Count, B = Teams ? Count - Red : 0;
+						const auto L = LucentScoreboard::Calculate(600 * Aspect, 600, R, B, Teams, Specs, 620);
+						const int PerTeam = L.m_RedColumns;
+						ASSERT_GT(PerTeam, 0);
+						EXPECT_LE(L.m_Width, 600 * Aspect - 32 + .001f);
+						EXPECT_LE(L.m_Height + L.m_SpectatorHeight, 480.001f);
+						EXPECT_GT(L.ColumnWidth(), 0);
+						EXPECT_GT(L.m_Row, 0);
+						EXPECT_EQ(L.m_SpectatorHeight == 0, Specs == 0);
+						int Seen = 0;
+						for(int Group = 0; Group < (Teams ? 2 : 1); ++Group)
+						{
+							const int TeamCount = Group ? B : R;
+							const int PerTeam = Group ? L.m_BlueColumns : L.m_RedColumns;
+							for(int C = 0; C < PerTeam; ++C)
+							{
+								const auto Range = LucentScoreboard::ColumnRange(TeamCount, C, PerTeam);
+								const int Start = Range.m_Start, End = Range.m_End;
+								if(End > Start)
+									Seen += End - Start;
+								EXPECT_LE(End - Start, L.m_Rows);
+							}
+						}
+						EXPECT_EQ(Seen, Count);
+						EXPECT_GE(L.m_SpectatorColumns * L.m_SpectatorRows, Specs);
+						EXPECT_LE(28 + L.m_SpectatorRows * L.m_SpectatorRow, Specs ? L.m_SpectatorHeight + .001f : 28);
+					}
+}
+
+TEST(LucentScoreboard, CompactSparseAndExpandedDenseLayout)
+{
+	const auto Small = LucentScoreboard::Calculate(1066, 600, 1, 0, false, 0);
+	const auto Large = LucentScoreboard::Calculate(1066, 600, 128, 0, false, 0);
+	EXPECT_EQ(Small.m_Columns, 1);
+	EXPECT_LT(Small.m_Height, Large.m_Height);
+	EXPECT_LT(Small.m_Width, Large.m_Width);
+	EXPECT_GT(Large.m_Columns, 1);
+	const auto Spectators = LucentScoreboard::Calculate(1066, 600, 0, 0, false, 128);
+	EXPECT_GT(Spectators.m_SpectatorColumns, 2);
+}
+
+TEST(LucentScoreboard, LongTextFitsWithoutRemovingGlyphsAndScaleIsResolutionIndependent)
+{
+	for(float Width : {20.f, 60.f, 120.f})
+	{
+		const float Font = LucentScoreboard::FitFont(12, 500, Width);
+		EXPECT_GT(Font, 0);
+		EXPECT_LE(500 * Font / 12, Width + .001f);
+	}
+	for(int Pixels : {480, 720, 1080, 1440, 2160})
+	{
+		const float Aspect = 16.f / 9;
+		const auto L = LucentScoreboard::Calculate(600 * Aspect, 600, 128, 0, false, 0);
+		EXPECT_LE(L.m_Width * Pixels / 600, Pixels * Aspect);
+		EXPECT_LE(L.m_Height * Pixels / 600, Pixels);
+	}
+}
+
+TEST(LucentScoreboard, ExtentsRetargetContinuouslyAndVisibilityFinishesOnTime)
+{
+	LucentScoreboard::CExtent Extent;
+	EXPECT_FLOAT_EQ(Extent.Update(400, 0), 400);
+	EXPECT_FLOAT_EQ(Extent.Update(800, 1), 400);
+	const float Mid = Extent.Update(800, 1.08);
+	EXPECT_GT(Mid, 400);
+	EXPECT_LT(Mid, 800);
+	EXPECT_FLOAT_EQ(Extent.Update(500, 1.08), Mid);
+	EXPECT_NEAR(Extent.Update(500, 1.24), 500, .001f);
+	LucentStyle::Motion::CTransition Visibility;
+	EXPECT_FLOAT_EQ(Visibility.Update(true, 0, true, .17f), 0);
+	EXPECT_GT(Visibility.Update(true, .08, true, .17f), 0);
+	EXPECT_NEAR(Visibility.Update(true, .17, true, .17f), 1, .0001f);
+	EXPECT_FLOAT_EQ(Visibility.Update(false, .2, true, .11f), 1);
+	EXPECT_NEAR(Visibility.Update(false, .31, true, .11f), 0, .0001f);
+	EXPECT_EQ(LucentStyle::Motion::CubicOut(.08f / .08f), 1);
+	EXPECT_FLOAT_EQ(LucentStyle::Motion::Lerp(.98f, 1.f, 0), .98f);
+	EXPECT_FLOAT_EQ(LucentStyle::Motion::Lerp(.98f, 1.f, 1), 1);
+}
+
+TEST(LucentScoreboard, EveryClientAppearsExactlyOnceIncludingEmptyAndUnbalancedTeams)
+{
+	for(int Count = 0; Count <= 128; ++Count)
+		for(int Columns = 1; Columns <= 4; ++Columns)
+		{
+			std::array<int, 128> Visits{};
+			for(int Column = 0; Column < Columns; ++Column)
+			{
+				const auto Range = LucentScoreboard::ColumnRange(Count, Column, Columns);
+				ASSERT_LE(Range.m_Start, Range.m_End);
+				ASSERT_LE(Range.m_End, Count);
+				for(int I = Range.m_Start; I < Range.m_End; ++I)
+					++Visits[I];
+			}
+			for(int I = 0; I < 128; ++I)
+				EXPECT_EQ(Visits[I], I < Count ? 1 : 0);
+		}
+}
+TEST(LucentScoreboard, CachedLayoutAndCoverageInvalidateOnContentAndFramebufferChanges)
+{
+	LucentScoreboard::CPlanner Planner;
+	LucentScoreboard::CInput Input{1066, 600, 1, 0, false, 0, 400};
+	const auto First = Planner.Update(Input);
+	EXPECT_EQ(Planner.Update(Input).m_Width, First.m_Width);
+	Input.m_Spectators = 1;
+	EXPECT_GT(Planner.Update(Input).m_SpectatorHeight, 0);
+	Input.m_Spectators = 0;
+	EXPECT_EQ(Planner.Update(Input).m_SpectatorHeight, 0);
+	Input.m_Red = 128;
+	EXPECT_GT(Planner.Update(Input).m_Columns, First.m_Columns);
+	LucentScoreboard::CPanelCache Cache;
+	const LucentHud::CRect Rect{30, 60, 400, 200};
+	const auto Initial = Cache.Get(Rect, {{0, 0}, {1, 1}});
+	EXPECT_GT(Initial.m_Count, 0);
+	EXPECT_EQ(Cache.Get(Rect, {{0, 0}, {1, 1}}).m_Feather, Initial.m_Feather);
+	EXPECT_LT(Cache.Get(Rect, {{0, 0}, {.5f, .5f}}).m_Feather, Initial.m_Feather);
+	EXPECT_EQ(Cache.Get({30, 60, 500, 200}, {{0, 0}, {.5f, .5f}}).m_Bounds.w, 500);
+}
+
+TEST(LucentScoreboard, IndependentHeaderStaysCenteredAndContentSizedForEveryGrid)
+{
+	for(float Viewport : {450.f, 800.f, 1066.f, 1600.f})
+	{
+		const float Center = Viewport / 2;
+		const auto Header = LucentScoreboard::HeaderBounds(Center, 60, Viewport, 90, 50);
+		EXPECT_FLOAT_EQ(Header.w, 2 * LucentScoreboard::HeaderPadding + 90 + LucentScoreboard::HeaderContentGap + 50);
+		EXPECT_FLOAT_EQ(Header.x + Header.w / 2, Center);
+		for(int Count : {0, 1, 2, 16, 32, 64, 128})
+			for(bool Teams : {false, true})
+			{
+				const auto L = LucentScoreboard::Calculate(Viewport, 600, Teams ? Count / 2 : Count, Teams ? Count - Count / 2 : 0, Teams, 0);
+				const auto SameHeader = LucentScoreboard::HeaderBounds(Center, 60, Viewport, 90, 50);
+				EXPECT_FLOAT_EQ(SameHeader.w, Header.w);
+				EXPECT_FLOAT_EQ(SameHeader.x, Header.x);
+				for(int C = 0; C < L.m_Columns && (Count > 0 || Teams); ++C)
+				{
+					const auto Bounds = LucentScoreboard::ColumnBounds(L, (Viewport - L.m_Width) / 2, 60, C, L.m_Rows);
+					EXPECT_FLOAT_EQ(Bounds.y - (Header.y + Header.h), LucentScoreboard::HeaderGap);
+					EXPECT_LE(Bounds.y + Bounds.h, 60 + L.m_Height + .001f);
+					if(C > 0)
+					{
+						const auto Previous = LucentScoreboard::ColumnBounds(L, (Viewport - L.m_Width) / 2, 60, C - 1, L.m_Rows);
+						EXPECT_NEAR(Bounds.x - Previous.x - Previous.w, L.m_Gap, .001f);
+					}
+				}
+			}
+		const auto Long = LucentScoreboard::HeaderBounds(Center, 60, Viewport, 3000, 50);
+		EXPECT_LE(Long.w, LucentScoreboard::HeaderMaxWidth);
+		EXPECT_LE(Long.w, Viewport * .75f);
+		EXPECT_FLOAT_EQ(Long.x + Long.w / 2, Center);
+		EXPECT_GT(Long.w - 2 * LucentScoreboard::HeaderPadding - LucentScoreboard::HeaderContentGap - 50, 0);
+	}
+}
+
+TEST(LucentScoreboard, NoSpectatorSpaceOrContainerAtZeroEvenDuringCollapse)
+{
+	const auto Many = LucentScoreboard::Calculate(1066, 600, 32, 0, false, 96);
+	EXPECT_GT(LucentScoreboard::SpectatorSpace(Many, 96), 0);
+	// Count takes precedence over a previous animated extent or stale layout.
+	EXPECT_EQ(LucentScoreboard::SpectatorSpace(Many, 0), 0);
+	const auto None = LucentScoreboard::Calculate(1066, 600, 32, 0, false, 0);
+	EXPECT_EQ(None.m_SpectatorRows, 0);
+	EXPECT_EQ(None.m_SpectatorHeight, 0);
+	EXPECT_EQ(LucentScoreboard::SpectatorSpace(None, 0), 0);
+}
+
+TEST(LucentScoreboard, IndependentPanelsRetargetAndFadeWithoutChangingHeaderWidth)
+{
+	LucentScoreboard::CPanelMotion Panel;
+	const auto Header = LucentScoreboard::HeaderBounds(533, 60, 1066, 80, 50);
+	const auto First = Panel.Update({333, 104, 400, 96}, 0, true);
+	EXPECT_FLOAT_EQ(First.x, 333);
+	Panel.Update({333, 104, 400, 96}, .16, true);
+	EXPECT_NEAR(Panel.m_Visibility.m_Value, 1, .0001f);
+	const auto Start = Panel.Update({16, 104, 338, 400}, 1, true);
+	EXPECT_FLOAT_EQ(Start.x, First.x);
+	const auto Mid = Panel.Update({16, 104, 338, 400}, 1.08, true);
+	EXPECT_LT(Mid.x, Start.x);
+	EXPECT_GT(Mid.x, 16);
+	const auto Reverse = Panel.Update({333, 104, 400, 96}, 1.08, true);
+	EXPECT_FLOAT_EQ(Reverse.x, Mid.x);
+	const auto Hidden = Panel.Update({}, 1.1, false);
+	const auto Reopened = Panel.Update({16, 104, 338, 400}, 1.1, true);
+	EXPECT_FLOAT_EQ(Hidden.x, Reopened.x);
+	EXPECT_FLOAT_EQ(Hidden.w, Reopened.w);
+	Panel.Update({}, 1.3, false);
+	Panel.Update({}, 1.42, false);
+	EXPECT_NEAR(Panel.m_Visibility.m_Value, 0, .0001f);
+	EXPECT_FLOAT_EQ(Header.w, LucentScoreboard::HeaderBounds(533, 60, 1066, 80, 50).w);
+}
+
+TEST(LucentScoreboard, HeaderClockKeepsRoundCountdownAndRaceTimeSemantics)
+{
+	EXPECT_EQ(LucentScoreboard::RoundTime(5000, 50, 2000, 0, 0, false, false), 60);
+	EXPECT_EQ(LucentScoreboard::RoundTime(5000, 50, 2000, 5, 0, false, false), 240);
+	EXPECT_EQ(LucentScoreboard::RoundTime(5000, 50, 2000, 5, 0, false, true), 0);
+	EXPECT_EQ(LucentScoreboard::RoundTime(5000, 50, 2000, 0, -4000, true, false), 20);
+	EXPECT_EQ(LucentScoreboard::RoundTime(100, 50, 2000, 0, 0, false, false), 0);
+	EXPECT_EQ(LucentScoreboard::RoundTime(10000, 50, 0, 1, 0, false, false), 0);
 }

@@ -2843,6 +2843,10 @@ if(CLIENT)
     lucent/settings/sound.h
     lucent/skins/texture_quality.cpp
     lucent/skins/texture_quality.h
+    lucent/scoreboard/layout.h
+    lucent/scoreboard/panel.h
+    lucent/scoreboard/points.cpp
+    lucent/scoreboard/points.h
     lucent/style/gradient.h
     lucent/style/tokens.h
     lucent/ui.h
@@ -3585,6 +3589,7 @@ if((GTEST_FOUND OR DOWNLOAD_GTEST) AND SERVER)
     lucent_ping_relay_test.cpp
     lucent_ping_transport_test.cpp
     lucent_player_test.cpp
+    lucent_scoreboard_test.cpp
     lucent_skin_manager_test.cpp
     map_download_test.cpp
     mapbugs_test.cpp
@@ -3638,6 +3643,7 @@ if((GTEST_FOUND OR DOWNLOAD_GTEST) AND SERVER)
     src/game/client/lucent/game/ping_relay_protocol.cpp
     src/game/client/lucent/game/ping_transport.cpp
     src/game/client/lucent/game/ping_websocket.cpp
+    src/game/client/lucent/scoreboard/points.cpp
     src/game/client/lucent/skins/texture_quality.cpp
     src/game/client/skin.cpp
     src/game/client/ui_rect.cpp
