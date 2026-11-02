@@ -22,6 +22,7 @@
 #include <engine/storage.h>
 
 #include <game/client/gameclient.h>
+#include <game/client/lucent/skins/texture_quality.h>
 #include <game/localization.h>
 
 #include <algorithm>
@@ -119,7 +120,8 @@ static ColorRGBA DetermineBloodColor(int PartType, const CImageInfo &Info)
 		}
 	}
 
-	const vec3 NormalizedColor = normalize(vec3(aColors[0], aColors[1], aColors[2]));
+	const vec3 Sum(aColors[0], aColors[1], aColors[2]);
+	const vec3 NormalizedColor = length(Sum) > 0 ? normalize(Sum) : vec3(1, 1, 1);
 	return ColorRGBA(NormalizedColor.x, NormalizedColor.y, NormalizedColor.z);
 }
 
@@ -148,6 +150,13 @@ bool CSkins7::LoadSkinPart(int PartType, const char *pName, int DirType)
 		return false;
 	}
 
+	if(!LucentSkins::LimitTexture(Info, g_Config.m_ClLucentSkinTextureLimit, 2, 2))
+	{
+		log_error("skins7", "Skin part texture reduction failed: %s", aFilename);
+		Info.Free();
+		return false;
+	}
+
 	CSkinPart Part;
 	Part.m_Type = PartType;
 	Part.m_Flags = 0;
@@ -164,6 +173,15 @@ bool CSkins7::LoadSkinPart(int PartType, const char *pName, int DirType)
 	Part.m_BloodColor = DetermineBloodColor(Part.m_Type, Info);
 	ConvertToGrayscale(Info);
 	Part.m_ColorableTexture = Graphics()->LoadTextureRawMove(Info, 0, aFilename);
+
+	if(!Part.m_OriginalTexture.IsValid() || !Part.m_ColorableTexture.IsValid())
+	{
+		Graphics()->UnloadTexture(&Part.m_OriginalTexture);
+		Graphics()->UnloadTexture(&Part.m_ColorableTexture);
+		log_error("skins7", "Skin part GPU texture upload failed: %s", aFilename);
+		Info.Free();
+		return false;
+	}
 
 	if(Config()->m_Debug)
 	{
@@ -438,7 +456,8 @@ void CSkins7::LoadXmasHat()
 	CImageInfo Info;
 	if(!Graphics()->LoadPng(Info, pFilename, IStorage::TYPE_ALL) ||
 		!Graphics()->IsImageFormatRgba(pFilename, Info) ||
-		!Graphics()->CheckImageDivisibility(pFilename, Info, 1, 4, false))
+		!Graphics()->CheckImageDivisibility(pFilename, Info, 1, 4, false) ||
+		!LucentSkins::LimitTexture(Info, g_Config.m_ClLucentSkinTextureLimit, 1, 4))
 	{
 		log_error("skins7", "Failed to load xmas hat '%s'", pFilename);
 		Info.Free();
@@ -461,7 +480,8 @@ void CSkins7::LoadBotDecoration()
 	CImageInfo Info;
 	if(!Graphics()->LoadPng(Info, pFilename, IStorage::TYPE_ALL) ||
 		!Graphics()->IsImageFormatRgba(pFilename, Info) ||
-		!Graphics()->CheckImageDivisibility(pFilename, Info, 12, 5, false))
+		!Graphics()->CheckImageDivisibility(pFilename, Info, 12, 5, false) ||
+		!LucentSkins::LimitTexture(Info, g_Config.m_ClLucentSkinTextureLimit, 12, 5))
 	{
 		log_error("skins7", "Failed to load bot decoration '%s'", pFilename);
 		Info.Free();

@@ -2805,12 +2805,22 @@ if(CLIENT)
     lucent/settings/player_countries.h
     lucent/settings/sidebar.cpp
     lucent/settings/sidebar.h
+    lucent/settings/skin_gallery.cpp
+    lucent/settings/skin_gallery.h
+    lucent/settings/skin_preview.cpp
+    lucent/settings/skin_preview.h
+    lucent/settings/skins.cpp
+    lucent/settings/skins.h
     lucent/settings/sound.cpp
     lucent/settings/sound.h
+    lucent/skins/texture_quality.cpp
+    lucent/skins/texture_quality.h
     lucent/style/gradient.h
     lucent/style/tokens.h
     lucent/ui.h
     lucent/ui/checkbox_geometry.h
+    lucent/ui/color_picker.cpp
+    lucent/ui/color_picker.h
     lucent/ui/controls.cpp
     lucent/ui/controls.h
     lucent/ui/logo.cpp
@@ -2820,6 +2830,8 @@ if(CLIENT)
     lucent/ui/scopes.h
     lucent/ui/scrollbar.cpp
     lucent/ui/scrollbar.h
+    lucent/ui/selection_corners.cpp
+    lucent/ui/selection_corners.h
     lucent/ui/slider_geometry.h
     lucent/ui/surfaces.cpp
     lucent/ui/surfaces.h
@@ -3539,6 +3551,7 @@ if((GTEST_FOUND OR DOWNLOAD_GTEST) AND SERVER)
     linereader_test.cpp
     lucent_console_test.cpp
     lucent_player_test.cpp
+    lucent_skin_manager_test.cpp
     map_download_test.cpp
     mapbugs_test.cpp
     mapitems_test.cpp
@@ -3586,6 +3599,9 @@ if((GTEST_FOUND OR DOWNLOAD_GTEST) AND SERVER)
     src/engine/client/sqlite.cpp
     src/game/client/components/censor.cpp
     src/game/client/components/censor.h
+    src/game/client/lucent/skins/texture_quality.cpp
+    src/game/client/skin.cpp
+    src/game/client/ui_rect.cpp
     # tidy-alphabetical-end
   )
 

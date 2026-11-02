@@ -835,13 +835,81 @@ int main(int argc, char **argv)
 		CHECK(SoundRenderer.find("COpacityScopeFade(pTextRender,Mode.m_ModeReveal.m_Value)") != std::string::npos);
 		CHECK(SoundRenderer.find("RenderModeHeader(") != std::string::npos);
 		CHECK(Renderer.find("RenderModeHeader(") != std::string::npos);
-		const auto Controls = Source("src/game/client/lucent/ui/controls.cpp");
-		CHECK(Controls.find("returnCheckBox(pUi,pId,pText,pMark,Rect,Flags,ControlRight,pUi->Enabled())") != std::string::npos);
-		CHECK(Controls.find("constfloatActive=VisualEnabled?Highlight(") != std::string::npos);
-		CHECK(Controls.find("VisualEnabled?LucentStyle::Style::CheckAlpha") != std::string::npos);
-		const auto Slider = Source("src/game/client/lucent/ui/scrollbar.cpp");
-		CHECK(Slider.find("CSliderGeometry::Radius(Geometry.m_Fill)") != std::string::npos);
-		std::puts("General transferred bindings/IDs, ranges, callbacks, navigation and clipping source contracts passed");
+
+		const auto SkinIntegration = Source("src/game/client/components/menus_settings_tee.cpp");
+		for(const char *pName : {"m_ClPlayerSkin", "m_ClDummySkin", "m_ClPlayerUseCustomColor", "m_ClDummyUseCustomColor", "m_ClPlayerColorBody", "m_ClDummyColorBody", "m_ClPlayerColorFeet", "m_ClDummyColorFeet", "m_ClPlayerDefaultEyes", "m_ClDummyDefaultEyes", "m_ClSkinPrefix", "m_ClDownloadSkins", "m_ClDownloadCommunitySkins", "m_ClVanillaSkinsOnly", "m_ClFatSkins", "m_ClSkinFilterString"})
+			CHECK(SkinIntegration.find(pName) != std::string::npos);
+		for(const char *pAction : {"RandomizeSkin(m_Dummy)", "AddFavorite(", "RemoveFavorite(", "SetNeedSendInfo()", "m_Emoticon.EyeEmote(", "RequestSettingsRefresh()"})
+			CHECK(SkinIntegration.find(pAction) != std::string::npos);
+		CHECK(SkinIntegration.find("https://skins.ddnet.org/skin/") != std::string::npos);
+		CHECK(SkinIntegration.find("https://skins.ddnet.org/skin/community/") != std::string::npos);
+		const auto SkinRuntime = Source("src/game/client/components/skins.cpp");
+		CHECK(SkinRuntime.find("m_TextureLimit(pSkins->m_AppliedTextureLimit)") != std::string::npos);
+		CHECK(SkinRuntime.find("LoadSkinData(m_aName,m_Data,m_TextureLimit)") != std::string::npos);
+		CHECK(SkinRuntime.find("LimitTexture(Data.m_Info,TextureLimit,") < SkinRuntime.find("Data.m_InfoGrayscale=Data.m_Info.DeepCopy()"));
+		CHECK(SkinRuntime.find("m_AppliedTextureLimit!=g_Config.m_ClLucentSkinTextureLimit") != std::string::npos);
+		CHECK(SkinRuntime.find("FLAG_SIX|CSkinDescriptor::FLAG_SEVEN") != std::string::npos);
+		CHECK(SkinRuntime.find("constchar*pBaseUrl=m_aBaseUrl") != std::string::npos);
+		for(const char *pPreserved : {"EscapeUrl(aEscapedName,m_aName)", "ValidateBeforeOverwrite(true)", "MaxResponseSize(MaxResponseSize)", "downloadedskins/"})
+			CHECK(SkinRuntime.find(pPreserved) != std::string::npos);
+		const auto SkinSeven = Source("src/game/client/components/menus_settings_tee7.cpp");
+		for(const char *pAction : {"RenderSettingsTeeCustom7(", "RenderSkinPartSelection7(", "PopupConfirmDeleteSkin7(", "POPUP_SAVE_SKIN", "m_aDeleteSkinName7", "m_DeletedSkinIndex7", "ms_apSkinVariables[int(m_Dummy)]", "ms_apUCCVariables[int(m_Dummy)]", "ms_apColorVariables[int(m_Dummy)]"})
+			CHECK(SkinSeven.find(pAction) != std::string::npos);
+  CHECK(SkinSeven.find("constboolAlpha=m_TeePartSelected==protocol7::SKINPART_MARKING")!=std::string::npos);
+  CHECK(SkinSeven.find("s_ListBox.SetActive(Ui()->Enabled()&&!CLineInput::GetActiveInput())")!=std::string::npos);
+  CHECK(SkinSeven.find("CSkinGalleryGeometry::Columns(MainView.w)") != std::string::npos);
+  const auto Gallery = Source("src/game/client/lucent/settings/skin_gallery.cpp");
+  CHECK(Gallery.find("Entry.m_Selected") != std::string::npos && Gallery.find("Entry.m_Favorite") != std::string::npos);
+  CHECK(Gallery.find("if(FavoriteIndex>=0)Favorite(FavoriteIndex);elseif(") != std::string::npos);
+  const auto SkinPage = Source("src/game/client/lucent/settings/skins.cpp");
+  for(const char *pContract : {"RenderModeHeader(", "Mode.ContentInteractive()", "Profile.ContentInteractive()", "CScopeStyle(", "ClosePopupMenu(&ColorPopup(),true)", "Props.m_ClampToScreen=true"})
+	  CHECK(SkinPage.find(pContract) != std::string::npos);
+  const auto ColorPicker=Source("src/game/client/lucent/ui/color_picker.cpp");
+  for(const char *pContract:{"Geometry.HueAt(pUi->MousePos(),Color.h)","Color.Pack(Alpha)","Color.UnclampLighting(Darkest)","HOTKEY_TAB","HOTKEY_LEFT","HOTKEY_RIGHT","CheckActiveItem(pRingId)","Opacity[]={0,1,1,0}"})
+  CHECK(ColorPicker.find(pContract)!=std::string::npos);
+  CHECK(SkinIntegration.find("CLineInputs_Prefix")==std::string::npos);
+  CHECK(SkinIntegration.find("CLineInputs_Url")==std::string::npos);
+  CHECK(SkinIntegration.find("caseC::KITTY")==std::string::npos);
+  CHECK(SkinIntegration.find("caseC::SANTA")==std::string::npos);
+  CHECK(SkinIntegration.find("SkinPrefixIndex(g_Config.m_ClSkinPrefix)==Index")!=std::string::npos);
+  CHECK(SkinIntegration.find("Localize(\"OfficialDDNet\")")!=std::string::npos);
+  CHECK(SkinIntegration.find("SelectionCorners(Ui(),PrefixRects[Index],s_PrefixSelection[int(m_Dummy)][Index],Choice==Index,Choice>=0)")!=std::string::npos);
+  CHECK(SkinIntegration.find("Localize(\"Maximumloadedskins\"),256,8192,&CUi::ms_LinearScrollbarScale")!=std::string::npos);
+  CHECK(SkinRuntime.find("Stats.m_NumLoading+Stats.m_NumLoaded>=(size_t)g_Config.m_ClSkinsLoadedMax")!=std::string::npos);
+  CHECK(SkinRuntime.find("Stats.m_NumPending+Stats.m_NumLoaded+Stats.m_NumLoading-(size_t)g_Config.m_ClSkinsLoadedMax")!=std::string::npos);
+  CHECK(SkinIntegration.find("CSkinPrefixIndicator")==std::string::npos);
+  CHECK(SkinIntegration.find("SelectionCorners(Ui(),EyeRects[Eye],s_EyeSelection[int(m_Dummy)][Eye],*pEyes==Eye)")!=std::string::npos);
+  CHECK(SkinSeven.find("SelectionCorners(Ui(),EyeRects[Eye],s_EyeSelection[int(m_Dummy)][Eye],*pEyes==Eye)")!=std::string::npos);
+  CHECK(Gallery.find("DrawSelectionCorners(pUi->Graphics(),Item.m_Rect,pUi->PixelSize(),Active)")!=std::string::npos);
+  CHECK(Gallery.find("DrawOutline(")==std::string::npos);
+  CHECK(Gallery.find("Style::SurfaceGlow*Active")!=std::string::npos);
+  const auto Corners=Source("src/game/client/lucent/ui/selection_corners.cpp");
+  for(const char *pContract:{"Clock.m_Animate&&Animate","Motion.Update(Selected,","CUIRect::DrawOpacity()","Clock.m_Now","Path.m_Normals","Color.WithAlpha(0)"})
+   CHECK(Corners.find(pContract)!=std::string::npos);
+  CHECK(SkinIntegration.find("&s_Eyes[Eye],\"\",Button,false,true,true")!=std::string::npos);
+  CHECK(SkinSeven.find("&s_Eyes[Eye],\"\",Button,false,true,true")!=std::string::npos);
+  CHECK(Gallery.find("DrawSelectionBackground(pUi->Graphics(),Item.m_Rect,pUi->PixelSize(),LucentUi::Accent(LucentStyle::Style::Hover*Hot+LucentStyle::Style::SurfaceGlow*Active))")!=std::string::npos);
+  CHECK(SkinIntegration.find("Choice!=Index&&Choice!=Index+1&&s_PrefixSelection[int(m_Dummy)][Index].m_Value==0&&s_PrefixSelection[int(m_Dummy)][Index+1].m_Value==0")!=std::string::npos);
+  const auto CommunityStart=SkinIntegration.find("caseC::COMMUNITY:");
+  const auto CommunityEnd=SkinIntegration.find("caseC::VANILLA:",CommunityStart);
+  const auto SourceSwitch=SkinIntegration.substr(CommunityStart,CommunityEnd-CommunityStart);
+  CHECK(SourceSwitch.find("if(!g_Config.m_ClDownloadCommunitySkins)str_copy(g_Config.m_ClSkinDownloadUrl,\"https://skins.ddnet.org/skin/\")")!=std::string::npos);
+
+  CHECK(SkinIntegration.find("CSkinGalleryGeometry::SplitFooter(View)")!=std::string::npos);
+  CHECK(Gallery.find("CSkinGalleryGeometry::Clip(View,pUi->PixelSize())")!=std::string::npos);
+  CHECK(Gallery.find("pUi->ClipEnable(&Clip)")<Gallery.find("Paint(i,Preview)"));
+  CHECK(Gallery.find("IconButton(")==std::string::npos);
+  CHECK(Gallery.find("Entry.m_Favorite||pUi->MouseHovered(&Hit)||Focus")!=std::string::npos);
+  CHECK(Gallery.find("KeyPress(KEY_SPACE)")!=std::string::npos);
+
+  std::puts("Skin Manager legacy bindings/actions, source snapshot/cache safety, texture reload and popup/input contracts passed");
+  const auto Controls = Source("src/game/client/lucent/ui/controls.cpp");
+  CHECK(Controls.find("returnCheckBox(pUi,pId,pText,pMark,Rect,Flags,ControlRight,pUi->Enabled())") != std::string::npos);
+  CHECK(Controls.find("constfloatActive=VisualEnabled?Highlight(") != std::string::npos);
+  CHECK(Controls.find("VisualEnabled?LucentStyle::Style::CheckAlpha") != std::string::npos);
+  const auto Slider = Source("src/game/client/lucent/ui/scrollbar.cpp");
+  CHECK(Slider.find("CSliderGeometry::Radius(Geometry.m_Fill)") != std::string::npos);
+  std::puts("General transferred bindings/IDs, ranges, callbacks, navigation and clipping source contracts passed");
 	}
 
 	std::puts("Lucent settings layout/navigation checks passed");

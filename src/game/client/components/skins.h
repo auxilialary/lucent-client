@@ -46,6 +46,7 @@ private:
 		~CAbstractSkinLoadJob() override;
 
 		CSkinLoadData m_Data;
+		const int m_TextureLimit;
 		bool m_NotFound = false;
 
 	protected:
@@ -235,6 +236,7 @@ public:
 	void OnUpdate() override;
 
 	void RefreshEventSkins();
+	void RequestSettingsRefresh() { m_SettingsRefreshPending = true; }
 	void Refresh(TSkinLoadedCallback &&SkinLoadedCallback);
 	CSkinLoadingStats LoadingStats() const;
 	CSkinList &SkinList();
@@ -289,6 +291,7 @@ private:
 		void Run() override REQUIRES(!m_Lock);
 
 	private:
+		char m_aBaseUrl[sizeof(g_Config.m_ClSkinDownloadUrl)];
 		CLock m_Lock;
 		std::shared_ptr<IHttpRequest> m_pGetRequest GUARDED_BY(m_Lock);
 	};
@@ -307,7 +310,9 @@ private:
 	CSkin m_PlaceholderSkin;
 	char m_aEventSkinPrefix[MAX_SKIN_LENGTH];
 
-	bool LoadSkinData(const char *pName, CSkinLoadData &Data) const;
+	bool m_SettingsRefreshPending = false;
+	int m_AppliedTextureLimit = 1024;
+	bool LoadSkinData(const char *pName, CSkinLoadData &Data, int TextureLimit) const;
 	void LoadSkinFinish(CSkinContainer *pSkinContainer, const CSkinLoadData &Data);
 	void LoadSkinDirect(const char *pName);
 	const CSkinContainer *FindContainerImpl(const char *pName);

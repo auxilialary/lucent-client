@@ -1,6 +1,7 @@
 #include "controls.h"
 
 #include "scopes.h"
+#include "selection_corners.h"
 
 namespace LucentUi
 {
@@ -205,13 +206,19 @@ namespace LucentUi
 		return pUi->DoButtonLogic(pId, 0, &Rect, BUTTONFLAG_LEFT);
 	}
 
-	bool Button(CUi *pUi, ITextRender *pTextRender, const void *pId, const char *pText, CUIRect Rect, bool Selected, bool Enabled)
+	bool Button(CUi *pUi, ITextRender *pTextRender, const void *pId, const char *pText, CUIRect Rect, bool Selected, bool Enabled, bool SoftBackground)
 	{
 		const bool Interactive = Enabled && pUi->Enabled();
 		const bool Hover = Interactive && pUi->MouseHovered(&Rect);
 		const float Light = Highlight(pId, Enabled && (Selected || Hover || (Interactive && pUi->CheckActiveItem(pId))));
 		if(Light > .001f)
-			Rect.Draw(Accent(Light * (Selected ? LucentStyle::Style::Selected : LucentStyle::Style::Hover) + (Interactive && pUi->CheckActiveItem(pId) ? LucentStyle::Style::Pressed : 0.f)), 0, 0);
+		{
+			const auto Color = Accent(Light * (Selected ? LucentStyle::Style::Selected : LucentStyle::Style::Hover) + (Interactive && pUi->CheckActiveItem(pId) ? LucentStyle::Style::Pressed : 0.f));
+			if(SoftBackground)
+				DrawSelectionBackground(pUi->Graphics(), Rect, pUi->PixelSize(), Color);
+			else
+				Rect.Draw(Color, 0, 0);
+		}
 		if(Selected)
 		{
 			CUIRect Underline = {Rect.x + 5, Rect.y + Rect.h - 1, std::max(0.f, Rect.w - 10), .6f};

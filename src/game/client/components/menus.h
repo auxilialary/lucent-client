@@ -592,7 +592,7 @@ protected:
 
 	// found in menus_settings.cpp
 	void RenderSettings(CUIRect MainView);
-	bool RenderHslaScrollbars(CUIRect *pRect, unsigned int *pColor, bool Alpha, float DarkestLight);
+	bool RenderHslaScrollbars(CUIRect *pRect, unsigned int *pColor, bool Alpha, float DarkestLight, bool Lucent = false);
 
 	// found in menus_settings_assets.cpp
 	void RenderSettingsAssets(CUIRect MainView);
@@ -642,6 +642,7 @@ protected:
 	bool m_CustomSkinMenu = false;
 	int m_TeePartSelected = protocol7::SKINPART_BODY;
 	const CSkins7::CSkin *m_pSelectedSkin = nullptr;
+	char m_aDeleteSkinName7[protocol7::MAX_SKIN_ARRAY_SIZE] = {};
 	int m_SelectedSkinIndex7 = -1;
 	int m_DeletedSkinIndex7 = -1;
 	CLineInputBuffered<protocol7::MAX_SKIN_ARRAY_SIZE, protocol7::MAX_SKIN_LENGTH> m_SkinNameInput;

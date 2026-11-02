@@ -26,7 +26,7 @@ namespace LucentUi
 	int FilledCheckBox(CUi *pUi, const void *pId, const char *pText, bool Checked, const CUIRect &Rect);
 	// Wrapped rows start the control at the content anchor; input may be blocked independently.
 	int FilledCheckBox(CUi *pUi, const void *pId, const char *pText, bool Checked, const CUIRect &Rect, bool VisualEnabled, bool WrapLabel, float IdleLabelBrightness = 1.f);
-	bool Button(CUi *pUi, ITextRender *pTextRender, const void *pId, const char *pText, CUIRect Rect, bool Selected = false, bool Enabled = true);
+	bool Button(CUi *pUi, ITextRender *pTextRender, const void *pId, const char *pText, CUIRect Rect, bool Selected = false, bool Enabled = true, bool SoftBackground = false);
 	bool SceneButton(CUi *pUi, ITextRender *pTextRender, const void *pId, const char *pText, CUIRect Rect, bool Enabled = true);
 	bool TextButton(CUi *pUi, ITextRender *pTextRender, const void *pId, const char *pText, CUIRect Rect, bool Selected = false, float Size = 11, int Align = TEXTALIGN_MC, bool Underline = true, const char *pIcon = nullptr);
 	bool IconButton(CUi *pUi, ITextRender *pTextRender, const void *pId, const char *pIcon, const char *pHint, CUIRect Rect, bool Selected = false, bool Tooltip = true);

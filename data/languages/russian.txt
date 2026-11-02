@@ -3757,3 +3757,72 @@ Scoreboard preview
 
 Country selection
 == Выбор страны
+
+Color
+== Цвет
+
+Skins
+== Скины
+
+Favorites only
+== Только избранные
+
+Local skins
+== Локальные скины
+
+Community source
+== Источник сообщества
+
+DDNet source
+== Источник DDNet
+
+Maximum skin texture size
+== Макс. размер текстур скинов
+
+Maximum loaded skins
+== Макс. загруженных скинов
+
+DDNet download URL
+== URL загрузки DDNet
+
+Community download URL
+== URL загрузки сообщества
+
+Reset source URLs
+== Сбросить URL источников
+
+Higher limits increase VRAM use. Changing the limit reloads skin textures.
+== Высокий лимит увеличивает расход видеопамяти. Изменение лимита перезагружает текстуры скинов.
+
+One download URL is active at a time. DDNet manages the shared download cache.
+== Одновременно используется один URL загрузки. Общим кешем загрузок управляет DDNet.
+
+Custom source
+== Пользовательский источник
+
+Emotions
+== Эмоции
+
+No prefix
+== Без префикса
+
+Official DDNet source
+== Официальный источник DDNet
+
+Reset community URL
+== Сбросить URL сообщества
+
+Contrast
+== Контраст
+
+Brightness
+== Яркость
+
+Favorite (Space)
+== Избранное (Пробел)
+
+Use community source
+== Использовать источник сообщества
+
+Official DDNet
+== Официальный DDNet

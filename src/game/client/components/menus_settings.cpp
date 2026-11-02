@@ -15,6 +15,7 @@
 #include <game/client/lucent/settings/general.h>
 #include <game/client/lucent/settings/sound.h>
 #include <game/client/lucent/settings/player.h>
+#include <game/client/lucent/settings/skins.h>
 #include <game/client/ui.h>
 #include <game/localization.h>
 
@@ -42,6 +43,9 @@ void CMenus::RenderSettings(CUIRect MainView)
 
 	if(g_Config.m_UiSettingsPage != SETTINGS_PLAYER)
 		LucentSettings::LeavePlayer(Ui());
+
+	if(g_Config.m_UiSettingsPage != SETTINGS_TEE)
+		LucentSettings::LeaveSkinManager(Ui());
 
 	const bool NeedRestart = m_NeedRestartGraphics || m_NeedRestartSound || m_NeedRestartUpdate;
 	if(NeedRestart)
@@ -82,10 +86,7 @@ void CMenus::RenderSettings(CUIRect MainView)
 		else if(g_Config.m_UiSettingsPage == SETTINGS_TEE)
 		{
 			GameClient()->m_MenuBackground.ChangePosition(CMenuBackground::POS_SETTINGS_TEE);
-			if(Client()->IsSixup())
-				RenderSettingsTee7(MainView);
-			else
-				RenderSettingsTee(MainView);
+			RenderSettingsTee(MainView);
 		}
 		else if(g_Config.m_UiSettingsPage == SETTINGS_APPEARANCE)
 		{
@@ -163,6 +164,7 @@ void CMenus::RenderSettings(CUIRect MainView)
 		LucentSettings::LeaveGeneral(Ui());
 		LucentSettings::LeaveSound(Ui());
 		LucentSettings::LeavePlayer(Ui());
+		LucentSettings::LeaveSkinManager(Ui());
 		m_LucentSettings.Reset();
 		if(Client()->State() == IClient::STATE_OFFLINE)
 			SetShowStart(true);
@@ -171,8 +173,17 @@ void CMenus::RenderSettings(CUIRect MainView)
 	}
 }
 
-bool CMenus::RenderHslaScrollbars(CUIRect *pRect, unsigned int *pColor, bool Alpha, float DarkestLight)
+bool CMenus::RenderHslaScrollbars(CUIRect *pRect, unsigned int *pColor, bool Alpha, float DarkestLight, bool Lucent)
 {
+	if(Lucent && pRect->w < 80)
+		return false;
+	if(Lucent && !Ui()->Enabled())
+	{
+		for(int i = 0; i < 4; ++i)
+			if(Ui()->ActiveItem() == &reinterpret_cast<char *>(pColor)[i])
+				Ui()->SetActiveItem(nullptr);
+	}
+
 	const unsigned PrevPackedColor = *pColor;
 	ColorHSLA Color(*pColor, Alpha);
 	const ColorHSLA OriginalColor = Color;
@@ -407,7 +418,7 @@ bool CMenus::RenderHslaScrollbars(CUIRect *pRect, unsigned int *pColor, bool Alp
 		}
 		Graphics()->TrianglesEnd();
 
-		Color[i] = Ui()->DoScrollbarH(&((char *)pColor)[i], &Button, Color[i], &HandleColor);
+		Color[i] = Ui()->DoScrollbarH(&((char *)pColor)[i], &Button, Color[i], &HandleColor, Lucent);
 	}
 
 	if(OriginalColor != Color)
