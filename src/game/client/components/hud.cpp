@@ -22,6 +22,7 @@
 #include <game/client/components/scoreboard.h>
 #include <game/client/gameclient.h>
 #include <game/client/lucent/gameview/presentation.h>
+#include <game/client/lucent/hud/layout.h>
 #include <game/client/prediction/entities/character.h>
 #include <game/layers.h>
 #include <game/localization.h>
@@ -46,6 +47,13 @@ CHud::CHud()
 
 void CHud::ResetHudContainers()
 {
+	for(auto &Text : m_aLucentText)
+	{
+		TextRender()->DeleteTextContainer(Text.m_Index);
+		Text.m_aText[0] = 0;
+		Text.m_Size = -1;
+	}
+
 	for(auto &ScoreInfo : m_aScoreInfo)
 	{
 		TextRender()->DeleteTextContainer(ScoreInfo.m_OptionalNameTextContainerIndex);
@@ -76,6 +84,9 @@ void CHud::OnWindowResize()
 
 void CHud::OnReset()
 {
+	m_LucentAlignment = {};
+	for(auto &Selection : m_aLucentWeaponSelection)
+		Selection = {};
 	m_TimeCpDiff = 0.0f;
 	m_DDRaceTime = 0;
 	m_FinishTimeLastReceivedTick = 0;
@@ -143,6 +154,11 @@ void CHud::RenderGameTimer()
 			Time = (Client()->GameTick(g_Config.m_ClDummy) - GameClient()->m_Snap.m_pGameInfoObj->m_RoundStartTick) / Client()->GameTickSpeed();
 		}
 
+		if(g_Config.m_LucentHud)
+		{
+			RenderLucentTimer(Time);
+			return;
+		}
 		str_time((int64_t)Time * 100, ETimeFormat::DAYS, aBuf, sizeof(aBuf));
 		float FontSize = 10.0f;
 		static float s_TextWidthM = TextRender()->TextWidth(FontSize, "00:00", -1, -1.0f);
@@ -164,13 +180,14 @@ void CHud::RenderGameTimer()
 
 void CHud::RenderPauseNotification()
 {
+	const float Top = g_Config.m_LucentHud ? std::max(50.f, m_LucentTimerBounds.y + m_LucentTimerBounds.h + 4.f) : 50.f;
 	if(GameClient()->m_Snap.m_pGameInfoObj->m_GameStateFlags & GAMESTATEFLAG_PAUSED &&
 		!(GameClient()->m_Snap.m_pGameInfoObj->m_GameStateFlags & GAMESTATEFLAG_GAMEOVER))
 	{
 		const char *pText = Localize("Game paused");
 		float FontSize = 20.0f;
 		float w = TextRender()->TextWidth(FontSize, pText, -1, -1.0f);
-		TextRender()->Text(150.0f * Graphics()->ScreenAspect() + -w / 2.0f, 50.0f, FontSize, pText, -1.0f);
+		TextRender()->Text(150.0f * Graphics()->ScreenAspect() + -w / 2.0f, Top, FontSize, pText, -1.0f);
 	}
 }
 
@@ -508,6 +525,7 @@ void CHud::RenderScoreHud()
 
 void CHud::RenderWarmupTimer()
 {
+	const float Top = g_Config.m_LucentHud ? std::max(50.f, m_LucentTimerBounds.y + m_LucentTimerBounds.h + 4.f) : 50.f;
 	if(GameClient()->m_Snap.m_pGameInfoObj->m_WarmupTimer <= 0 ||
 		(GameClient()->m_Snap.m_pGameInfoObj->m_GameStateFlags & GAMESTATEFLAG_RACETIME) != 0)
 	{
@@ -516,7 +534,7 @@ void CHud::RenderWarmupTimer()
 
 	const float FontSize = 20.0f;
 	const char *pTitle = Localize("Warmup");
-	TextRender()->Text(150.0f * Graphics()->ScreenAspect() - TextRender()->TextWidth(FontSize, pTitle) / 2.0f, 50.0f, FontSize, pTitle);
+	TextRender()->Text(150.0f * Graphics()->ScreenAspect() - TextRender()->TextWidth(FontSize, pTitle) / 2.0f, Top, FontSize, pTitle);
 
 	const int Seconds = GameClient()->m_Snap.m_pGameInfoObj->m_WarmupTimer / Client()->GameTickSpeed();
 	char aWarmupTime[16];
@@ -531,7 +549,7 @@ void CHud::RenderWarmupTimer()
 		str_format(aWarmupTime, sizeof(aWarmupTime), "%d", Seconds);
 		TextWidth = TextRender()->TextWidth(FontSize, aWarmupTime);
 	}
-	TextRender()->Text(150.0f * Graphics()->ScreenAspect() - TextWidth / 2.0f, 75.0f, FontSize, aWarmupTime);
+	TextRender()->Text(150.0f * Graphics()->ScreenAspect() - TextWidth / 2.0f, Top + 25.f, FontSize, aWarmupTime);
 }
 
 void CHud::RenderTextInfo()
@@ -581,11 +599,12 @@ void CHud::RenderTextInfo()
 
 void CHud::RenderConnectionWarning()
 {
+	const float Top = g_Config.m_LucentHud ? std::max(50.f, m_LucentTimerBounds.y + m_LucentTimerBounds.h + 4.f) : 50.f;
 	if(Client()->ConnectionProblems())
 	{
 		const char *pText = Localize("Connection Problems…");
 		float w = TextRender()->TextWidth(24, pText, -1, -1.0f);
-		TextRender()->Text(150 * Graphics()->ScreenAspect() - w / 2, 50, 24, pText, -1.0f);
+		TextRender()->Text(150 * Graphics()->ScreenAspect() - w / 2, Top, 24, pText, -1.0f);
 	}
 }
 
@@ -736,7 +755,7 @@ void CHud::RenderAmmoHealthAndArmor(const CNetObj_Character *pCharacter)
 	bool IsSixupGameSkin = GameClient()->m_GameSkin.IsSixup();
 	int QuadOffsetSixup = (IsSixupGameSkin ? 10 : 0);
 
-	if(GameClient()->m_GameInfo.m_HudAmmo)
+	if(GameClient()->m_GameInfo.m_HudAmmo && !g_Config.m_LucentHud)
 	{
 		// ammo display
 		float AmmoOffsetY = GameClient()->m_GameInfo.m_HudHealthArmor ? 24 : 0;
@@ -844,7 +863,7 @@ void CHud::PreparePlayerStateQuads()
 
 void CHud::RenderPlayerState(const int ClientId)
 {
-	Graphics()->SetColor(1.f, 1.f, 1.f, 1.f);
+	Graphics()->SetColor(1.f, 1.f, 1.f, g_Config.m_LucentHud ? LucentHud::Opacity(g_Config.m_LucentHudOpacity) : 1.f);
 
 	// pCharacter contains the predicted character for local players or the last snap for players who are spectated
 	CCharacterCore *pCharacter = &GameClient()->m_aClients[ClientId].m_Predicted;
@@ -893,7 +912,7 @@ void CHud::RenderPlayerState(const int ClientId)
 
 		// render available and used jumps
 		int JumpsOffsetY = ((GameClient()->m_GameInfo.m_HudHealthArmor && g_Config.m_ClShowhudHealthAmmo ? 24 : 0) +
-				    (GameClient()->m_GameInfo.m_HudAmmo && g_Config.m_ClShowhudHealthAmmo ? 12 : 0));
+				    (GameClient()->m_GameInfo.m_HudAmmo && g_Config.m_ClShowhudHealthAmmo && !g_Config.m_LucentHud ? 12 : 0));
 		if(JumpsOffsetY > 0)
 		{
 			Graphics()->TextureSet(GameClient()->m_HudSkin.m_SpriteHudAirjump);
@@ -912,9 +931,10 @@ void CHud::RenderPlayerState(const int ClientId)
 
 	float x = 5 + 12;
 	float y = (5 + 12 + (GameClient()->m_GameInfo.m_HudHealthArmor && g_Config.m_ClShowhudHealthAmmo ? 24 : 0) +
-		   (GameClient()->m_GameInfo.m_HudAmmo && g_Config.m_ClShowhudHealthAmmo ? 12 : 0));
+		   (GameClient()->m_GameInfo.m_HudAmmo && g_Config.m_ClShowhudHealthAmmo && !g_Config.m_LucentHud ? 12 : 0));
 
-	// render weapons
+	// Legacy weapon strip; Lucent draws inventory at the bottom center.
+	if(!g_Config.m_LucentHud)
 	{
 		constexpr float aWeaponWidth[NUM_WEAPONS] = {16, 12, 12, 12, 12, 12};
 		constexpr float aWeaponInitialOffset[NUM_WEAPONS] = {-3, -4, -1, -1, -2, -4};
@@ -950,7 +970,8 @@ void CHud::RenderPlayerState(const int ClientId)
 
 	// render capabilities
 	x = 5;
-	y += 12;
+	if(!g_Config.m_LucentHud)
+		y += 12;
 	if(TotalJumpsToDisplay > 0)
 	{
 		y += 12;
@@ -1391,6 +1412,15 @@ inline int CHud::GetDigitsIndex(int Value, int Max)
 
 inline float CHud::GetMovementInformationBoxHeight()
 {
+	if(g_Config.m_LucentHud)
+	{
+		if(!g_Config.m_LucentHudCoordinates && !g_Config.m_ClShowhudPlayerSpeed)
+			return 0;
+		const LucentHud::CLayout Layout(m_Width, m_Height, g_Config.m_LucentHudScale);
+		const auto Rect = m_LucentCoordinatesBounds.w > 0 ? m_LucentCoordinatesBounds : Layout.Coordinates(0, g_Config.m_ClShowhudScore, g_Config.m_ClShowhudPlayerSpeed);
+		return 285.f - (g_Config.m_ClShowhudScore ? 56.f : 0.f) - Rect.y;
+	}
+
 	if(GameClient()->m_Snap.m_SpecInfo.m_Active && (GameClient()->m_Snap.m_SpecInfo.m_SpectatorId == SPEC_FREEVIEW || GameClient()->m_aClients[GameClient()->m_Snap.m_SpecInfo.m_SpectatorId].m_SpecCharPresent))
 		return g_Config.m_ClShowhudPlayerPosition ? 3.0f * MOVEMENT_INFORMATION_LINE_HEIGHT + 2.0f : 0.0f;
 	float BoxHeight = 3.0f * MOVEMENT_INFORMATION_LINE_HEIGHT * (g_Config.m_ClShowhudPlayerPosition + g_Config.m_ClShowhudPlayerSpeed) + 2.0f * MOVEMENT_INFORMATION_LINE_HEIGHT * g_Config.m_ClShowhudPlayerAngle;
@@ -1477,6 +1507,12 @@ CHud::CMovementInformation CHud::GetMovementInformation(int ClientId, int Conn) 
 
 void CHud::RenderMovementInformation()
 {
+	if(g_Config.m_LucentHud)
+	{
+		RenderLucentCoordinates();
+		return;
+	}
+
 	const int ClientId = GameClient()->m_Snap.m_SpecInfo.m_Active ? GameClient()->m_Snap.m_SpecInfo.m_SpectatorId : GameClient()->m_Snap.m_LocalClientId;
 	const bool PosOnly = ClientId == SPEC_FREEVIEW || (GameClient()->m_aClients[ClientId].m_SpecCharPresent);
 	// Draw the information depending on settings: Position, speed and target angle
@@ -1609,6 +1645,9 @@ void CHud::RenderSpectatorHud()
 
 void CHud::RenderLocalTime(float x)
 {
+	if(g_Config.m_LucentHud && !GameClient()->m_Scoreboard.IsActive())
+		return; // The clock is part of the centered Lucent timer container.
+
 	if(!g_Config.m_ClShowLocalTimeAlways && !GameClient()->m_Scoreboard.IsActive())
 		return;
 
@@ -1677,6 +1716,10 @@ void CHud::OnRender()
 
 	m_Width = 300.0f * Graphics()->ScreenAspect();
 	m_Height = 300.0f;
+	m_LucentTimerBounds = {};
+	m_LucentStatusBounds = {};
+	m_LucentHotbarBounds = {};
+	m_LucentCoordinatesBounds = {};
 	Graphics()->MapScreenToSize(m_Width, m_Height);
 
 #if defined(CONF_VIDEORECORDER)
@@ -1687,26 +1730,43 @@ void CHud::OnRender()
 	{
 		if(GameClient()->m_Snap.m_pLocalCharacter && !GameClient()->m_Snap.m_SpecInfo.m_Active && !(GameClient()->m_Snap.m_pGameInfoObj->m_GameStateFlags & GAMESTATEFLAG_GAMEOVER))
 		{
-			if(g_Config.m_ClShowhudHealthAmmo)
+			if(g_Config.m_LucentHud)
+			{
+				RenderLucentStatus(GameClient()->m_Snap.m_LocalClientId, GameClient()->m_Snap.m_pLocalCharacter,
+					GameClient()->m_Snap.m_aCharacters[GameClient()->m_Snap.m_LocalClientId].m_HasExtendedData && g_Config.m_ClShowhudDDRace && GameClient()->m_GameInfo.m_HudDDRace);
+				RenderLucentHotbar(GameClient()->m_Snap.m_LocalClientId, GameClient()->m_Snap.m_pLocalCharacter);
+			}
+			else if(g_Config.m_ClShowhudHealthAmmo)
 			{
 				RenderAmmoHealthAndArmor(GameClient()->m_Snap.m_pLocalCharacter);
 			}
-			if(GameClient()->m_Snap.m_aCharacters[GameClient()->m_Snap.m_LocalClientId].m_HasExtendedData && g_Config.m_ClShowhudDDRace && GameClient()->m_GameInfo.m_HudDDRace)
+			if(!g_Config.m_LucentHud && GameClient()->m_Snap.m_aCharacters[GameClient()->m_Snap.m_LocalClientId].m_HasExtendedData && g_Config.m_ClShowhudDDRace && GameClient()->m_GameInfo.m_HudDDRace)
 			{
 				RenderPlayerState(GameClient()->m_Snap.m_LocalClientId);
 			}
-			RenderSpectatorCount();
+			if(!g_Config.m_LucentHud)
+				RenderSpectatorCount();
 			RenderMovementInformation();
-			RenderDDRaceEffects();
+			if(g_Config.m_LucentHud)
+				RenderSpectatorCount();
+			if(!g_Config.m_LucentHud)
+				RenderDDRaceEffects();
 		}
 		else if(GameClient()->m_Snap.m_SpecInfo.m_Active)
 		{
 			int SpectatorId = GameClient()->m_Snap.m_SpecInfo.m_SpectatorId;
-			if(SpectatorId != SPEC_FREEVIEW && g_Config.m_ClShowhudHealthAmmo)
+			if(g_Config.m_LucentHud && SpectatorId >= 0 && SpectatorId < MAX_CLIENTS && GameClient()->m_Snap.m_aCharacters[SpectatorId].m_Active)
+			{
+				const auto *pCharacter = &GameClient()->m_Snap.m_aCharacters[SpectatorId].m_Cur;
+				const bool Extended = GameClient()->m_Snap.m_aCharacters[SpectatorId].m_HasExtendedData && g_Config.m_ClShowhudDDRace && (!GameClient()->m_MultiViewActivated || GameClient()->m_MultiViewShowHud) && GameClient()->m_GameInfo.m_HudDDRace;
+				RenderLucentStatus(SpectatorId, pCharacter, Extended);
+				RenderLucentHotbar(SpectatorId, pCharacter);
+			}
+			else if(!g_Config.m_LucentHud && SpectatorId != SPEC_FREEVIEW && g_Config.m_ClShowhudHealthAmmo)
 			{
 				RenderAmmoHealthAndArmor(&GameClient()->m_Snap.m_aCharacters[SpectatorId].m_Cur);
 			}
-			if(SpectatorId != SPEC_FREEVIEW &&
+			if(!g_Config.m_LucentHud && SpectatorId != SPEC_FREEVIEW &&
 				GameClient()->m_Snap.m_aCharacters[SpectatorId].m_HasExtendedData &&
 				g_Config.m_ClShowhudDDRace &&
 				(!GameClient()->m_MultiViewActivated || GameClient()->m_MultiViewShowHud) &&
@@ -1720,6 +1780,14 @@ void CHud::OnRender()
 
 		if(g_Config.m_ClShowhudTimer)
 			RenderGameTimer();
+		else if(g_Config.m_LucentHud)
+			RenderLucentTimer(-1);
+		if(g_Config.m_LucentHud && m_LucentTimerBounds.w == 0 && g_Config.m_ClShowLocalTimeAlways)
+			RenderLucentTimer(-1);
+		if(g_Config.m_LucentHud)
+			RenderLucentRecording();
+		if(g_Config.m_LucentHud)
+			RenderLucentAlignment();
 		RenderPauseNotification();
 		RenderSuddenDeath();
 		if(g_Config.m_ClShowhudScore)

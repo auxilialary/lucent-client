@@ -9,6 +9,10 @@
 #include <generated/protocol.h>
 
 #include <game/client/component.h>
+#include <game/client/lucent/hud/layout.h>
+#include <game/client/lucent/hud/tee_alignment.h>
+#include <game/client/lucent/motion/transition.h>
+#include <game/client/render.h>
 
 struct SScoreInfo
 {
@@ -64,6 +68,60 @@ class CHud : public CComponent
 	ESpeedChange m_aLastPlayerSpeedChange[2];
 	STextContainerIndex m_aPlayerPositionContainers[2];
 	float m_aPlayerPrevPosition[2];
+
+	// Lucent presentation methods consume existing HUD/snapshot data only.
+	enum
+	{
+		LUCENT_TIMER,
+		LUCENT_CLOCK,
+		LUCENT_JUMPS,
+		LUCENT_SECONDARY,
+		LUCENT_RECORDING,
+		LUCENT_RECORDING_AUTO,
+		LUCENT_RECORDING_RACE,
+		LUCENT_RECORDING_REPLAY,
+		LUCENT_RECORDING_TIME,
+		LUCENT_RECORDING_AUTO_TIME,
+		LUCENT_COORDINATES,
+		LUCENT_SPEED_X,
+		LUCENT_SPEED_Y,
+		LUCENT_AMMO,
+		LUCENT_ALIGNMENT_0,
+		LUCENT_ALIGNMENT_1,
+		LUCENT_ALIGNMENT_2,
+		LUCENT_ALIGNMENT_3,
+		LUCENT_TEXT_COUNT
+	};
+	struct CLucentText
+	{
+		STextContainerIndex m_Index;
+		char m_aText[256] = {};
+		float m_Size = -1;
+		int m_PixelHeight = -1;
+	};
+	CLucentText m_aLucentText[LUCENT_TEXT_COUNT];
+	LucentHud::CRect m_LucentTimerBounds = {};
+	LucentHud::CRect m_LucentStatusBounds = {};
+	LucentHud::CRect m_LucentCoordinatesBounds = {};
+	LucentHud::CRect m_LucentHotbarBounds = {};
+	LucentHud::Alignment::CState m_LucentAlignment;
+	LucentStyle::Motion::CTransition m_aLucentWeaponSelection[6];
+	struct CAlignmentVisual
+	{
+		int m_Id = -1;
+		char m_aName[128] = {};
+		CTeeRenderInfo m_Tee;
+	};
+	CAlignmentVisual m_aAlignmentVisual[4];
+	float PrepareAlignmentText(int Slot, const char *pText, float Size);
+	void DrawAlignmentText(int Slot, float X, float CenterY, float Alpha);
+	void RenderLucentAlignment();
+	float LucentText(int Slot, const char *pText, float X, float Y, float Size, ColorRGBA Color, bool Center = false);
+	void RenderLucentTimer(int Time);
+	void RenderLucentHotbar(int ClientId, const CNetObj_Character *pCharacter);
+	void RenderLucentRecording();
+	void RenderLucentCoordinates();
+	void RenderLucentStatus(int ClientId, const CNetObj_Character *pCharacter, bool Extended);
 
 	void RenderCursor();
 

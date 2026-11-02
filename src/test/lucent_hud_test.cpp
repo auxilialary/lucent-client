@@ -1,0 +1,716 @@
+#include "test.h"
+
+#include <base/str.h>
+#include <base/time.h>
+
+#include <engine/config.h>
+#include <engine/console.h>
+#include <engine/kernel.h>
+#include <engine/shared/config.h>
+#include <engine/storage.h>
+
+#include <game/client/components/chat.h>
+#include <game/client/lucent/hud/layout.h>
+#include <game/client/lucent/hud/visuals.h>
+#include <game/client/lucent/motion/transition.h>
+
+#include <gtest/gtest.h>
+
+#include <cmath>
+#include <filesystem>
+#include <fstream>
+#include <iterator>
+#include <vector>
+
+namespace
+{
+	struct CConfigRestore
+	{
+		CConfig m_Saved = g_Config;
+		~CConfigRestore() { g_Config = m_Saved; }
+	};
+	struct CConfigSession
+	{
+		std::unique_ptr<IKernel> m_pKernel{IKernel::Create()};
+		IConsole *m_pConsole;
+		IConfigManager *m_pConfig;
+		explicit CConfigSession(IStorage *pStorage)
+		{
+			m_pKernel->RegisterInterface(pStorage, false);
+			m_pConsole = CreateConsole(CFGFLAG_CLIENT).release();
+			m_pKernel->RegisterInterface(m_pConsole);
+			m_pConfig = CreateConfigManager();
+			m_pKernel->RegisterInterface(m_pConfig);
+			m_pConsole->Init();
+			m_pConfig->Init();
+		}
+	};
+}
+
+TEST(LucentHud, ConfigSurvivesFreshSessionsAndReset)
+{
+	CConfigRestore Restore;
+	CTestInfo Info;
+	Info.m_DeleteTestStorageFilesOnSuccess = true;
+	auto Storage = Info.CreateTestStorage();
+	ASSERT_NE(Storage, nullptr);
+	{
+		CConfigSession Session(Storage.get());
+		EXPECT_EQ(g_Config.m_LucentHudScale, 100);
+		// Set every real registered Lucent HUD variable through its console command.
+#define MACRO_CONFIG_INT(Name, ScriptName, Def, Min, Max, Flags, Desc) \
+	{ \
+		char aCommand[128]; \
+		str_format(aCommand, sizeof(aCommand), "%s %d", #ScriptName, (Def) == (Max) ? (Min) : (Max)); \
+		Session.m_pConsole->ExecuteLine(aCommand, IConsole::CLIENT_ID_UNSPECIFIED); \
+		EXPECT_EQ(g_Config.m_##Name, (Def) == (Max) ? (Min) : (Max)); \
+	}
+#include <game/client/lucent/hud/config_variables.h>
+#undef MACRO_CONFIG_INT
+		ASSERT_TRUE(Session.m_pConfig->Save());
+	}
+	{
+		CConfigSession Session(Storage.get());
+		EXPECT_EQ(g_Config.m_LucentHudScale, 100);
+		ASSERT_TRUE(Session.m_pConsole->ExecuteFile(CONFIG_FILE, IConsole::CLIENT_ID_UNSPECIFIED));
+#define MACRO_CONFIG_INT(Name, ScriptName, Def, Min, Max, Flags, Desc) EXPECT_EQ(g_Config.m_##Name, (Def) == (Max) ? (Min) : (Max));
+#include <game/client/lucent/hud/config_variables.h>
+#undef MACRO_CONFIG_INT
+		Session.m_pConsole->ExecuteLine("lucent_hud_scale 1", IConsole::CLIENT_ID_UNSPECIFIED);
+		EXPECT_EQ(g_Config.m_LucentHudScale, 50);
+		Session.m_pConsole->ExecuteLine("lucent_hud_scale 9999", IConsole::CLIENT_ID_UNSPECIFIED);
+		EXPECT_EQ(g_Config.m_LucentHudScale, 150);
+		Session.m_pConsole->ExecuteLine("lucent_hud_opacity -9999", IConsole::CLIENT_ID_UNSPECIFIED);
+		EXPECT_EQ(g_Config.m_LucentHudOpacity, 0);
+#define MACRO_CONFIG_INT(Name, ScriptName, Def, Min, Max, Flags, Desc) Session.m_pConfig->Reset(#ScriptName);
+#include <game/client/lucent/hud/config_variables.h>
+#undef MACRO_CONFIG_INT
+		ASSERT_TRUE(Session.m_pConfig->Save());
+	}
+	{
+		CConfigSession Session(Storage.get());
+		ASSERT_TRUE(Session.m_pConsole->ExecuteFile(CONFIG_FILE, IConsole::CLIENT_ID_UNSPECIFIED));
+#define MACRO_CONFIG_INT(Name, ScriptName, Def, Min, Max, Flags, Desc) EXPECT_EQ(g_Config.m_##Name, Def);
+#include <game/client/lucent/hud/config_variables.h>
+#undef MACRO_CONFIG_INT
+	}
+}
+
+TEST(LucentHud, InventoryUsesOnlyKnownOwnershipAndKeepsProtocolOrder)
+{
+	for(unsigned Mask = 0; Mask < 64; ++Mask)
+		for(int Active = -1; Active < 7; ++Active)
+		{
+			const auto Known = LucentHud::Weapons(Mask, Active, true);
+			const unsigned ActiveBit = Active >= 0 && Active < 6 ? 1u << Active : 0;
+			const unsigned Expected = Mask | ActiveBit;
+			unsigned Seen = 0;
+			for(int i = 0; i < Known.m_Count; ++i)
+			{
+				EXPECT_GE(Known.m_aIds[i], 0);
+				EXPECT_LT(Known.m_aIds[i], 6);
+				if(i > 0)
+					EXPECT_LT(Known.m_aIds[i - 1], Known.m_aIds[i]);
+				Seen |= 1u << Known.m_aIds[i];
+			}
+			EXPECT_EQ(Seen, Expected);
+			const auto Unknown = LucentHud::Weapons(Mask, Active, false);
+			EXPECT_EQ(Unknown.m_Count, ActiveBit ? 1 : 0);
+			if(Unknown.m_Count)
+				EXPECT_EQ(Unknown.m_aIds[0], Active);
+		}
+}
+
+TEST(LucentHud, AnchorsRemainSymmetricAndSeparateAtSupportedResolutions)
+{
+	for(const auto Resolution : {std::pair{1920, 1080}, std::pair{2560, 1440}, std::pair{1280, 960}})
+		for(int Scale : {50, 75, 100, 125, 150})
+		{
+			const float Width = 300.f * Resolution.first / Resolution.second;
+			const float PixelScale = Resolution.second / 300.f;
+			const LucentHud::CLayout Layout(Width, 300.f, Scale);
+			EXPECT_FLOAT_EQ(Layout.Hotbar(0).w, 0);
+			EXPECT_FLOAT_EQ(2 * LucentHud::SlotWidth, 44.f);
+			EXPECT_FLOAT_EQ(2 * LucentHud::SlotGap, 5.f);
+			float PreviousWidth = 0;
+			for(int Count = 1; Count <= 6; ++Count)
+			{
+				const auto Bar = Layout.Hotbar(Count);
+				EXPECT_NEAR(Bar.x + Bar.w / 2, Width / 2, .001f);
+				EXPECT_GT(Bar.w, PreviousWidth);
+				EXPECT_GE(Bar.x, 0);
+				EXPECT_LE((Bar.x + Bar.w) * PixelScale, Resolution.first);
+				EXPECT_LE((Bar.y + Bar.h) * PixelScale, Resolution.second);
+				if(Count > 1)
+					EXPECT_NEAR(Bar.w - PreviousWidth, Layout.BarUnit(LucentHud::SlotWidth + LucentHud::SlotGap), .001f);
+				const auto First = Layout.Slot(0, Count);
+				const auto Last = Layout.Slot(Count - 1, Count);
+				// Content fits exactly: no empty placeholder slots or oversized outer padding.
+				EXPECT_NEAR(First.x - Bar.x, Layout.BarUnit(LucentHud::BarPadding), .001f);
+				EXPECT_NEAR(Bar.x + Bar.w - Last.x - Last.w, Layout.BarUnit(LucentHud::BarPadding), .001f);
+				EXPECT_NEAR(Bar.h - First.h, Layout.BarUnit(2 * LucentHud::BarPadding), .001f);
+				PreviousWidth = Bar.w;
+				for(int i = 0; i < Count; ++i)
+				{
+					const auto Slot = Layout.Slot(i, Count);
+					EXPECT_GT(Slot.x, Bar.x);
+					EXPECT_LT(Slot.x + Slot.w, Bar.x + Bar.w);
+					EXPECT_GT(Slot.y, Bar.y);
+					EXPECT_LT(Slot.y + Slot.h, Bar.y + Bar.h);
+					if(i > 0)
+					{
+						const auto Prev = Layout.Slot(i - 1, Count);
+						EXPECT_GT(Slot.x, Prev.x + Prev.w);
+					}
+				}
+			}
+			for(bool Score : {false, true})
+				for(bool Speed : {false, true})
+				{
+					const auto Coords = Layout.Coordinates(Layout.Unit(160), Score, Speed);
+					EXPECT_GE(Coords.x, 0);
+					EXPECT_GE(Coords.y, 0);
+					EXPECT_LT(Coords.x + Coords.w, Width);
+					EXPECT_LT(Coords.y + Coords.h, Layout.Hotbar(6).y);
+					if(Score)
+						EXPECT_LT(Coords.y + Coords.h, 229.f);
+				}
+			const auto Timer = Layout.Timer(96, true, true);
+			EXPECT_GE(Timer.y, 0);
+			EXPECT_NEAR(Timer.x + Timer.w / 2, Width / 2, .001f);
+			for(float RecordingWidth : {40.f, 90.f, 160.f})
+				for(float ReadoutOffset : {0.f, 18.f, 36.f})
+				{
+					const auto Recording = LucentHud::BelowIfOverlapping(Layout.TopRight(RecordingWidth, 12, ReadoutOffset), Timer, Layout.Unit(LucentHud::Gap));
+					EXPECT_TRUE(Recording.x >= Timer.x + Timer.w || Recording.y >= Timer.y + Timer.h);
+					EXPECT_GE(Recording.x, 0);
+					EXPECT_LT(Recording.x + Recording.w, Width);
+					EXPECT_LE(Recording.y + Recording.h, 300.f);
+				}
+		}
+	EXPECT_EQ(LucentHud::Opacity(-100), 0.f);
+	EXPECT_EQ(LucentHud::Opacity(1000), 1.f);
+}
+
+TEST(LucentHud, RotatedWeaponQuadsStayWithinProportionallyReducedHotbar)
+{
+	// Body sprite W/H and visual size from datasrc/content.py, in protocol order.
+	const struct
+	{
+		const char *m_pName;
+		float m_W, m_H, m_VisualSize;
+	} aWeapons[] = {
+		{"hammer", 4, 3, 96}, {"gun", 4, 2, 64}, {"shotgun", 8, 2, 96},
+		{"grenade", 7, 2, 96}, {"laser", 7, 3, 92}, {"ninja", 8, 2, 96}};
+	EXPECT_FLOAT_EQ(LucentHud::HotbarFactor, .85f);
+	for(int Scale : {50, 75, 100, 125, 150})
+	{
+		const LucentHud::CLayout Layout(300.f * 16 / 9, 300.f, Scale);
+		for(int Count = 1; Count <= 6; ++Count)
+			for(int SlotIndex = 0; SlotIndex < Count; ++SlotIndex)
+				for(const auto &Weapon : aWeapons)
+				{
+					SCOPED_TRACE(Weapon.m_pName);
+					const auto Bar = Layout.Hotbar(Count);
+					const auto Slot = Layout.Slot(SlotIndex, Count);
+					const float Normalization = std::hypot(Weapon.m_W, Weapon.m_H);
+					const float QuadW = Weapon.m_VisualSize * .25f * Weapon.m_W / Normalization;
+					const float QuadH = Weapon.m_VisualSize * .25f * Weapon.m_H / Normalization;
+					// At pi*7/4 both axis-aligned extents are (W+H)/sqrt(2).
+					const float HalfExtent = (QuadW + QuadH) / std::sqrt(2.f) * LucentHud::WeaponIconScale * LucentHud::HotbarFactor * Layout.m_Scale / 2;
+					const float CenterX = Slot.x + Slot.w / 2, CenterY = Slot.y + Slot.h / 2;
+					EXPECT_GE(CenterX - HalfExtent, Slot.x - .001f);
+					EXPECT_LE(CenterX + HalfExtent, Slot.x + Slot.w + .001f);
+					// The existing outer padding accommodates the rotated hammer vertically.
+					EXPECT_GE(CenterY - HalfExtent, Bar.y - .001f);
+					EXPECT_LE(CenterY + HalfExtent, Bar.y + Bar.h + .001f);
+				}
+	}
+}
+
+TEST(LucentHud, IndependentTimerLinesHaveConsistentInsetsAndClearance)
+{
+	for(int Scale : {50, 75, 100, 125, 150})
+	{
+		const LucentHud::CLayout Layout(300.f * 16 / 9, 300.f, Scale);
+		for(bool Main : {false, true})
+			for(bool Secondary : {false, true})
+			{
+				const auto Bounds = Layout.Timer(96, Main, Secondary);
+				if(!Main && !Secondary)
+				{
+					EXPECT_FLOAT_EQ(Bounds.w, 0);
+					EXPECT_FLOAT_EQ(Bounds.h, 0);
+					continue;
+				}
+				const float MainY = Layout.TimerLineY(Bounds, false, Main);
+				const float SecondaryY = Layout.TimerLineY(Bounds, true, Main);
+				const float FirstY = Main ? MainY : SecondaryY;
+				const float BottomY = Secondary ? SecondaryY + Layout.Unit(LucentHud::BodySize) : MainY + Layout.Unit(LucentHud::TimerSize);
+				EXPECT_NEAR(FirstY - Bounds.y, Layout.Unit(LucentHud::TimerInset), .001f);
+				EXPECT_NEAR(Bounds.y + Bounds.h - BottomY, Layout.Unit(LucentHud::TimerInset), .001f);
+				if(Main && Secondary)
+					EXPECT_NEAR(SecondaryY - MainY - Layout.Unit(LucentHud::TimerSize), Layout.Unit(LucentHud::TimerLineGap), .001f);
+				const auto Recording = LucentHud::BelowIfOverlapping(Layout.TopRight(230, 12), Bounds, Layout.Unit(LucentHud::Gap));
+				EXPECT_TRUE(Recording.x >= Bounds.x + Bounds.w || Recording.x + Recording.w <= Bounds.x || Recording.y >= Bounds.y + Bounds.h + Layout.Unit(LucentHud::Gap) - .001f);
+				const float NotificationY = std::max(50.f, Bounds.y + Bounds.h + 4.f);
+				EXPECT_GE(NotificationY, Bounds.y + Bounds.h + 4.f);
+			}
+	}
+}
+
+TEST(LucentHud, ExpandedChatUsesCurrentHistoryInputAndAlwaysLargeStates)
+{
+	EXPECT_FALSE(CChat::ExpandedState(false, false, 1));
+	EXPECT_TRUE(CChat::ExpandedState(true, false, 1));
+	EXPECT_TRUE(CChat::ExpandedState(false, true, 1));
+	EXPECT_TRUE(CChat::ExpandedState(false, false, 2));
+	EXPECT_FALSE(CChat::ExpandedState(false, true, 0));
+	// +show_chat requests expansion independently; HUD also checks actual chat visibility.
+	EXPECT_TRUE(CChat::ExpandedState(true, false, 0));
+}
+
+TEST(LucentHud, VerticalClockAndTimerAdaptToContentAndVisibility)
+{
+	for(float ScreenWidth : {400.f, 300.f * 16 / 9})
+		for(int Scale : {50, 75, 100, 125, 150})
+			for(bool Main : {false, true})
+				for(bool Secondary : {false, true})
+					for(float ClockWidth : {0.f, 18.f, 120.f})
+						for(float TimeWidth : {24.f, 96.f, 180.f})
+						{
+							const LucentHud::CLayout Layout(ScreenWidth, 300.f, Scale);
+							const float GameWidth = Main || Secondary ? TimeWidth : 0.f;
+							const auto Bounds = Layout.Timer(GameWidth, Main, Secondary, ClockWidth);
+							if(!Main && !Secondary && ClockWidth == 0)
+							{
+								EXPECT_EQ(Bounds.w, 0);
+								EXPECT_EQ(Bounds.h, 0);
+								continue;
+							}
+							EXPECT_NEAR(Bounds.x + Bounds.w / 2, ScreenWidth / 2, .001f);
+							EXPECT_NEAR(Bounds.w, Layout.Unit(std::max(GameWidth, ClockWidth) + 2 * LucentHud::TimerPaddingX), .001f);
+							EXPECT_GE(Bounds.x, 0);
+							EXPECT_LE(Bounds.x + Bounds.w, ScreenWidth);
+							float LastBottom = Bounds.y + Layout.Unit(LucentHud::TimerInset);
+							if(Main)
+								LastBottom = Layout.TimerLineY(Bounds, false, Main) + Layout.Unit(LucentHud::TimerSize);
+							if(Secondary)
+							{
+								const float Y = Layout.TimerLineY(Bounds, true, Main);
+								if(Main)
+									EXPECT_NEAR(Y - LastBottom, Layout.Unit(LucentHud::TimerLineGap), .001f);
+								LastBottom = Y + Layout.Unit(LucentHud::BodySize);
+							}
+							if(ClockWidth > 0)
+							{
+								const float Y = Layout.TimerClockY(Bounds, Main, Secondary);
+								EXPECT_NEAR(Y - LastBottom, Layout.Unit(Main || Secondary ? LucentHud::ClockLineGap : 0), .001f);
+								LastBottom = Y + Layout.Unit(LucentHud::CaptionSize);
+							}
+							EXPECT_NEAR(Bounds.y + Bounds.h - LastBottom, Layout.Unit(LucentHud::TimerInset), .001f);
+							const auto Recording = LucentHud::BelowIfOverlapping(Layout.TopRight(160, 12), Bounds, Layout.Unit(LucentHud::Gap));
+							EXPECT_TRUE(Recording.x >= Bounds.x + Bounds.w || Recording.y >= Bounds.y + Bounds.h);
+							EXPECT_LE(Recording.y + Recording.h, 300.f);
+						}
+}
+
+TEST(LucentHud, JumpCountsPreserveUsedAndAvailableWithoutTenJumpTruncation)
+{
+	const auto Large = LucentHud::Jumps(255, 14, 2, false, false, true);
+	EXPECT_EQ(Large.m_Total, 255);
+	EXPECT_EQ(Large.m_Available, 240);
+	EXPECT_EQ(Large.m_Used, 15);
+	const auto Unknown = LucentHud::Jumps(255, 14, 2, false, false, false);
+	EXPECT_EQ(Unknown.m_Total, 255);
+	EXPECT_FALSE(Unknown.m_Known);
+	EXPECT_EQ(LucentHud::Jumps(1, 0, 2, false, false, true).m_Available, 0);
+	EXPECT_EQ(LucentHud::Jumps(-1, 0, 2, false, false, true).m_Available, 0);
+	// Preserve the legacy recovery rule when the render snapshot has no spent-jump bit.
+	EXPECT_EQ(LucentHud::Jumps(-1, 0, 0, false, false, true).m_Available, 1);
+	EXPECT_EQ(LucentHud::Jumps(-1, 0, 0, true, false, true).m_Available, 1);
+	for(int Total : {-1, 0, 1, 2, 6, 10, 255, INT32_MAX, INT32_MIN})
+		for(int Used : {0, 1, 9, 300, INT32_MAX})
+			for(bool Grounded : {false, true})
+				for(bool Endless : {false, true})
+				{
+					const auto State = LucentHud::Jumps(Total, Used, 2, Grounded, Endless, true);
+					EXPECT_GE(State.m_Available, 0);
+					EXPECT_LE(State.m_Available, State.m_Total);
+					EXPECT_EQ((int64_t)State.m_Available + State.m_Used, State.m_Total);
+					if(Endless && State.m_Total > 0)
+						EXPECT_GE(State.m_Available, 1);
+				}
+}
+
+TEST(LucentHud, StatusRowsWrapCenterAndLeaveHotbarAnchored)
+{
+	for(float Width : {400.f, 300.f * 16 / 9, 700.f})
+		for(int Scale : {50, 75, 100, 125, 150})
+			for(float ChatWidth : {0.f, 200.f, 400.f})
+			{
+				const LucentHud::CLayout Layout(Width, 300, Scale);
+				const auto Bar = Layout.Hotbar(6);
+				std::array<float, LucentHud::MaxStatusItems> Widths{};
+				Widths.fill(8);
+				// A large jump counter followed by every available modifier fits the same packing path.
+				Widths[0] = 64;
+				for(int Count = 0; Count <= LucentHud::MaxStatusItems; ++Count)
+				{
+					const float Side = ChatWidth > 0 ? 5 + ChatWidth + Layout.Unit(LucentHud::Gap) : 0;
+					const auto Status = Layout.Status(Widths, Count, Side);
+					EXPECT_FLOAT_EQ(Layout.Hotbar(6).y, Bar.y);
+					EXPECT_FLOAT_EQ(Layout.Hotbar(6).h, Bar.h);
+					if(!Count)
+					{
+						EXPECT_EQ(Status.m_RowCount, 0);
+						EXPECT_EQ(Status.m_Bounds.w, 0);
+						continue;
+					}
+					EXPECT_GE(Status.m_Bounds.y, 0);
+					EXPECT_LE(Status.m_Bounds.y + Status.m_Bounds.h, Bar.y - Layout.Unit(LucentHud::Gap) + .001f);
+					for(int r = 0; r < Status.m_RowCount; ++r)
+					{
+						const auto Row = Status.m_aRows[r];
+						EXPECT_NEAR(Row.x + Row.w / 2, Width / 2, .001f);
+						EXPECT_GE(Row.x, 0);
+						EXPECT_LE(Row.x + Row.w, Width);
+						if(r > 0)
+							EXPECT_GE(Row.y, Status.m_aRows[r - 1].y + Status.m_aRows[r - 1].h);
+						if(Side > 0 && Width - 2 * Side >= Layout.Unit(48))
+							EXPECT_GE(Row.x, Side - .001f);
+					}
+					for(bool Score : {false, true})
+						for(bool Speed : {false, true})
+						{
+							const auto Coords = Layout.Coordinates(Layout.Unit(160), Score, Speed, Status.m_Bounds);
+							EXPECT_GE(Coords.y, 0);
+							if(Coords.x < Status.m_Bounds.x + Status.m_Bounds.w && Coords.x + Coords.w > Status.m_Bounds.x)
+								EXPECT_LE(Coords.y + Coords.h, Status.m_Bounds.y - Layout.Unit(LucentHud::Gap) + .001f);
+						}
+					for(int i = 0; i < Count; ++i)
+					{
+						EXPECT_GE(Status.m_aItems[i].x, Status.m_Bounds.x);
+						EXPECT_LE(Status.m_aItems[i].x + Status.m_aItems[i].w, Status.m_Bounds.x + Status.m_Bounds.w + .001f);
+						EXPECT_GE(Status.m_aItems[i].y, Status.m_Bounds.y);
+						EXPECT_LE(Status.m_aItems[i].y + Status.m_aItems[i].h, Status.m_Bounds.y + Status.m_Bounds.h + .001f);
+					}
+				}
+			}
+}
+
+TEST(LucentHud, HotbarReducesExactlyFifteenPercentAndStatusPositionsStayAtV13Anchor)
+{
+	for(float Width : {400.f, 300.f * 16 / 9, 700.f})
+		for(int Scale : {50, 75, 100, 125, 150})
+		{
+			const LucentHud::CLayout Layout(Width, 300.f, Scale);
+			const float PreviousBarTop = 300.f - Layout.Unit(6.f + 24.f);
+			EXPECT_FLOAT_EQ(Layout.InformationAnchorY(), PreviousBarTop);
+			for(int Count = 1; Count <= 6; ++Count)
+			{
+				const auto Bar = Layout.Hotbar(Count);
+				const float PreviousWidth = Layout.Unit(Count * 22.f + (Count - 1) * 2.5f + 4.f);
+				EXPECT_NEAR(Bar.w, PreviousWidth * .85f, .001f);
+				EXPECT_NEAR(Bar.h, Layout.Unit(24) * .85f, .001f);
+				EXPECT_NEAR(Bar.y + Bar.h, 300.f - Layout.Unit(6), .001f);
+				EXPECT_NEAR(Bar.x + Bar.w / 2, Width / 2, .001f);
+				for(int i = 0; i < Count; ++i)
+				{
+					const auto Slot = Layout.Slot(i, Count);
+					EXPECT_NEAR(Slot.w, Layout.Unit(22) * .85f, .001f);
+					EXPECT_NEAR(Slot.h, Layout.Unit(20) * .85f, .001f);
+					if(i > 0)
+					{
+						const auto Previous = Layout.Slot(i - 1, Count);
+						EXPECT_NEAR(Slot.x - Previous.x - Previous.w, Layout.Unit(2.5f) * .85f, .001f);
+					}
+				}
+			}
+			std::array<float, LucentHud::MaxStatusItems> Widths{};
+			Widths.fill(8);
+			Widths[0] = 64;
+			for(float ChatWidth : {0.f, 200.f, 400.f})
+				for(int Count = 1; Count <= LucentHud::MaxStatusItems; ++Count)
+				{
+					const float Side = ChatWidth > 0 ? 5 + ChatWidth + Layout.Unit(LucentHud::Gap) : 0;
+					const auto Status = Layout.Status(Widths, Count, Side);
+					float ExpectedBottom = PreviousBarTop - Layout.Unit(4);
+					if(Side > 0 && Width - 2 * Side < Layout.Unit(48))
+						ExpectedBottom = std::min(ExpectedBottom, 200.f - Layout.Unit(4));
+					EXPECT_NEAR(Status.m_Bounds.y + Status.m_Bounds.h, ExpectedBottom, .001f);
+					const float PreviousHeight = Layout.Unit(Status.m_RowCount * 12.f + (Status.m_RowCount - 1) * 2.f);
+					EXPECT_NEAR(Status.m_Bounds.h, PreviousHeight, .001f);
+					for(int r = 0; r < Status.m_RowCount; ++r)
+						EXPECT_NEAR(Status.m_aRows[r].y, ExpectedBottom - PreviousHeight + r * Layout.Unit(14), .001f);
+				}
+		}
+}
+
+TEST(LucentHud, TwoJumpIconsAndFourToSixModifiersCenterAsOnePair)
+{
+	const LucentHud::CLayout Layout(300.f * 16 / 9, 300, 100);
+	std::array<float, LucentHud::MaxStatusItems> Widths{};
+	Widths.fill(8);
+	for(int Modifiers = 4; Modifiers <= 6; ++Modifiers)
+	{
+		const auto Status = Layout.Status(Widths, 2 + Modifiers, 209, 2);
+		const auto Jumps = Status.m_aGroups[0], Mods = Status.m_aGroups[1];
+		EXPECT_FLOAT_EQ(Jumps.w, 22.f);
+		EXPECT_FLOAT_EQ(Mods.w, Modifiers * 8.f + (Modifiers - 1) * 2.f + 4.f);
+		EXPECT_FLOAT_EQ(Jumps.h, 12.f);
+		EXPECT_FLOAT_EQ(Mods.h, 12.f);
+		EXPECT_NEAR(Mods.x - Jumps.x - Jumps.w, 3.f, .001f);
+		EXPECT_NEAR((Jumps.x + Mods.x + Mods.w) / 2, Layout.m_Width / 2, .001f);
+		EXPECT_LT(Jumps.x + Jumps.w / 2, Layout.m_Width / 2);
+		EXPECT_GT(Mods.x + Mods.w / 2, Layout.m_Width / 2);
+	}
+	EXPECT_EQ(Layout.Status(Widths, 0, 0, 0).m_Bounds.w, 0);
+	EXPECT_EQ(Layout.Status(Widths, 2, 0, 2).m_aGroups[1].w, 0);
+	EXPECT_EQ(Layout.Status(Widths, 6, 0, 0).m_aGroups[0].w, 0);
+}
+
+TEST(LucentHud, SeparateStatusContainersWrapWithoutOverlapOrLostItems)
+{
+	for(float Width : {400.f, 300.f * 16 / 9, 700.f})
+		for(int Scale : {50, 75, 100, 125, 150})
+			for(float ChatWidth : {0.f, 200.f, 400.f})
+				for(int Split : {0, 1, 2, 6})
+					for(int Count = 1; Count <= LucentHud::MaxStatusItems; ++Count)
+					{
+						const LucentHud::CLayout Layout(Width, 300, Scale);
+						std::array<float, LucentHud::MaxStatusItems> Widths{};
+						Widths.fill(8);
+						if(Split == 1)
+							Widths[0] = 64; // Large-jump numeric element.
+						const int Jumps = std::min(Split, Count);
+						const float Side = ChatWidth > 0 ? 5 + ChatWidth + Layout.Unit(LucentHud::Gap) : 0;
+						const auto Status = Layout.Status(Widths, Count, Side, Jumps);
+						EXPECT_NEAR(Status.m_Bounds.x + Status.m_Bounds.w / 2, Width / 2, .001f);
+						EXPECT_GE(Status.m_Bounds.x, 0);
+						EXPECT_GE(Status.m_Bounds.y, 0);
+						EXPECT_LE(Status.m_Bounds.x + Status.m_Bounds.w, Width + .001f);
+						EXPECT_LE(Status.m_Bounds.y + Status.m_Bounds.h, Layout.InformationAnchorY() - Layout.Unit(LucentHud::Gap) + .001f);
+						const auto A = Status.m_aGroups[0], B = Status.m_aGroups[1];
+						if(Jumps > 0 && Jumps < Count)
+						{
+							const bool Horizontal = B.x >= A.x + A.w;
+							if(Horizontal)
+								EXPECT_NEAR(B.x - A.x - A.w, Layout.Unit(3), .001f);
+							else
+								EXPECT_NEAR(B.y - A.y - A.h, Layout.Unit(3), .001f);
+						}
+						for(int i = 0; i < Count; ++i)
+						{
+							const auto Group = Status.m_aGroups[i < Jumps ? 0 : 1];
+							const auto Item = Status.m_aItems[i];
+							EXPECT_GT(Group.w, 0);
+							EXPECT_GE(Item.x, Group.x - .001f);
+							EXPECT_GE(Item.y, Group.y - .001f);
+							EXPECT_LE(Item.x + Item.w, Group.x + Group.w + .001f);
+							EXPECT_LE(Item.y + Item.h, Group.y + Group.h + .001f);
+						}
+						const auto Coords = Layout.Coordinates(Layout.Unit(160), true, true, Status.m_Bounds);
+						EXPECT_GE(Coords.y, 0);
+						if(Coords.x < Status.m_Bounds.x + Status.m_Bounds.w && Coords.x + Coords.w > Status.m_Bounds.x)
+							EXPECT_LE(Coords.y + Coords.h, Status.m_Bounds.y - Layout.Unit(LucentHud::Gap) + .001f);
+					}
+}
+
+TEST(LucentHud, RoundedPanelsClampToTheirOwnGeometry)
+{
+	for(float Scale : {.5f, 1.f, 1.5f})
+		for(float Height : {0.f, 8.f, 12.f, 20.4f, 34.f})
+			for(float Width : {0.f, 6.f, 22.f, 120.f})
+			{
+				const LucentHud::CRect Rect{0, 0, Width * Scale, Height * Scale};
+				const float Radius = LucentHud::PanelRadius(Rect, Scale);
+				EXPECT_GE(Radius, 0);
+				EXPECT_LE(Radius, Rect.h / 2);
+				EXPECT_LE(Radius, Rect.w / 2);
+				EXPECT_LE(Radius, LucentHud::Radius * Scale);
+			}
+	// Small utility panels remain capsule-like; larger panels retain soft corners
+	// without inheriting the tiny menu input radius or changing their bounds.
+	EXPECT_FLOAT_EQ(LucentHud::PanelRadius({0, 0, 100, 20}, 1), 7.f);
+	EXPECT_FLOAT_EQ(LucentHud::PanelRadius({0, 0, 100, 8}, 1), 4.f);
+	for(int Scale : {50, 100, 150})
+	{
+		const LucentHud::CLayout Layout(533.33f, 300, Scale);
+		const auto Bar = Layout.Hotbar(6), Slot = Layout.Slot(0, 6);
+		EXPECT_FLOAT_EQ(LucentHud::PanelRadius(Bar, Layout.m_Scale * LucentHud::HotbarFactor), Layout.BarUnit(7));
+		EXPECT_FLOAT_EQ(LucentHud::PanelRadius(Slot, Layout.m_Scale * LucentHud::HotbarFactor), Layout.BarUnit(7));
+		EXPECT_FLOAT_EQ(LucentHud::PanelRadius({0, 0, Layout.Unit(60), Layout.Unit(18)}, Layout.m_Scale), Layout.Unit(7));
+		EXPECT_FLOAT_EQ(LucentHud::PanelRadius({0, 0, Layout.Unit(60), Layout.Unit(12)}, Layout.m_Scale), Layout.Unit(6));
+	}
+}
+
+TEST(LucentHud, PanelTextRetainsContrastOverBrightAndDarkMapSamples)
+{
+	// Numerical compositing reference, not a substitute for rendered map QA.
+	auto Composite = [](ColorRGBA Foreground, ColorRGBA Background) {
+		return ColorRGBA(Foreground.r * Foreground.a + Background.r * (1 - Foreground.a),
+			Foreground.g * Foreground.a + Background.g * (1 - Foreground.a),
+			Foreground.b * Foreground.a + Background.b * (1 - Foreground.a), 1);
+	};
+	auto Luminance = [](ColorRGBA Color) {
+		auto Linear = [](float Value) { return Value <= .04045f ? Value / 12.92f : std::pow((Value + .055f) / 1.055f, 2.4f); };
+		return .2126f * Linear(Color.r) + .7152f * Linear(Color.g) + .0722f * Linear(Color.b);
+	};
+	const float Alpha = LucentHud::Opacity(85);
+	for(bool Top : {false, true})
+		for(float Map : {0.f, 1.f})
+		{
+			const auto Background = Composite(LucentHud::PanelSurface(Alpha, Top), ColorRGBA(Map, Map, Map, 1));
+			for(const auto Text : {LucentHud::Text(Alpha), LucentHud::Secondary(Alpha)})
+			{
+				const auto Ink = Composite(Text, Background);
+				EXPECT_GE((Luminance(Ink) + .05f) / (Luminance(Background) + .05f), 4.5f);
+			}
+		}
+	EXPECT_FLOAT_EQ(LucentHud::PanelSurface(0, true).a, 0);
+}
+
+TEST(LucentHud, TimerGlyphsUseTargetPixelSizesAndLeaveRoomBetweenRows)
+{
+	for(int Height : {1080, 1440, 2160})
+		for(int Scale : {50, 75, 100, 125, 150})
+		{
+			const LucentHud::CLayout Layout(300.f * 16 / 9, 300, Scale);
+			for(float Font : {LucentHud::TimerSize, LucentHud::BodySize, LucentHud::CaptionSize})
+			{
+				const float Size = Layout.Unit(Font);
+				const float Target = LucentHud::TargetFontSize(Size, Height, 300);
+				const int Pixels = (int)(Target * Height / 300.f);
+				EXPECT_EQ(Pixels, (int)std::clamp(std::round(Size * Height / 300), 6.f, 128.f));
+				EXPECT_FLOAT_EQ(LucentHud::TargetFontSize(Target, Height, 300), Target);
+			}
+			const auto Bounds = Layout.Timer(96, true, true, 18);
+			const float MainY = Layout.TimerLineY(Bounds, false, true);
+			const float SecondaryY = Layout.TimerLineY(Bounds, true, true);
+			const float ClockY = Layout.TimerClockY(Bounds, true, true);
+			const float MainSize = LucentHud::TargetFontSize(Layout.Unit(LucentHud::TimerSize), Height, 300);
+			const float SecondarySize = LucentHud::TargetFontSize(Layout.Unit(LucentHud::BodySize), Height, 300);
+			const float ClockSize = LucentHud::TargetFontSize(Layout.Unit(LucentHud::CaptionSize), Height, 300);
+			EXPECT_GT(SecondaryY, MainY + MainSize);
+			EXPECT_GT(ClockY, SecondaryY + SecondarySize);
+			EXPECT_LE(ClockY + ClockSize, Bounds.y + Bounds.h);
+		}
+}
+
+TEST(LucentHud, TimerFormatCellsStayStableAcrossSecondsMinutesHoursAndDays)
+{
+	struct CTimeCase
+	{
+		int64_t m_Seconds;
+		const char *m_pKey;
+	};
+	const CTimeCase aCases[] = {
+		{0, "00:00"}, {1, "00:00"}, {9, "00:00"}, {10, "00:00"},
+		{59, "00:00"}, {60, "00:00"}, {599, "00:00"}, {600, "00:00"},
+		{3599, "00:00"}, {3600, "00:00:00"}, {35999, "00:00:00"},
+		{36000, "00:00:00"}, {86399, "00:00:00"}, {86400, "0d 00:00:00"},
+		{9 * 86400, "0d 00:00:00"}, {10 * 86400, "00d 00:00:00"}};
+	for(const auto &Case : aCases)
+	{
+		char aTime[64], aFormat[64];
+		str_time(Case.m_Seconds * 100, ETimeFormat::DAYS, aTime, sizeof(aTime));
+		LucentHud::TimerFormatTemplate(aFormat, aTime);
+		EXPECT_STREQ(aFormat, Case.m_pKey);
+		for(int Height : {1080, 1440})
+		{
+			const LucentHud::CLayout Layout(300.f * 16 / 9, 300, 100);
+			const auto Bounds = Layout.Timer(96, true, false, 18);
+			EXPECT_NEAR((Bounds.x + Bounds.w / 2) * Height / 300, (Layout.m_Width / 2) * Height / 300, .001f);
+		}
+	}
+	char aFormat[64];
+	LucentHud::TimerFormatTemplate(aFormat, "Finish 12:34.56 -00:01.23");
+	EXPECT_STREQ(aFormat, "Finish 00:00.00 -00:00.00");
+	EXPECT_FLOAT_EQ(LucentHud::TimerSize, 9.f);
+}
+
+TEST(LucentHud, ShippedDefaultFontProvidesTabularDigitAdvances)
+{
+	// Read the actual shipped TrueType cmap/hmtx rather than assume glyph ink widths are equal.
+	const auto Root = std::filesystem::path(__FILE__).parent_path().parent_path().parent_path();
+	std::ifstream File(Root / "data/fonts/DejaVuSans.ttf", std::ios::binary);
+	ASSERT_TRUE(File.good());
+	const std::vector<unsigned char> Data((std::istreambuf_iterator<char>(File)), std::istreambuf_iterator<char>());
+	ASSERT_GT(Data.size(), 1024u);
+	auto U16 = [&](size_t Offset) -> uint16_t { return (Data.at(Offset) << 8) | Data.at(Offset + 1); };
+	auto U32 = [&](size_t Offset) -> uint32_t { return ((uint32_t)Data.at(Offset) << 24) | ((uint32_t)Data.at(Offset + 1) << 16) | ((uint32_t)Data.at(Offset + 2) << 8) | Data.at(Offset + 3); };
+	auto Table = [&](const char *pName) -> size_t {
+		for(size_t i = 0; i < U16(4); ++i)
+		{
+			const size_t Offset = 12 + 16 * i;
+			if(Data.at(Offset) == pName[0] && Data.at(Offset + 1) == pName[1] && Data.at(Offset + 2) == pName[2] && Data.at(Offset + 3) == pName[3])
+				return U32(Offset + 8);
+		}
+		return 0;
+	};
+	const size_t Cmap = Table("cmap"), Hhea = Table("hhea"), Hmtx = Table("hmtx");
+	ASSERT_NE(Cmap, 0u);
+	ASSERT_NE(Hhea, 0u);
+	ASSERT_NE(Hmtx, 0u);
+	size_t Subtable = 0;
+	for(size_t i = 0; i < U16(Cmap + 2); ++i)
+	{
+		const size_t Offset = Cmap + 4 + 8 * i;
+		const size_t Candidate = Cmap + U32(Offset + 4);
+		if(U16(Offset) == 3 && U16(Offset + 2) == 1 && U16(Candidate) == 4)
+			Subtable = Candidate;
+	}
+	ASSERT_NE(Subtable, 0u);
+	const size_t Segments = U16(Subtable + 6) / 2;
+	const size_t Ends = Subtable + 14, Starts = Ends + 2 * Segments + 2;
+	const size_t Deltas = Starts + 2 * Segments, Ranges = Deltas + 2 * Segments;
+	const int Metrics = U16(Hhea + 34);
+	ASSERT_GT(Metrics, 0);
+	int Advance = -1;
+	for(int Code = '0'; Code <= '9'; ++Code)
+	{
+		int Glyph = 0;
+		for(size_t i = 0; i < Segments; ++i)
+		{
+			if(U16(Starts + 2 * i) > Code || U16(Ends + 2 * i) < Code)
+				continue;
+			const int Delta = (int16_t)U16(Deltas + 2 * i);
+			const int Range = U16(Ranges + 2 * i);
+			Glyph = Range ? U16(Ranges + 2 * i + Range + 2 * (Code - U16(Starts + 2 * i))) : Code;
+			if(!Range || Glyph)
+				Glyph = (Glyph + Delta) & 65535;
+			break;
+		}
+		ASSERT_GT(Glyph, 0);
+		const int Current = U16(Hmtx + 4 * std::min(Glyph, Metrics - 1));
+		if(Advance < 0)
+			Advance = Current;
+		EXPECT_EQ(Current, Advance) << "digit " << (char)Code;
+	}
+}
+
+TEST(LucentHud, WeaponSelectionRetargetsFromVisibleValueAtEveryFrameRate)
+{
+	for(int Fps : {30, 60, 144, 240})
+	{
+		LucentStyle::Motion::CTransition Selection;
+		const double Duration = LucentStyle::Motion::Selection;
+		Selection.Update(true, 10, true, Duration);
+		float Previous = 0;
+		for(int Frame = 1; Frame <= Fps; ++Frame)
+		{
+			const float Value = Selection.Update(true, 10 + Frame / double(Fps), true, Duration);
+			EXPECT_GE(Value, Previous);
+			EXPECT_LE(Value, 1);
+			Previous = Value;
+		}
+		EXPECT_FLOAT_EQ(Previous, 1);
+		Selection.Update(false, 11, true, Duration);
+		const float Fading = Selection.Update(false, 11 + Duration / 2, true, Duration);
+		EXPECT_GT(Fading, 0);
+		EXPECT_LT(Fading, 1);
+		EXPECT_FLOAT_EQ(Selection.Update(true, 11 + Duration / 2, true, Duration), Fading);
+		EXPECT_FLOAT_EQ(Selection.Update(true, 12, true, Duration), 1);
+	}
+}

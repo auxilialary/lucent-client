@@ -166,6 +166,9 @@ public:
 	static constexpr float MESSAGE_TEE_PADDING_RIGHT = 0.5f;
 
 	bool IsActive() const { return m_Mode != MODE_NONE; }
+	// Same current-state predicate as OnPrepareLines, without waiting for a render pass.
+	static constexpr bool ExpandedState(bool ShowHistory, bool InputActive, int ShowChat) { return ShowHistory || (InputActive && ShowChat == 1) || ShowChat == 2; }
+	bool IsExpanded() const { return ExpandedState(m_Show, IsActive(), g_Config.m_ClShowChat); }
 	void AddLine(int ClientId, int Team, const char *pLine);
 	void EnableMode(int Team);
 	void DisableMode();

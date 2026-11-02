@@ -2802,6 +2802,12 @@ if(CLIENT)
     lucent/game/ping_websocket.h
     lucent/gameview/config_variables.h
     lucent/gameview/presentation.h
+    lucent/hud/config_variables.h
+    lucent/hud/hud.cpp
+    lucent/hud/layout.h
+    lucent/hud/tee_alignment.cpp
+    lucent/hud/tee_alignment.h
+    lucent/hud/visuals.h
     lucent/lucent_startup.cpp
     lucent/lucent_startup.h
     lucent/lucent_style.h
@@ -3574,6 +3580,8 @@ if((GTEST_FOUND OR DOWNLOAD_GTEST) AND SERVER)
     linereader_test.cpp
     lucent_console_test.cpp
     lucent_gameview_test.cpp
+    lucent_hud_test.cpp
+    lucent_tee_alignment_test.cpp
     lucent_ping_relay_test.cpp
     lucent_ping_transport_test.cpp
     lucent_player_test.cpp
