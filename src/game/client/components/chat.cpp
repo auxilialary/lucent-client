@@ -8,6 +8,7 @@
 #include <base/log.h>
 #include <base/log_color.h>
 #include <base/time.h>
+#include <base/vmath.h>
 
 #include <engine/editor.h>
 #include <engine/graphics.h>
@@ -25,6 +26,7 @@
 #include <game/client/components/skins.h>
 #include <game/client/components/sounds.h>
 #include <game/client/gameclient.h>
+#include <game/client/lucent/lucent_chat.h>
 #include <game/localization.h>
 
 char CChat::ms_aDisplayText[MAX_CHAT_LENGTH] = "";
@@ -921,6 +923,7 @@ void CChat::AddLine(int ClientId, int Team, const char *pLine)
 
 void CChat::OnPrepareLines(float y)
 {
+	const vec2 MessagesOffset = CLucentChat::ComputeMessagesOffset();
 	float x = 5.0f;
 	float FontSize = this->FontSize();
 
@@ -945,7 +948,8 @@ void CChat::OnPrepareLines(float y)
 	int64_t Now = time();
 	float LineWidth = (IsScoreBoardOpen ? std::max(85.0f, FontSize * 85.0f / 6.0f) : g_Config.m_ClChatWidth) - (RealMsgPaddingX * 1.5f) - RealMsgPaddingTee;
 
-	float HeightLimit = IsScoreBoardOpen ? 180.0f : (m_PrevShowChat ? 50.0f : 200.0f);
+	float HeightLimit = (IsScoreBoardOpen ? 180.0f : (m_PrevShowChat ? 50.0f : 200.0f)) + MessagesOffset.y;
+	HeightLimit = std::max(0.0f, HeightLimit);
 	float Begin = x;
 	float TextBegin = Begin + RealMsgPaddingX / 2.0f;
 	int OffsetType = IsScoreBoardOpen ? 1 : 0;
@@ -1180,8 +1184,9 @@ void CChat::OnRender()
 	if(m_Mode != MODE_NONE)
 	{
 		// render chat input
+		const vec2 InputOffset = CLucentChat::ComputeInputOffset();
 		CTextCursor InputCursor;
-		InputCursor.SetPosition(vec2(x, y));
+		InputCursor.SetPosition(vec2(x + InputOffset.x, y + InputOffset.y));
 		InputCursor.m_FontSize = ScaledFontSize;
 		InputCursor.m_LineWidth = Width - 190.0f;
 
@@ -1251,12 +1256,16 @@ void CChat::OnRender()
 
 	y -= ScaledFontSize;
 
+	const vec2 MessagesOffset = CLucentChat::ComputeMessagesOffset();
+	y += MessagesOffset.y;
+
 	OnPrepareLines(y);
 
 	bool IsScoreBoardOpen = GameClient()->m_Scoreboard.IsActive() && (Graphics()->ScreenAspect() > 1.7f); // only assume scoreboard when screen ratio is widescreen(something around 16:9)
 
 	int64_t Now = time();
-	float HeightLimit = IsScoreBoardOpen ? 180.0f : (m_PrevShowChat ? 50.0f : 200.0f);
+	float HeightLimit = (IsScoreBoardOpen ? 180.0f : (m_PrevShowChat ? 50.0f : 200.0f)) + MessagesOffset.y;
+	HeightLimit = std::max(0.0f, HeightLimit);
 	int OffsetType = IsScoreBoardOpen ? 1 : 0;
 
 	float RealMsgPaddingX = MessagePaddingX();
@@ -1291,7 +1300,7 @@ void CChat::OnRender()
 			if(Line.m_QuadContainerIndex != -1)
 			{
 				Graphics()->SetColor(color_cast<ColorRGBA>(ColorHSLA(g_Config.m_ClChatBackgroundColor, true)).WithMultipliedAlpha(Blend));
-				Graphics()->RenderQuadContainerEx(Line.m_QuadContainerIndex, 0, -1, 0, ((y + RealMsgPaddingY / 2.0f) - Line.m_TextYOffset));
+				Graphics()->RenderQuadContainerEx(Line.m_QuadContainerIndex, 0, -1, MessagesOffset.x, ((y + RealMsgPaddingY / 2.0f) - Line.m_TextYOffset));
 			}
 		}
 
@@ -1307,12 +1316,12 @@ void CChat::OnRender()
 				float OffsetTeeY = TeeSize / 2.0f;
 				float FullHeightMinusTee = RowHeight - TeeSize;
 
-				RenderTools()->RenderIdleTeeAtCenter(&TeeRenderInfo, vec2(x + (RealMsgPaddingX + TeeSize) / 2.0f, y + OffsetTeeY + FullHeightMinusTee / 2.0f), EMOTE_NORMAL, vec2(1, 0.1f), Blend);
+				RenderTools()->RenderIdleTeeAtCenter(&TeeRenderInfo, vec2(x + MessagesOffset.x + (RealMsgPaddingX + TeeSize) / 2.0f, y + OffsetTeeY + FullHeightMinusTee / 2.0f), EMOTE_NORMAL, vec2(1, 0.1f), Blend);
 			}
 
 			const ColorRGBA TextColor = TextRender()->DefaultTextColor().WithMultipliedAlpha(Blend);
 			const ColorRGBA TextOutlineColor = TextRender()->DefaultTextOutlineColor().WithMultipliedAlpha(Blend);
-			TextRender()->RenderTextContainer(Line.m_TextContainerIndex, TextColor, TextOutlineColor, 0, (y + RealMsgPaddingY / 2.0f) - Line.m_TextYOffset);
+			TextRender()->RenderTextContainer(Line.m_TextContainerIndex, TextColor, TextOutlineColor, MessagesOffset.x, (y + RealMsgPaddingY / 2.0f) - Line.m_TextYOffset);
 		}
 	}
 }

@@ -2760,6 +2760,8 @@ if(CLIENT)
     lucent/browser_panels.cpp
     lucent/browser_state.h
     lucent/config_variables.h
+    lucent/lucent_chat.cpp
+    lucent/lucent_chat.h
     lucent/lucent_style.cpp
     lucent/lucent_text_motion.h
     lucent/lucent_style.h
