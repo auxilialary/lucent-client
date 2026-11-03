@@ -2776,6 +2776,8 @@ if(CLIENT)
     lucent/lucent_menu_transition.cpp
     lucent/lucent_startup.cpp
     lucent/lucent_startup.h
+    lucent/lucent_tee_align.cpp
+    lucent/lucent_tee_align.h
     lucent/map_preview.cpp
     lucent/map_preview.h
     lucent/preview_policy.h

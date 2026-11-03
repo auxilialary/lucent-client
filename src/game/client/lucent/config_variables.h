@@ -1,1 +1,7 @@
 MACRO_CONFIG_INT(ClLucentLogoAnimation, cl_lucent_logo_animation, 1, 0, 1, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Animate the Lucent start menu (0 for static)")
+MACRO_CONFIG_INT(CustomTeeAlign, lc_tee_align, 1, 0, 1, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Enable tee align detection")
+MACRO_CONFIG_INT(CustomTeeAlignTeam, lc_tee_align_team, 1, 0, 1, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Ignore players from other teams in DDRace")
+MACRO_CONFIG_INT(CustomTeeAlignSolo, lc_tee_align_solo, 0, 0, 1, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Ignore players in solo mode")
+MACRO_CONFIG_INT(CustomTeeAlignSolids, lc_tee_align_solids, 0, 0, 1, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Check solid map obstacles between tees")
+MACRO_CONFIG_INT(CustomTeeAlignKill, lc_tee_align_kill, 0, 0, 1, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Check death tiles between tees")
+MACRO_CONFIG_INT(CustomTeeAlignTele, lc_tee_align_tele, 0, 0, 1, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Check teleport tiles between tees")
