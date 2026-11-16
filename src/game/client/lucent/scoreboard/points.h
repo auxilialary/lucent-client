@@ -15,6 +15,15 @@ class IEngine;
 namespace LucentScoreboard
 {
 	inline constexpr int UnknownPoints = -1;
+	inline int ParsePoints(const json_value &Root, std::string_view Name)
+	{
+		const auto &Player = Root["player"];
+		const auto &Points = Root["points"]["points"];
+		if(Player.type == json_string && std::string_view(Player.u.string.ptr, Player.u.string.length) == Name &&
+			Points.type == json_integer && Points.u.integer >= 0 && Points.u.integer <= INT_MAX)
+			return int(Points.u.integer);
+		return UnknownPoints;
+	}
 	inline int ParsePoints(const char *pData, size_t Size, std::string_view Name)
 	{
 		if(!pData || Size == 0 || Size > 2 * 1024 * 1024)
@@ -22,18 +31,7 @@ namespace LucentScoreboard
 		json_settings Settings{};
 		Settings.max_memory = 8 * 1024 * 1024;
 		json_value *pRoot = json_parse_ex(&Settings, pData, Size, nullptr);
-		int Result = UnknownPoints;
-		if(pRoot && pRoot->type == json_object)
-		{
-			const auto &Player = (*pRoot)["player"];
-			const auto &Group = (*pRoot)["points"];
-			if(Player.type == json_string && std::string_view(Player.u.string.ptr, Player.u.string.length) == Name && Group.type == json_object)
-			{
-				const auto &Points = Group["points"];
-				if(Points.type == json_integer && Points.u.integer >= 0 && Points.u.integer <= INT_MAX)
-					Result = int(Points.u.integer);
-			}
-		}
+		const int Result = pRoot ? ParsePoints(*pRoot, Name) : UnknownPoints;
 		if(pRoot)
 			json_value_free(pRoot);
 		return Result;

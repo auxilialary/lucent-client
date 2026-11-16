@@ -967,10 +967,86 @@ TEST(LucentScoreboard, DDTeamSplitsIdentifyFragmentsAndNeverMergeDifferentIds)
 	C.m_Independent = true;
 	C.m_Team[0].fill(0);
 	C.m_Team[0][0] = C.m_Team[0][1] = C.m_Team[0][2] = 1;
-	// The balanced cut splits Team 1 and adds a second header on the right.
+	// Compact headers make a 2/2 cut shorter than preserving the 3/1 team boundary.
 	C.m_Team[0][3] = 2;
 	const auto R = C.Range(0, 4, 0, 2);
-	EXPECT_EQ(R.m_End, 3);
+	EXPECT_EQ(R.m_End, 2);
+}
+
+TEST(LucentScoreboard, CompactDDTeamHeaderKeepsAllFourPlayersInsideGroup)
+{
+	std::array<int, 128> Teams{};
+	for(int I = 8; I < 12; ++I)
+		Teams[I] = 55;
+	const auto Rows = CGroupRows::Calculate(Teams, {0, 12});
+	ASSERT_EQ(Rows.m_Count, 1);
+	const auto &Group = Rows.m_Groups[0];
+	EXPECT_EQ(Group.m_Start, 8);
+	EXPECT_EQ(Group.m_End, 12);
+	EXPECT_LT(GroupHeaderRows + 2 * GroupPaddingRows, 1.f);
+	for(int I = Group.m_Start; I < Group.m_End; ++I)
+	{
+		ASSERT_EQ(Rows.GroupForRow(I), &Group);
+		EXPECT_GE(Rows.m_RowY[I] + .0001f, Group.m_Top + GroupPaddingRows + GroupHeaderRows);
+		EXPECT_LE(Rows.m_RowY[I] + 1.f, Group.m_Bottom - GroupPaddingRows + .0001f);
+	}
+	EXPECT_EQ(Rows.GroupForRow(7), nullptr);
+	EXPECT_EQ(Rows.GroupForRow(12), nullptr);
+	// When the last two players continue in another column, both surfaces include
+	// their own compact header and all local player rows.
+	const auto Continued = CGroupRows::Calculate(Teams, {10, 12});
+	ASSERT_EQ(Continued.m_Count, 1);
+	EXPECT_NEAR(Continued.m_Groups[0].m_Bottom, 2.f + GroupHeaderRows + 2 * GroupPaddingRows, .0001f);
+}
+
+TEST(LucentScoreboard, TeamOutlineHasNoInternalHeaderOrPlayerSeams)
+{
+	for(float Pixel : {.25f, .5f, 1.f})
+	{
+		const auto Header = CGroupStrip::Calculate({10, 20, 240, 14}, Pixel, true, false);
+		const auto First = CGroupStrip::Calculate({10, 34, 240, 20}, Pixel, false, false);
+		const auto Last = CGroupStrip::Calculate({10, 54, 240, 22}, Pixel, false, true);
+		EXPECT_FLOAT_EQ(Header.m_Inner.y, Header.m_Outer.y + Pixel);
+		EXPECT_FLOAT_EQ(Header.m_Inner.y + Header.m_Inner.h, First.m_Inner.y);
+		EXPECT_FLOAT_EQ(First.m_Inner.y + First.m_Inner.h, Last.m_Inner.y);
+		EXPECT_FLOAT_EQ(Last.m_Inner.y + Last.m_Inner.h, Last.m_Outer.y + Last.m_Outer.h - Pixel);
+		EXPECT_FLOAT_EQ(Header.m_Inner.x, First.m_Inner.x);
+		EXPECT_FLOAT_EQ(First.m_Inner.w, Last.m_Inner.w);
+	}
+}
+
+TEST(LucentScoreboard, PlannerKeepsRowIdentitiesWhenWidthsAndTeamGeometryDoNotChange)
+{
+	CInput Input{1280, 720, 7, 0, false, 0, 400, 400};
+	Input.m_Content.m_Independent = true;
+	Input.m_Content.m_Chrome = 200;
+	for(int I = 0; I < 7; ++I)
+	{
+		Input.m_Content.m_ClientId[0][I] = 20 + I;
+		Input.m_Content.m_Identity[0][I] = 100;
+		Input.m_Content.m_Team[0][I] = I >= 2 && I < 6 ? 44 : 0;
+	}
+	CPlanner Planner;
+	Planner.Update(Input);
+	// Equal-width players swapping places must still invalidate the cached identity list.
+	std::swap(Input.m_Content.m_ClientId[0][2], Input.m_Content.m_ClientId[0][3]);
+	Input.m_Content.m_Dead[0][3] = true;
+	Planner.Update(Input);
+	EXPECT_EQ(Planner.m_Input.m_Content.m_ClientId[0][2], 23);
+	EXPECT_EQ(Planner.m_Input.m_Content.m_ClientId[0][3], 22);
+	EXPECT_TRUE(Planner.m_Input.m_Content.m_Dead[0][3]);
+	const auto Rows = CGroupRows::Calculate(Planner.m_Input.m_Content.m_Team[0], {0, 7});
+	for(int I = 0; I < 7; ++I)
+	{
+		const auto *pGroup = Rows.GroupForRow(I);
+		if(I >= 2 && I < 6)
+		{
+			ASSERT_NE(pGroup, nullptr);
+			EXPECT_EQ(pGroup->m_Team, 44);
+		}
+		else
+			EXPECT_EQ(pGroup, nullptr);
+	}
 }
 
 TEST(LucentScoreboard, IndividualFinishStatesKeepTheirValuesAndUnknownsStayUnknown)

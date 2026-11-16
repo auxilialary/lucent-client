@@ -98,7 +98,7 @@ class CSound : public IEngineSound
 	int64_t m_PlaybackTime = 0;
 
 	CSample *AllocSample() REQUIRES(!m_SoundLock);
-	void RateConvert(CSample &Sample) const;
+	bool RateConvert(CSample &Sample) const;
 
 	static int SDLCALL HandleAudioDeviceEvent(void *pUser, SDL_Event *pEvent);
 	bool OpenDevice(bool AllowFrequencyChange);
@@ -110,8 +110,8 @@ class CSound : public IEngineSound
 	void AdvancePlayback() REQUIRES(!m_SoundLock);
 
 	// pContextName used for error
-	bool DecodeOpus(CSample &Sample, const void *pData, unsigned DataSize, const char *pContextName) const;
-	bool DecodeWV(CSample &Sample, const void *pData, unsigned DataSize, const char *pContextName) const;
+	bool DecodeOpus(CSample &Sample, const void *pData, unsigned DataSize, const char *pContextName, unsigned MaxDecodedBytes = 0) const;
+	bool DecodeWV(CSample &Sample, const void *pData, unsigned DataSize, const char *pContextName, unsigned MaxDecodedBytes = 0) const;
 
 	void UpdateVolume();
 
@@ -124,8 +124,8 @@ public:
 
 	int LoadOpus(const char *pFilename, int StorageType = IStorage::TYPE_ALL) override REQUIRES(!m_SoundLock);
 	int LoadWV(const char *pFilename, int StorageType = IStorage::TYPE_ALL) override REQUIRES(!m_SoundLock);
-	int LoadOpusFromMem(const void *pData, unsigned DataSize, bool ForceLoad, const char *pContextName) override REQUIRES(!m_SoundLock);
-	int LoadWVFromMem(const void *pData, unsigned DataSize, bool ForceLoad, const char *pContextName) override REQUIRES(!m_SoundLock);
+	int LoadOpusFromMem(const void *pData, unsigned DataSize, bool ForceLoad, const char *pContextName, unsigned MaxDecodedBytes = 0) override REQUIRES(!m_SoundLock);
+	int LoadWVFromMem(const void *pData, unsigned DataSize, bool ForceLoad, const char *pContextName, unsigned MaxDecodedBytes = 0) override REQUIRES(!m_SoundLock);
 	void UnloadSample(int SampleId) override REQUIRES(!m_SoundLock);
 
 	float GetSampleTotalTime(int SampleId) override REQUIRES(!m_SoundLock); // in s

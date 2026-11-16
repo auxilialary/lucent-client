@@ -84,10 +84,13 @@ void CHud::OnWindowResize()
 
 void CHud::OnReset()
 {
+	m_CursorMotionBlur.Reset();
 	m_LucentAlignment = {};
 	for(auto &Selection : m_aLucentWeaponSelection)
 		Selection = {};
 	m_LucentWeaponScale = {};
+	for(auto &Summary : m_aFinishSummaries)
+		Summary = {};
 	m_TimeCpDiff = 0.0f;
 	m_DDRaceTime = 0;
 	m_FinishTimeLastReceivedTick = 0;
@@ -102,6 +105,13 @@ void CHud::OnReset()
 	m_LastSpectatorCountTick = 0;
 
 	ResetHudContainers();
+}
+
+void CHud::OnShutdown()
+{
+	for(auto &Summary : m_aFinishSummaries)
+		Summary = {};
+	m_CursorMotionBlur.Shutdown(Graphics());
 }
 
 void CHud::OnInit()
@@ -649,12 +659,18 @@ void CHud::RenderCursor()
 	{
 		// Render spec cursor
 		if(!g_Config.m_ClSpecCursor || !GameClient()->m_CursorInfo.IsAvailable())
+		{
+			m_CursorMotionBlur.Reset();
 			return;
+		}
 
 		bool RenderSpecCursor = (GameClient()->m_Snap.m_SpecInfo.m_Active && GameClient()->m_Snap.m_SpecInfo.m_SpectatorId != SPEC_FREEVIEW) || Client()->State() == IClient::STATE_DEMOPLAYBACK;
 
 		if(!RenderSpecCursor)
+		{
+			m_CursorMotionBlur.Reset();
 			return;
+		}
 
 		// Calculate factor to keep cursor on screen
 		const vec2 HalfSize = Center - ScreenRect.m_TopLeft;
@@ -671,9 +687,18 @@ void CHud::RenderCursor()
 			Alpha /= 2.0f;
 	}
 
-	Graphics()->SetColor(1.0f, 1.0f, 1.0f, Alpha);
-	Graphics()->TextureSet(GameClient()->m_GameSkin.m_aSpriteWeaponCursors[CurWeapon]);
-	Graphics()->RenderQuadContainerAsSprite(m_HudQuadContainerIndex, m_aCursorOffset[CurWeapon], TargetPos.x, TargetPos.y, LucentGameView::CursorScale(g_Config.m_LucentCursorSize), LucentGameView::CursorScale(g_Config.m_LucentCursorSize));
+	const double Now = time_get() / (double)time_freq();
+	const vec2 Position = TargetPos - Center;
+	const int Source = Client()->State() == IClient::STATE_DEMOPLAYBACK ? MAX_CLIENTS + 1 :
+		(GameClient()->m_Snap.m_SpecInfo.m_Active ? GameClient()->m_Snap.m_SpecInfo.m_SpectatorId : GameClient()->m_Snap.m_LocalClientId);
+	const float Scale = LucentGameView::CursorScale(g_Config.m_LucentCursorSize);
+	if(!m_CursorMotionBlur.Render(Graphics(), GameClient()->m_GameSkin.m_aLucentCursorPixels[CurWeapon], Position, Center, Scale, Alpha, Now, Source * NUM_WEAPONS + CurWeapon, g_Config.m_LucentCursorMotionBlur))
+	{
+		Graphics()->TextureSet(GameClient()->m_GameSkin.m_aSpriteWeaponCursors[CurWeapon]);
+		Graphics()->SetColor(1.f, 1.f, 1.f, Alpha);
+		Graphics()->RenderQuadContainerAsSprite(m_HudQuadContainerIndex, m_aCursorOffset[CurWeapon], TargetPos.x, TargetPos.y, Scale, Scale);
+	}
+
 }
 
 void CHud::PrepareAmmoHealthAndArmorQuads()
@@ -1748,8 +1773,6 @@ void CHud::OnRender()
 			if(!g_Config.m_LucentHud)
 				RenderSpectatorCount();
 			RenderMovementInformation();
-			if(g_Config.m_LucentHud)
-				RenderSpectatorCount();
 			if(!g_Config.m_LucentHud)
 				RenderDDRaceEffects();
 		}
@@ -1785,6 +1808,7 @@ void CHud::OnRender()
 			RenderLucentTimer(-1);
 		if(g_Config.m_LucentHud && m_LucentTimerBounds.w == 0 && g_Config.m_ClShowLocalTimeAlways)
 			RenderLucentTimer(-1);
+		GameClient()->m_LucentWatchers.Render(m_Width, m_Height, m_LucentTimerBounds);
 		if(g_Config.m_LucentHud)
 			RenderLucentRecording();
 		if(g_Config.m_LucentHud)
@@ -1809,6 +1833,9 @@ void CHud::OnRender()
 
 void CHud::OnMessage(int MsgType, void *pRawMsg)
 {
+	if(MsgType == NETMSGTYPE_SV_RACEFINISH || MsgType == NETMSGTYPE_SV_CHAT)
+		OnLucentFinishMessage(MsgType, pRawMsg);
+
 	if(MsgType == NETMSGTYPE_SV_DDRACETIME || MsgType == NETMSGTYPE_SV_DDRACETIMELEGACY)
 	{
 		CNetMsg_Sv_DDRaceTime *pMsg = (CNetMsg_Sv_DDRaceTime *)pRawMsg;

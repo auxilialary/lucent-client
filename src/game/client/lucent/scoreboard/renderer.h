@@ -66,7 +66,6 @@ namespace LucentScoreboard
 			CCachedText m_Ping, m_Points;
 		};
 		CPlayerElement m_aPlayers[MAX_CLIENTS];
-		std::array<CPanelCache, MAX_CLIENTS> m_aGroupPanels;
 
 		CCachedText m_HeaderTimer, m_HeaderMapMeasure;
 		CCachedText m_TitleScore;

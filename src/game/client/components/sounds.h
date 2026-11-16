@@ -6,6 +6,7 @@
 #include <base/vmath.h>
 
 #include <engine/shared/jobs.h>
+#include <engine/shared/sound_pack.h>
 #include <engine/sound.h>
 
 #include <game/client/component.h>
@@ -36,7 +37,17 @@ class CSounds : public CComponent
 	int m_QueuePos;
 	int64_t m_QueueWaitTime;
 	std::shared_ptr<CSoundLoading> m_pSoundJob;
-	bool m_WaitForSoundJob;
+	bool m_WaitForSoundJob = false;
+	bool m_PackInitialized = false;
+	bool m_SoundPackComparing = false;
+	std::vector<int> m_DefaultSamples;
+	LucentSoundPacks::CSelection m_PackSelection, m_ImportSelection;
+	LucentSoundPacks::CBytes m_ImportZip;
+	std::vector<LucentSoundPacks::CEntry> m_ActiveEntries, m_ImportEntries;
+	std::string m_ImportName;
+	void PublishSoundSamples(const std::map<size_t, int> &Pending);
+	std::string m_ActivePack, m_PackError;
+	bool ApplySoundPack(const char *pName, const LucentSoundPacks::CBytes *pImport = nullptr, bool PreviewOnly = false);
 
 	void UpdateChannels();
 	int GetSampleId(int SetId);
@@ -47,6 +58,19 @@ class CSounds : public CComponent
 	float m_BackgroundMusicVolume = -1.0f;
 
 public:
+	bool ImportSoundPack(const char *pAbsolutePath, bool PreviewOnly = false);
+	bool CommitSoundImport();
+	void SetSoundPackComparing(bool Comparing);
+	bool SoundPackComparing() const { return m_SoundPackComparing; }
+	void CancelSoundImport();
+	bool SaveSoundPreset(const char *pLabel);
+	int SoundPackSample(size_t Index, bool Original = false, bool Pending = false) const;
+	bool SoundReplaced(size_t Index, bool Pending = false) const;
+	size_t SoundReplacementCount(bool Pending = false) const;
+	bool SetSoundPack(const char *pName);
+	const char *SoundPackError() const { return m_PackError.c_str(); }
+	bool SoundPacksReady() const { return m_PackInitialized && !m_WaitForSoundJob && Sound()->IsSoundEnabled(); }
+
 	// sound channels
 	enum
 	{

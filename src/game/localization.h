@@ -49,6 +49,7 @@ class CLocalizationDatabase
 	std::vector<CLanguage> m_vLanguages;
 	std::vector<CString> m_vStrings;
 	CHeap m_StringsHeap;
+	bool LoadFile(const char *pFilename, class IStorage *pStorage, class IConsole *pConsole);
 
 public:
 	void LoadIndexfile(class IStorage *pStorage, class IConsole *pConsole);

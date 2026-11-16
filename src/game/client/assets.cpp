@@ -1,6 +1,7 @@
 #include "gameclient.h"
 
 #include <base/str.h>
+#include <cstring>
 
 #include <engine/graphics.h>
 #include <engine/image.h>
@@ -52,6 +53,9 @@ void CGameClient::LoadGameSkin(const char *pPath, bool AsDir)
 		Graphics()->UnloadTexture(&m_GameSkin.m_SpriteWeaponGrenadeCursor);
 		Graphics()->UnloadTexture(&m_GameSkin.m_SpriteWeaponNinjaCursor);
 		Graphics()->UnloadTexture(&m_GameSkin.m_SpriteWeaponLaserCursor);
+
+		for(auto &Pixels : m_GameSkin.m_aLucentCursorPixels)
+			Pixels = {};
 
 		std::fill(std::begin(m_GameSkin.m_aSpriteWeaponCursors), std::end(m_GameSkin.m_aSpriteWeaponCursors), IGraphics::CTextureHandle());
 
@@ -159,6 +163,22 @@ void CGameClient::LoadGameSkin(const char *pPath, bool AsDir)
 		m_GameSkin.m_aSpriteWeaponCursors[3] = m_GameSkin.m_SpriteWeaponGrenadeCursor;
 		m_GameSkin.m_aSpriteWeaponCursors[4] = m_GameSkin.m_SpriteWeaponLaserCursor;
 		m_GameSkin.m_aSpriteWeaponCursors[5] = m_GameSkin.m_SpriteWeaponNinjaCursor;
+
+		++m_GameSkin.m_LucentCursorRevision;
+		for(int Weapon = 0; Weapon < 6; ++Weapon)
+		{
+			const auto *pSprite = g_pData->m_Weapons.m_aId[Weapon].m_pSpriteCursor;
+			const CImageInfo &Source = FallbackImgInfo.has_value() && Graphics()->IsSpriteTextureFullyTransparent(ImgInfo, pSprite) ? FallbackImgInfo.value() : ImgInfo;
+			auto &Pixels = m_GameSkin.m_aLucentCursorPixels[Weapon];
+			Pixels.m_Width = pSprite->m_W * (int)Source.m_Width / pSprite->m_pSet->m_Gridx;
+			Pixels.m_Height = pSprite->m_H * (int)Source.m_Height / pSprite->m_pSet->m_Gridy;
+			Pixels.m_Revision = m_GameSkin.m_LucentCursorRevision;
+			Pixels.m_vRgba.resize(Pixels.m_Width * Pixels.m_Height * 4);
+			const int Left = pSprite->m_X * (int)Source.m_Width / pSprite->m_pSet->m_Gridx;
+			const int Top = pSprite->m_Y * (int)Source.m_Height / pSprite->m_pSet->m_Gridy;
+			for(int Row = 0; Row < Pixels.m_Height; ++Row)
+				std::memcpy(&Pixels.m_vRgba[Row * Pixels.m_Width * 4], &Source.m_pData[((Top + Row) * Source.m_Width + Left) * 4], Pixels.m_Width * 4);
+		}
 
 		// weapons and hook
 		m_GameSkin.m_SpriteHookChain = Graphics()->LoadSpriteTexture(ImgInfo, FallbackImgInfo, &g_pData->m_aSprites[SPRITE_HOOK_CHAIN]);

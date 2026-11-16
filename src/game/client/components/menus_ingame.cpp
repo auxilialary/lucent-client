@@ -35,6 +35,7 @@
 #include <game/client/lucent/gameview/presentation.h>
 #include <game/client/lucent/ui/controls.h>
 #include <game/client/lucent/ui/panel.h>
+#include <game/client/lucent/ui/scopes.h>
 #include <game/client/ui.h>
 #include <game/client/ui_listbox.h>
 #include <game/client/ui_scrollregion.h>
@@ -852,303 +853,647 @@ void CMenus::RenderServerInfoMotd(CUIRect Motd)
 	s_ScrollRegion.End();
 }
 
-bool CMenus::RenderServerControlServer(CUIRect MainView, bool UpdateScroll)
+namespace
 {
-	CUIRect List = MainView;
-	int NumVoteOptions = 0;
-	int aIndices[MAX_VOTE_OPTIONS];
-	int Selected = -1;
-	int TotalShown = 0;
-
-	int i = 0;
-	for(const CVoteOptionClient *pOption = GameClient()->m_Voting.FirstOption(); pOption; pOption = pOption->m_pNext, i++)
+	const char *VoteLocalize(const char *pText)
 	{
-		if(!m_FilterInput.IsEmpty() && !str_utf8_find_nocase(pOption->m_aDescription, m_FilterInput.GetString()))
-			continue;
-		if(i == m_CallvoteSelectedOption)
-			Selected = TotalShown;
-		TotalShown++;
+		return Localize(pText, "Lucent Voting");
 	}
+
+	void VoteLabel(CUi *pUi, ITextRender *pTextRender, const CUIRect &Rect, const char *pText, float Size, ColorRGBA Color, int Align = TEXTALIGN_ML, bool Fit = false)
+	{
+		if(Rect.w <= 0 || Rect.h <= 0)
+			return;
+		SLabelProperties Props;
+		Props.m_MaxWidth = Fit ? -1.f : Rect.w;
+		Props.m_EllipsisAtEnd = !Fit;
+		Props.m_EnableWidthCheck = Fit;
+		if(Fit)
+			Props.m_MinimumFontSize = 1;
+		const auto Previous = pTextRender->GetTextColor();
+		pTextRender->TextColor(Color);
+		pUi->DoLabel(&Rect, pText, Size, Align, Props);
+		pTextRender->TextColor(Previous);
+	}
+
+	void VoteField(CUi *pUi, ITextRender *pTextRender, const CUIRect &Rect, std::string_view Text, float Size, ColorRGBA Color, int Align = TEXTALIGN_ML, bool Fit = false)
+	{
+		if(Text.empty())
+			return;
+		char aText[VOTE_DESC_LENGTH] = {};
+		Text.copy(aText, sizeof(aText) - 1);
+		VoteLabel(pUi, pTextRender, Rect, aText, Size, Color, Align, Fit);
+	}
+
+	CUIRect VoteCard(const CUIRect &Rect, bool Selected, bool Hover)
+	{
+		CUIRect Card;
+		Rect.HMargin(1.5f, &Card);
+		if(Selected || Hover)
+			Card.Draw(LucentUi::Accent(Selected ? .19f : .075f), IGraphics::CORNER_ALL, 4);
+		if(Selected)
+		{
+			const CUIRect Mark{Card.x + 2, Card.y + 4, 1.5f, Card.h - 8};
+			Mark.Draw(LucentUi::Accent(.85f), IGraphics::CORNER_ALL, .75f);
+		}
+		Card.VMargin(8, &Card);
+		return Card;
+	}
+
+	void VoteBadge(CUi *pUi, ITextRender *pTextRender, CUIRect Rect, std::string_view Label, bool Accent)
+	{
+		if(Label.empty() || Rect.w <= 0)
+			return;
+		Rect.Draw(LucentUi::Accent(Accent ? .13f : .055f), IGraphics::CORNER_ALL, 3);
+		Rect.VMargin(2, &Rect);
+		VoteField(pUi, pTextRender, Rect, Label, 10.f, Accent ? LucentStyle::Style::PrimaryText : LucentStyle::Style::Text, TEXTALIGN_MC);
+	}
+
+	void VoteListStyle(CListBox &List, bool Reset)
+	{
+		if(Reset)
+			List.Reset();
+		List.SetScrollbarWidth(8);
+		List.SetScrollbarMargin(2);
+	}
+}
+
+bool CMenus::RenderServerControlServer(CUIRect List, CUIRect Sidebar, bool ResetScroll)
+{
+	using namespace LucentStyle::Style;
+	using namespace LucentVoting;
+	const auto &Voting = GameClient()->m_Voting;
+	auto &Catalog = m_VotingCatalog;
+	const bool Changed = m_VotingCatalogRevision != Voting.OptionRevision();
+	if(Changed)
+	{
+		m_VotingCatalogRevision = Voting.OptionRevision();
+		Catalog.Rebuild(Voting.FirstOption());
+	}
+	if(!Voting.IsReceivingOptions())
+	{
+		if(!Catalog.m_HasDecorations)
+			m_RawVoteOptions = false;
+		std::erase_if(m_vVoteCategories, [&](const std::string &Name) {
+			return std::none_of(Catalog.m_vCategories.begin(), Catalog.m_vCategories.end(), [&](const auto &Category) { return Category.m_Count > 0 && Category.m_Name == Name; });
+		});
+	}
+
+	int SidebarTarget = -1;
+	if(Sidebar.h > 0)
+	{
+		Sidebar.Draw(Surface.WithAlpha(.88f), IGraphics::CORNER_ALL, 6);
+		Sidebar.Margin(6, &Sidebar);
+		CUIRect Heading;
+		Sidebar.HSplitTop(18, &Heading, &Sidebar);
+		Heading.VMargin(4, &Heading);
+		VoteLabel(Ui(), TextRender(), Heading, VoteLocalize("Categories"), 10, PrimaryText);
+
+		static int s_RawMode, s_All, s_Unsectioned;
+		if(Catalog.m_HasDecorations)
+		{
+			CUIRect Mode;
+			Sidebar.HSplitBottom(22, &Sidebar, &Mode);
+			const char *pMode = m_RawVoteOptions ? VoteLocalize("Grouped list") : VoteLocalize("Original list");
+			if(LucentUi::Button(Ui(), TextRender(), &s_RawMode, pMode, Mode, m_RawVoteOptions, true, true))
+			{
+				m_RawVoteOptions = !m_RawVoteOptions;
+				ResetScroll = true;
+			}
+		}
+
+		static CScrollRegion s_CategoryScroll;
+		if(Changed)
+			s_CategoryScroll.StopScrolling();
+		if(!m_RawVoteOptions && Sidebar.h > 0)
+		{
+			const char *pCurrentType = nullptr;
+			int NumTypeChoices = 0;
+			for(const int Index : Catalog.m_vMapTypes)
+			{
+				const auto *pOption = Catalog.m_vOptions[Index].m_pOption;
+				const auto Type = ParseMapType(pOption->m_aDescription);
+				if(Type.m_Active)
+					pCurrentType = Type.m_pName;
+				else
+				{
+					++NumTypeChoices;
+					if(pOption == m_pCallvoteSelection && str_comp(pOption->m_aDescription, m_aCallvoteSelection) == 0)
+						SidebarTarget = Index;
+				}
+			}
+			if(pCurrentType)
+			{
+				static int s_TypeToggle;
+				CUIRect Toggle, Chevron, Badge;
+				const char *pBadge = VoteLocalize("Current type");
+				const float BadgeWidth = TextRender()->TextWidth(9, pBadge) + 10;
+				const bool StackBadge = Sidebar.w < TextRender()->TextWidth(10.5f, pCurrentType) + BadgeWidth + 36;
+				Sidebar.HSplitTop(StackBadge ? 36.f : 24.f, &Toggle, &Sidebar);
+				const bool Hover = Ui()->Enabled() && Ui()->MouseHovered(&Toggle);
+				CUIRect Label = VoteCard(Toggle, false, Hover);
+				Label.VSplitRight(10, &Label, &Chevron);
+				Label.VSplitRight(5, &Label, nullptr);
+				if(StackBadge)
+				{
+					CUIRect BadgeLine;
+					Label.HSplitBottom(16, &Label, &BadgeLine);
+					BadgeLine.VSplitLeft(std::min(BadgeWidth, BadgeLine.w), &Badge, nullptr);
+					Badge.HMargin(1, &Badge);
+				}
+				else
+				{
+					Label.VSplitRight(BadgeWidth, &Label, &Badge);
+					Label.VSplitRight(5, &Label, nullptr);
+					Badge.HMargin(3, &Badge);
+				}
+				Badge.Draw(LucentUi::Accent(.13f), IGraphics::CORNER_ALL, 3);
+				Badge.VMargin(3, &Badge);
+				VoteLabel(Ui(), TextRender(), Badge, pBadge, 9, PrimaryText, TEXTALIGN_MC);
+				VoteLabel(Ui(), TextRender(), Label, pCurrentType, 10.5f, PrimaryText, TEXTALIGN_ML, true);
+				TextRender()->SetFontPreset(EFontPreset::ICON_FONT);
+				VoteLabel(Ui(), TextRender(), Chevron, m_VoteMapTypesExpanded ? FontIcon::CHEVRON_UP : FontIcon::CHEVRON_DOWN, 8, DetailText, TEXTALIGN_MC);
+				TextRender()->SetFontPreset(EFontPreset::DEFAULT_FONT);
+				if(Hover)
+					Ui()->DoToolTip(&s_TypeToggle, &Toggle, pCurrentType);
+				if(Ui()->DoButtonLogic(&s_TypeToggle, m_VoteMapTypesExpanded, &Toggle, BUTTONFLAG_LEFT))
+				{
+					m_VoteMapTypesExpanded = !m_VoteMapTypesExpanded;
+					s_CategoryScroll.StopScrolling();
+				}
+			}
+			const auto &Clock = LucentStyle::Motion::Clock();
+			const float TypeReveal = m_VoteMapTypesTransition.Update(pCurrentType && m_VoteMapTypesExpanded, Clock.m_Now, Clock.m_Animate, LucentStyle::Motion::Selection);
+			constexpr float CategoryHeight = 22.f;
+			const float TypeHeight = CategoryHeight * NumTypeChoices * TypeReveal;
+			CScrollRegionParams Params;
+			Params.m_ScrollbarThickness = 7;
+			Params.m_ScrollbarMargin = 2;
+			Params.m_ScrollUnit = 46;
+			const int NumCategories = std::count_if(Catalog.m_vCategories.begin(), Catalog.m_vCategories.end(), [](const auto &Category) { return Category.m_Count > 0; });
+			const float SidebarHeight = CategoryHeight * (1 + NumCategories) + TypeHeight + (pCurrentType ? 18.f : 0.f) + BottomPadding;
+			s_CategoryScroll.Begin(&Sidebar, &Params, SidebarHeight);
+			const auto DrawCategory = [&](const CUIRect &Row, const void *pId, const char *pLabel, int Count, bool Selected) {
+				const bool Hover = Ui()->Enabled() && Ui()->MouseHovered(&Row);
+				CUIRect Label = VoteCard(Row, Selected, Hover), Badge;
+				if(Count >= 0)
+				{
+					char aCount[16];
+					str_format(aCount, sizeof(aCount), "%d", Count);
+					const float BadgeWidth = std::min(Label.w * .46f, std::max(18.f, TextRender()->TextWidth(10, aCount) + 7));
+					Label.VSplitRight(BadgeWidth, &Label, &Badge);
+					Label.VSplitRight(4, &Label, nullptr);
+					Badge.HMargin(3, &Badge);
+					VoteBadge(Ui(), TextRender(), Badge, aCount, Selected);
+				}
+				VoteLabel(Ui(), TextRender(), Label, pLabel, 10.5f, Selected ? PrimaryText : Text, TEXTALIGN_ML, true);
+				if(Hover && TextRender()->TextWidth(10.5f, pLabel) > Label.w)
+					Ui()->DoToolTip(pId, &Row, pLabel);
+				return Ui()->DoButtonLogic(pId, Selected, &Row, BUTTONFLAG_LEFT) != 0;
+			};
+			const auto DrawFilter = [&](const void *pId, const char *pLabel, int Count, bool Selected) {
+				CUIRect Row;
+				Sidebar.HSplitTop(CategoryHeight, &Row, &Sidebar);
+				return s_CategoryScroll.AddRect(Row) && DrawCategory(Row, pId, pLabel, Count, Selected);
+			};
+			const auto DrawSidebarHeading = [&](const char *pLabel) {
+				CUIRect Row;
+				Sidebar.HSplitTop(18, &Row, &Sidebar);
+				if(s_CategoryScroll.AddRect(Row))
+				{
+					Row.VMargin(8, &Row);
+					VoteLabel(Ui(), TextRender(), Row, pLabel, 9.5f, DetailText);
+				}
+			};
+			if(pCurrentType)
+			{
+				if(TypeHeight > 0)
+				{
+					CUIRect Reveal;
+					Sidebar.HSplitTop(TypeHeight, &Reveal, &Sidebar);
+					if(s_CategoryScroll.AddRect(Reveal))
+					{
+						Ui()->ClipEnable(&Reveal);
+						CUIRect Row{Reveal.x, Reveal.y, Reveal.w, CategoryHeight};
+						for(const int Index : Catalog.m_vMapTypes)
+						{
+							const auto *pOption = Catalog.m_vOptions[Index].m_pOption;
+							const auto Type = ParseMapType(pOption->m_aDescription);
+							if(Type.m_Active)
+								continue;
+							if(Row.y >= Reveal.y + Reveal.h)
+								break;
+							if(!s_CategoryScroll.RectClipped(Row))
+							{
+								LucentUi::CInteractionScope Input(Ui(), m_VoteMapTypesExpanded && Row.y + Row.h <= Reveal.y + Reveal.h + .001f);
+								if(DrawCategory(Row, pOption, Type.m_pName, -1, SidebarTarget == Index))
+								{
+									SidebarTarget = Index;
+									m_pCallvoteSelection = nullptr;
+								}
+							}
+							Row.y += CategoryHeight;
+						}
+						Ui()->ClipDisable();
+					}
+				}
+				DrawSidebarHeading(VoteLocalize("Map filters"));
+			}
+			int Total = 0;
+			for(const auto &Category : Catalog.m_vCategories)
+				Total += Category.m_Count;
+			if(DrawFilter(&s_All, VoteLocalize("All maps"), Total, m_vVoteCategories.empty()))
+			{
+				m_vVoteCategories.clear();
+				SidebarTarget = -1;
+				ResetScroll = true;
+			}
+			for(const auto &Category : Catalog.m_vCategories)
+			{
+				if(Category.m_Count == 0)
+					continue;
+				const auto Selected = std::find(m_vVoteCategories.begin(), m_vVoteCategories.end(), Category.m_Name);
+				const char *pLabel = Category.m_pHeading ? Category.m_Name.c_str() :
+						     VoteLocalize(Catalog.m_vMapTypes.empty() ? "Server options" : "Unsectioned maps");
+				const void *pId = Category.m_pHeading ? static_cast<const void *>(Category.m_pHeading) : &s_Unsectioned;
+				if(DrawFilter(pId, pLabel, Category.m_Count, Selected != m_vVoteCategories.end()))
+				{
+					if(Selected != m_vVoteCategories.end())
+						m_vVoteCategories.erase(Selected);
+					else
+						m_vVoteCategories.push_back(Category.m_Name);
+					SidebarTarget = -1;
+					ResetScroll = true;
+				}
+			}
+			CUIRect Padding;
+			Sidebar.HSplitTop(BottomPadding, &Padding, nullptr);
+			s_CategoryScroll.AddRect(Padding);
+			s_CategoryScroll.End();
+		}
+		else if(Sidebar.h > 0)
+		{
+			VoteLabel(Ui(), TextRender(), Sidebar, VoteLocalize("Server options"), 10.5f, DetailText, TEXTALIGN_MC);
+		}
+	}
+
+	const auto vVisible = Catalog.Filter(m_FilterInput.GetString(), m_vVoteCategories, m_RawVoteOptions);
+	int Selected = Catalog.VisibleSelection(vVisible, m_pCallvoteSelection, m_aCallvoteSelection);
 
 	static CListBox s_ListBox;
-	s_ListBox.DoStart(19.0f, TotalShown, 1, 3, Selected, &List);
-
-	i = 0;
-	for(const CVoteOptionClient *pOption = GameClient()->m_Voting.FirstOption(); pOption; pOption = pOption->m_pNext, i++)
+	VoteListStyle(s_ListBox, ResetScroll);
+	if(ResetScroll || Changed)
+		s_ListBox.ScrollToSelected();
+	const bool TwoLines = !m_RawVoteOptions && std::any_of(vVisible.begin(), vVisible.end(), [&](int Index) {
+		const auto &Option = Catalog.m_vOptions[Index];
+		return Option.m_pDetails[0] || !LucentVoting::ParseMapLabel(Option.m_pOption->m_aDescription).m_Author.empty();
+	});
+	const float RowHeight = TwoLines ? 31.f : 23.f;
+	int Sections = 0, LastSection = -1;
+	if(!m_RawVoteOptions)
 	{
-		if(!m_FilterInput.IsEmpty() && !str_utf8_find_nocase(pOption->m_aDescription, m_FilterInput.GetString()))
-			continue;
-		aIndices[NumVoteOptions] = i;
-		NumVoteOptions++;
+		for(const int Index : vVisible)
+		{
+			const int Section = Catalog.Section(Index);
+			if(Section != 0 && Section != LastSection)
+				++Sections;
+			LastSection = Section;
+		}
+	}
+	s_ListBox.DoStart(RowHeight, vVisible.size(), 1, 3, Selected, &List, false, IGraphics::CORNER_ALL, false, ListHeight(RowHeight, vVisible.size(), Sections));
+	LastSection = -1;
+	for(const int Index : vVisible)
+	{
+		const auto &Option = Catalog.m_vOptions[Index];
+		const int SectionId = Catalog.Section(Index);
+		if(!m_RawVoteOptions && SectionId != 0 && SectionId != LastSection)
+		{
+			const auto Section = s_ListBox.DoSection(SectionHeight);
+			if(Section.m_Visible)
+			{
+				CUIRect Label = Section.m_Rect;
+				Label.VMargin(7, &Label);
+				CUIRect Line;
+				Label.HSplitTop(1, &Line, &Label);
+				LucentUi::Divider(Line, .13f);
+				const char *pLabel = SectionId == ServerOptionsSection ? VoteLocalize("Server options") : Catalog.m_vCategories[SectionId].m_Name.c_str();
+				VoteLabel(Ui(), TextRender(), Label, pLabel, 10, PrimaryText);
+			}
+		}
+		LastSection = SectionId;
 
-		const CListboxItem Item = s_ListBox.DoNextItem(pOption);
+		const auto Item = s_ListBox.DoNextItem(Option.m_pOption, false, 4, false);
 		if(!Item.m_Visible)
 			continue;
+		const bool Hover = Ui()->Enabled() && Ui()->MouseHovered(&Item.m_Rect);
+		CUIRect Name = VoteCard(Item.m_Rect, Item.m_Selected, Hover);
+		const char *pDescription = Option.m_pOption->m_aDescription;
+		const char *pTooltip = nullptr;
+		const auto Measure = [&](float Size, std::string_view Label) {
+			return Label.empty() ? 0.f : TextRender()->TextWidth(Size, Label.data(), Label.size());
+		};
+		const auto Map = m_RawVoteOptions ? LucentVoting::CMapLabel{} : LucentVoting::ParseMapLabel(pDescription);
+		if(Map.m_Rating.empty())
+		{
+			VoteLabel(Ui(), TextRender(), Name, pDescription, 11, Item.m_Selected ? PrimaryText : Text);
+			if(Measure(11, pDescription) > Name.w)
+				pTooltip = pDescription;
+		}
+		else
+		{
+			const auto Details = LucentVoting::ParseMapDetails(Option.m_pDetails);
+			constexpr float TextGap = 8, BadgeGap = 5;
+			char aRating[] = "0 ★";
+			aRating[0] = Map.m_Rating.front();
+			// Keep the metadata anchor independent of the map and mapper lengths.
+			const float MetadataOffset = std::min(208.f, Name.w * .432f);
+			CUIRect Metadata;
+			Name.VSplitLeft(MetadataOffset, &Name, &Metadata);
+			Name.VSplitRight(std::min(TextGap, Name.w), &Name, nullptr);
+			if(std::max(Measure(11.5f, Map.m_Title), Measure(10, Map.m_Author)) > Name.w)
+				pTooltip = pDescription;
 
-		CUIRect Label;
-		Item.m_Rect.VMargin(2.0f, &Label);
-		Ui()->DoLabel(&Label, pOption->m_aDescription, 13.0f, TEXTALIGN_ML);
+			if(!Map.m_Author.empty() || !Details.m_Finishes.empty())
+			{
+				CUIRect Author;
+				Name.HSplitTop(15, &Name, &Author);
+				VoteField(Ui(), TextRender(), Author, Map.m_Author, 10, DetailText, TEXTALIGN_ML, true);
+			}
+			VoteField(Ui(), TextRender(), Name, Map.m_Title, 11.5f, Item.m_Selected ? PrimaryText : Text, TEXTALIGN_ML, true);
+
+			Metadata.HMargin(std::max(0.f, (Metadata.h - 15) / 2), &Metadata);
+			const std::string_view aLabels[] = {aRating, Details.m_Finishes, Details.m_Time};
+			float aBadgeWidths[3] = {};
+			float TotalWidth = 0;
+			for(int i = 0; i < 3; ++i)
+			{
+				if(aLabels[i].empty())
+					continue;
+				aBadgeWidths[i] = Measure(10, aLabels[i]) + 10;
+				TotalWidth += aBadgeWidths[i] + (TotalWidth > 0 ? BadgeGap : 0);
+			}
+			const float Scale = std::min(1.f, Metadata.w / TotalWidth);
+			if(Scale < 1 && !pTooltip && !Details.m_Finishes.empty())
+				pTooltip = Option.m_pDetails;
+			for(int i = 0; i < 3; ++i)
+			{
+				if(aBadgeWidths[i] == 0)
+					continue;
+				if(i > 0)
+					Metadata.VSplitLeft(BadgeGap * Scale, nullptr, &Metadata);
+				CUIRect Badge;
+				Metadata.VSplitLeft(aBadgeWidths[i] * Scale, &Badge, &Metadata);
+				VoteBadge(Ui(), TextRender(), Badge, aLabels[i], i == 0);
+			}
+		}
+		if(Hover && pTooltip)
+			Ui()->DoToolTip(Option.m_pOption, &Item.m_Rect, pTooltip);
 	}
-
+	if(!vVisible.empty())
+		s_ListBox.DoSection(BottomPadding);
 	Selected = s_ListBox.DoEnd();
-	if(UpdateScroll)
-		s_ListBox.ScrollToSelected();
-	m_CallvoteSelectedOption = Selected != -1 ? aIndices[Selected] : -1;
+	m_CallvoteSelectedOption = Selected >= 0 && Selected < (int)vVisible.size() ? vVisible[Selected] : SidebarTarget;
+	m_pCallvoteSelection = m_CallvoteSelectedOption >= 0 ? Catalog.m_vOptions[m_CallvoteSelectedOption].m_pOption : nullptr;
+	str_copy(m_aCallvoteSelection, m_pCallvoteSelection ? m_pCallvoteSelection->m_aDescription : "");
+	if(vVisible.empty())
+	{
+		if(Voting.IsReceivingOptions())
+		{
+			CUIRect Spinner = List;
+			Spinner.HSplitMid(&Spinner, &List);
+			Ui()->RenderProgressSpinner(vec2(Spinner.Center().x, Spinner.y + Spinner.h - 8), 5.f);
+			List.HSplitTop(24, &List, nullptr);
+		}
+		const char *pEmpty = Voting.IsReceivingOptions() ? Localize("Loading…") :
+				    Catalog.m_vOptions.empty() ? VoteLocalize("No vote options") : Localize("No results");
+		VoteLabel(Ui(), TextRender(), List, pEmpty, 12, DetailText, TEXTALIGN_MC);
+	}
 	return s_ListBox.WasItemActivated();
 }
 
-bool CMenus::RenderServerControlKick(CUIRect MainView, bool FilterSpectators, bool UpdateScroll)
+bool CMenus::RenderServerControlKick(CUIRect List, CUIRect Sidebar, bool FilterSpectators, bool ResetScroll)
 {
-	int NumOptions = 0;
-	int Selected = -1;
+	using namespace LucentStyle::Style;
+	int NumOptions = 0, Selected = -1;
 	int aPlayerIds[MAX_CLIENTS];
-	for(const auto &pInfoByName : GameClient()->m_Snap.m_apInfoByName)
+	for(const auto *pInfo : GameClient()->m_Snap.m_apInfoByName)
 	{
-		if(!pInfoByName)
+		if(!pInfo || pInfo->m_ClientId == GameClient()->m_Snap.m_LocalClientId || (FilterSpectators && pInfo->m_Team == TEAM_SPECTATORS))
 			continue;
-
-		int Index = pInfoByName->m_ClientId;
-		if(Index == GameClient()->m_Snap.m_LocalClientId || (FilterSpectators && pInfoByName->m_Team == TEAM_SPECTATORS))
+		const int Id = pInfo->m_ClientId;
+		const char *pName = GameClient()->m_aClients[Id].m_aName;
+		if(!m_FilterInput.IsEmpty() && !str_utf8_find_nocase(pName, m_FilterInput.GetString()))
 			continue;
-
-		if(!str_utf8_find_nocase(GameClient()->m_aClients[Index].m_aName, m_FilterInput.GetString()))
-			continue;
-
-		if(m_CallvoteSelectedPlayer == Index)
+		if(m_CallvoteSelectedPlayer == Id && str_comp(pName, m_aCallvotePlayerName) == 0)
 			Selected = NumOptions;
-		aPlayerIds[NumOptions] = Index;
-		NumOptions++;
+		aPlayerIds[NumOptions++] = Id;
+	}
+	if(Sidebar.h > 0)
+	{
+		Sidebar.Draw(Surface.WithAlpha(.88f), IGraphics::CORNER_ALL, 6);
+		Sidebar.Margin(10, &Sidebar);
+		CUIRect Title, Count;
+		Sidebar.HSplitTop(18, &Title, &Sidebar);
+		Sidebar.HSplitTop(28, &Count, &Sidebar);
+		char aCount[16];
+		str_format(aCount, sizeof(aCount), "%d", NumOptions);
+		VoteLabel(Ui(), TextRender(), Title, Localize("Players"), 10, DetailText);
+		VoteLabel(Ui(), TextRender(), Count, aCount, 22, PrimaryText);
 	}
 
 	static CListBox s_ListBox;
-	s_ListBox.DoStart(24.0f, NumOptions, 1, 3, Selected, &MainView);
-
-	for(int i = 0; i < NumOptions; i++)
+	static int s_aPlayerIds[MAX_CLIENTS];
+	VoteListStyle(s_ListBox, ResetScroll);
+	if(ResetScroll)
+		s_ListBox.ScrollToSelected();
+	constexpr float RowHeight = 25;
+	s_ListBox.DoStart(RowHeight, NumOptions, 1, 3, Selected, &List, false, IGraphics::CORNER_ALL, false, LucentVoting::ListHeight(RowHeight, NumOptions, 0));
+	for(int i = 0; i < NumOptions; ++i)
 	{
-		const CListboxItem Item = s_ListBox.DoNextItem(&aPlayerIds[i]);
+		const int Id = aPlayerIds[i];
+		const auto Item = s_ListBox.DoNextItem(&s_aPlayerIds[Id], false, 4, false);
 		if(!Item.m_Visible)
 			continue;
-
-		CUIRect TeeRect, Label;
-		Item.m_Rect.VSplitLeft(Item.m_Rect.h, &TeeRect, &Label);
-
-		CTeeRenderInfo TeeInfo = GameClient()->m_aClients[aPlayerIds[i]].m_RenderInfo;
-		TeeInfo.m_Size = TeeRect.h;
-
-		RenderTools()->RenderIdleTeeAtCenter(&TeeInfo, vec2(TeeRect.x + TeeInfo.m_Size / 2, TeeRect.y + TeeInfo.m_Size / 2));
-
-		Ui()->DoLabel(&Label, GameClient()->m_aClients[aPlayerIds[i]].m_aName, 16.0f, TEXTALIGN_ML);
+		const bool Hover = Ui()->Enabled() && Ui()->MouseHovered(&Item.m_Rect);
+		CUIRect Tee, Name = VoteCard(Item.m_Rect, Item.m_Selected, Hover);
+		Name.VSplitLeft(29, &Tee, &Name);
+		CTeeRenderInfo TeeInfo = GameClient()->m_aClients[Id].m_RenderInfo;
+		TeeInfo.m_Size = 20;
+		RenderTools()->RenderIdleTeeAtCenter(&TeeInfo, Tee.Center());
+		VoteLabel(Ui(), TextRender(), Name, GameClient()->m_aClients[Id].m_aName, 12, Item.m_Selected ? PrimaryText : Text);
 	}
-
+	if(NumOptions)
+		s_ListBox.DoSection(LucentVoting::BottomPadding);
 	Selected = s_ListBox.DoEnd();
-	if(UpdateScroll)
-		s_ListBox.ScrollToSelected();
-	m_CallvoteSelectedPlayer = Selected != -1 ? aPlayerIds[Selected] : -1;
+	m_CallvoteSelectedPlayer = Selected >= 0 && Selected < NumOptions ? aPlayerIds[Selected] : -1;
+	str_copy(m_aCallvotePlayerName, m_CallvoteSelectedPlayer >= 0 ? GameClient()->m_aClients[m_CallvoteSelectedPlayer].m_aName : "");
+	if(!NumOptions)
+		VoteLabel(Ui(), TextRender(), List, m_FilterInput.IsEmpty() ? VoteLocalize("No eligible players") : Localize("No results"), 12, DetailText, TEXTALIGN_MC);
 	return s_ListBox.WasItemActivated();
 }
 
 void CMenus::RenderServerControl(CUIRect MainView)
 {
-	enum class EServerControlTab
+	using namespace LucentStyle::Style;
+	LucentUi::CScope Style(Ui());
+	enum { OPTIONS, KICK, SPECTATE, NUM_TABS };
+	static int s_Tab = OPTIONS;
+	static int s_aTabIds[NUM_TABS], s_Call, s_Force, s_Remove, s_Add;
+	const char *apTabs[] = {VoteLocalize("Maps"), VoteLocalize("Kick player"), VoteLocalize("Spectator")};
+	bool ResetScroll = m_ControlPageOpening;
+	const bool Hotkeys = !Ui()->IsPopupOpen() && !GameClient()->m_GameConsole.IsActive();
+
+	CUIRect Tabs, Footer;
+	MainView.HSplitTop(30, &Tabs, &MainView);
+	Tabs.Draw(Surface.WithAlpha(.86f), IGraphics::CORNER_ALL, 6);
+	Tabs.Margin(3, &Tabs);
+	const float TabWidth = Tabs.w / NUM_TABS;
+	for(int i = 0; i < NUM_TABS; ++i)
 	{
-		SETTINGS,
-		KICKVOTE,
-		SPECVOTE,
-	};
-	static EServerControlTab s_ControlPage = EServerControlTab::SETTINGS;
+		CUIRect Button;
+		Tabs.VSplitLeft(TabWidth, &Button, &Tabs);
+		Button.VMargin(2, &Button);
+		if(LucentUi::Button(Ui(), TextRender(), &s_aTabIds[i], apTabs[i], Button, s_Tab == i, true, true) && s_Tab != i)
+		{
+			s_Tab = i;
+			ResetScroll = true;
+		}
+	}
 
-	// render background
-	CUIRect Bottom, RconExtension, TabBar, Button;
-	MainView.HSplitTop(20.0f, &Bottom, &MainView);
-	Bottom.Draw(ms_ColorTabbarActive, IGraphics::CORNER_NONE, 0.0f);
-	MainView.HSplitTop(20.0f, &TabBar, &MainView);
-	MainView.Draw(ms_ColorTabbarActive, IGraphics::CORNER_B, 10.0f);
-	MainView.Margin(10.0f, &MainView);
+	const bool Options = s_Tab == OPTIONS;
+	const bool Rcon = Client()->RconAuthed();
+	CUIRect Admin{};
+	if(Rcon)
+		MainView.HSplitBottom(Options ? 72.f : 34.f, &MainView, &Admin);
+	MainView.HSplitBottom(39, &MainView, &Footer);
+	MainView.HMargin(9, &MainView);
 
-	if(Client()->RconAuthed())
-		MainView.HSplitBottom(90.0f, &MainView, &RconExtension);
+	CUIRect Sidebar{};
+	const auto SidebarLayout = LucentVoting::SidebarLayout(MainView.w, MainView.h, Options);
+	if(SidebarLayout.m_Width > 0)
+	{
+		MainView.VSplitLeft(SidebarLayout.m_Width, &Sidebar, &MainView);
+		MainView.VSplitLeft(9, nullptr, &MainView);
+	}
+	else if(SidebarLayout.m_Height > 0)
+	{
+		MainView.HSplitTop(SidebarLayout.m_Height, &Sidebar, &MainView);
+		MainView.HSplitTop(7, nullptr, &MainView);
+	}
 
-	// tab bar
-	TabBar.VSplitLeft(TabBar.w / 3, &Button, &TabBar);
-	static CButtonContainer s_Button0;
-	if(DoButton_MenuTab(&s_Button0, Localize("Change settings"), s_ControlPage == EServerControlTab::SETTINGS, &Button, IGraphics::CORNER_NONE))
-		s_ControlPage = EServerControlTab::SETTINGS;
-
-	TabBar.VSplitMid(&Button, &TabBar);
-	static CButtonContainer s_Button1;
-	if(DoButton_MenuTab(&s_Button1, Localize("Kick player"), s_ControlPage == EServerControlTab::KICKVOTE, &Button, IGraphics::CORNER_NONE))
-		s_ControlPage = EServerControlTab::KICKVOTE;
-
-	static CButtonContainer s_Button2;
-	if(DoButton_MenuTab(&s_Button2, Localize("Move player to spectators"), s_ControlPage == EServerControlTab::SPECVOTE, &TabBar, IGraphics::CORNER_NONE))
-		s_ControlPage = EServerControlTab::SPECVOTE;
-
-	// render page
-	MainView.HSplitBottom(ms_ButtonHeight + 5 * 2, &MainView, &Bottom);
-	Bottom.HMargin(5.0f, &Bottom);
-	Bottom.HSplitTop(5.0f, nullptr, &Bottom);
-
-	// render quick search
-	CUIRect QuickSearch;
-	Bottom.VSplitLeft(5.0f, nullptr, &Bottom);
-	Bottom.VSplitLeft(250.0f, &QuickSearch, &Bottom);
+	CUIRect Search, Heading;
+	MainView.HSplitTop(28, &Search, &MainView);
+	Search.Draw(Surface.WithAlpha(.88f), IGraphics::CORNER_ALL, 6);
+	Search.Margin(4, &Search);
+	Search.VMargin(5, &Search);
 	if(m_ControlPageOpening)
 	{
 		m_ControlPageOpening = false;
-		Ui()->SetActiveItem(&m_FilterInput);
-		m_FilterInput.SelectAll();
+		if(Hotkeys)
+		{
+			Ui()->SetActiveItem(&m_FilterInput);
+			m_FilterInput.SelectAll();
+		}
 	}
-	bool Searching = Ui()->DoEditBox_Search(&m_FilterInput, &QuickSearch, 14.0f, !Ui()->IsPopupOpen() && !GameClient()->m_GameConsole.IsActive());
+	ResetScroll |= Ui()->DoEditBox_Search(&m_FilterInput, &Search, 11, Hotkeys);
 
-	// vote menu
-	bool Call = false;
-	if(s_ControlPage == EServerControlTab::SETTINGS)
-		Call = RenderServerControlServer(MainView, Searching);
-	else if(s_ControlPage == EServerControlTab::KICKVOTE)
-		Call = RenderServerControlKick(MainView, false, Searching);
-	else if(s_ControlPage == EServerControlTab::SPECVOTE)
-		Call = RenderServerControlKick(MainView, true, Searching);
-
-	// call vote
-	Bottom.VSplitRight(10.0f, &Bottom, nullptr);
-	Bottom.VSplitRight(120.0f, &Bottom, &Button);
-
-	static CButtonContainer s_CallVoteButton;
-	if(DoButton_Menu(&s_CallVoteButton, Localize("Call vote"), 0, &Button) || Call)
+	MainView.HSplitTop(7, nullptr, &MainView);
+	MainView.Draw(Surface.WithAlpha(.89f), IGraphics::CORNER_ALL, 6);
+	MainView.Margin(5, &MainView);
+	MainView.HSplitTop(19, &Heading, &MainView);
+	Heading.VMargin(7, &Heading);
+	const bool Receiving = Options && GameClient()->m_Voting.IsReceivingOptions();
+	if(Receiving && GameClient()->m_Voting.NumOptions() > 0)
 	{
-		if(s_ControlPage == EServerControlTab::SETTINGS)
+		CUIRect Spinner, Status;
+		Heading.VSplitRight(16, &Heading, &Spinner);
+		Heading.VSplitRight(std::min(75.f, Heading.w * .32f), &Heading, &Status);
+		Ui()->RenderProgressSpinner(Spinner.Center(), 4);
+		VoteLabel(Ui(), TextRender(), Status, Localize("Loading…"), 9.5f, DetailText, TEXTALIGN_MR);
+	}
+	VoteLabel(Ui(), TextRender(), Heading, Options ? VoteLocalize("Available votes") : Localize("Players"), 10, PrimaryText);
+	const bool Activated = Options ? RenderServerControlServer(MainView, Sidebar, ResetScroll) :
+					 RenderServerControlKick(MainView, Sidebar, s_Tab == SPECTATE, ResetScroll);
+	const bool CanCall = Options ? m_CallvoteSelectedOption >= 0 : m_CallvoteSelectedPlayer >= 0;
+	const bool TypeVote = Options && !m_RawVoteOptions && CanCall &&
+			      std::find(m_VotingCatalog.m_vMapTypes.begin(), m_VotingCatalog.m_vMapTypes.end(), m_CallvoteSelectedOption) != m_VotingCatalog.m_vMapTypes.end();
+	const auto Call = [&](bool Force) {
+		if(!CanCall)
+			return;
+		const char *pReason = m_CallvoteReasonInput.GetString();
+		auto &Voting = GameClient()->m_Voting;
+		if(Options)
 		{
-			if(0 <= m_CallvoteSelectedOption && m_CallvoteSelectedOption < GameClient()->m_Voting.NumOptions())
-			{
-				GameClient()->m_Voting.CallvoteOption(m_CallvoteSelectedOption, m_CallvoteReasonInput.GetString());
-				if(g_Config.m_UiCloseWindowAfterChangingSetting)
-					SetActive(false);
-			}
-		}
-		else if(s_ControlPage == EServerControlTab::KICKVOTE)
-		{
-			if(m_CallvoteSelectedPlayer >= 0 && m_CallvoteSelectedPlayer < MAX_CLIENTS &&
-				GameClient()->m_Snap.m_apPlayerInfos[m_CallvoteSelectedPlayer])
-			{
-				GameClient()->m_Voting.CallvoteKick(m_CallvoteSelectedPlayer, m_CallvoteReasonInput.GetString());
+			Voting.CallvoteOption(m_CallvoteSelectedOption, pReason, Force);
+			if(!Force && g_Config.m_UiCloseWindowAfterChangingSetting)
 				SetActive(false);
-			}
 		}
-		else if(s_ControlPage == EServerControlTab::SPECVOTE)
+		else
 		{
-			if(m_CallvoteSelectedPlayer >= 0 && m_CallvoteSelectedPlayer < MAX_CLIENTS &&
-				GameClient()->m_Snap.m_apPlayerInfos[m_CallvoteSelectedPlayer])
-			{
-				GameClient()->m_Voting.CallvoteSpectate(m_CallvoteSelectedPlayer, m_CallvoteReasonInput.GetString());
-				SetActive(false);
-			}
+			if(s_Tab == KICK)
+				Voting.CallvoteKick(m_CallvoteSelectedPlayer, pReason, Force);
+			else
+				Voting.CallvoteSpectate(m_CallvoteSelectedPlayer, pReason, Force);
+			SetActive(false);
 		}
 		m_CallvoteReasonInput.Clear();
-	}
+	};
 
-	// render kick reason
-	CUIRect Reason;
-	Bottom.VSplitRight(20.0f, &Bottom, nullptr);
-	Bottom.VSplitRight(200.0f, &Bottom, &Reason);
-	const char *pLabel = Localize("Reason:");
-	Ui()->DoLabel(&Reason, pLabel, 14.0f, TEXTALIGN_ML);
-	float w = TextRender()->TextWidth(14.0f, pLabel, -1, -1.0f);
-	Reason.VSplitLeft(w + 10.0f, nullptr, &Reason);
-	if(Input()->KeyPress(KEY_R) && Input()->ModifierIsPressed())
+	CUIRect Rule, Reason, Button;
+	Footer.HSplitTop(1, &Rule, &Footer);
+	LucentUi::Divider(Rule, .18f);
+	Footer.HMargin(5, &Footer);
+	Footer.VSplitRight(std::min(150.f, Footer.w * .38f), &Reason, &Button);
+	Reason.VSplitRight(8, &Reason, nullptr);
+	if(Reason.w >= 150)
+	{
+		CUIRect Label;
+		const char *pReason = Localize("Reason:");
+		Reason.VSplitLeft(std::min(TextRender()->TextWidth(11, pReason) + 10, Reason.w * .45f), &Label, &Reason);
+		VoteLabel(Ui(), TextRender(), Label, pReason, 11, DetailText);
+		m_CallvoteReasonInput.SetEmptyText(VoteLocalize("Optional"));
+	}
+	else
+		m_CallvoteReasonInput.SetEmptyText(Localize("Reason:"));
+	if(Hotkeys && Input()->KeyPress(KEY_R) && Input()->ModifierIsPressed())
 	{
 		Ui()->SetActiveItem(&m_CallvoteReasonInput);
 		m_CallvoteReasonInput.SelectAll();
 	}
-	Ui()->DoEditBox(&m_CallvoteReasonInput, &Reason, 14.0f);
+	Ui()->DoEditBox(&m_CallvoteReasonInput, &Reason, 11);
+	if(LucentUi::SceneButton(Ui(), TextRender(), &s_Call, VoteLocalize(TypeVote ? "Vote for map type" : "Start vote"), Button, CanCall) || Activated)
+		Call(false);
 
-	// vote option loading indicator
-	if(s_ControlPage == EServerControlTab::SETTINGS && GameClient()->m_Voting.IsReceivingOptions())
-	{
-		CUIRect Spinner, LoadingLabel;
-		Bottom.VSplitLeft(20.0f, nullptr, &Bottom);
-		Bottom.VSplitLeft(16.0f, &Spinner, &Bottom);
-		Bottom.VSplitLeft(5.0f, nullptr, &Bottom);
-		Bottom.VSplitRight(10.0f, &LoadingLabel, nullptr);
-		Ui()->RenderProgressSpinner(Spinner.Center(), 8.0f);
-		Ui()->DoLabel(&LoadingLabel, Localize("Loading…"), 14.0f, TEXTALIGN_ML);
-	}
+	if(!Rcon)
+		return;
+	Admin.Draw(Surface.WithAlpha(.86f), IGraphics::CORNER_ALL, 6);
+	Admin.Margin(5, &Admin);
+	CUIRect Tools, ForceButton, RemoveButton;
+	Admin.HSplitTop(23, &Tools, &Admin);
+	Tools.VSplitLeft(std::min(125.f, Tools.w * .42f), &ForceButton, &Tools);
+	Tools.VSplitLeft(6, nullptr, &Tools);
+	if(LucentUi::Button(Ui(), TextRender(), &s_Force, Localize("Force vote"), ForceButton, false, CanCall, true))
+		Call(true);
+	if(!Options)
+		return;
+	Tools.VSplitLeft(std::min(90.f, Tools.w), &RemoveButton, nullptr);
+	if(LucentUi::Button(Ui(), TextRender(), &s_Remove, Localize("Remove"), RemoveButton, false, CanCall, true))
+		GameClient()->m_Voting.RemovevoteOption(m_CallvoteSelectedOption);
 
-	// extended features (only available when authed in rcon)
-	if(Client()->RconAuthed())
-	{
-		// background
-		RconExtension.HSplitTop(10.0f, nullptr, &RconExtension);
-		RconExtension.HSplitTop(20.0f, &Bottom, &RconExtension);
-		RconExtension.HSplitTop(5.0f, nullptr, &RconExtension);
-
-		// force vote
-		Bottom.VSplitLeft(5.0f, nullptr, &Bottom);
-		Bottom.VSplitLeft(120.0f, &Button, &Bottom);
-
-		static CButtonContainer s_ForceVoteButton;
-		if(DoButton_Menu(&s_ForceVoteButton, Localize("Force vote"), 0, &Button))
-		{
-			if(s_ControlPage == EServerControlTab::SETTINGS)
-			{
-				GameClient()->m_Voting.CallvoteOption(m_CallvoteSelectedOption, m_CallvoteReasonInput.GetString(), true);
-			}
-			else if(s_ControlPage == EServerControlTab::KICKVOTE)
-			{
-				if(m_CallvoteSelectedPlayer >= 0 && m_CallvoteSelectedPlayer < MAX_CLIENTS &&
-					GameClient()->m_Snap.m_apPlayerInfos[m_CallvoteSelectedPlayer])
-				{
-					GameClient()->m_Voting.CallvoteKick(m_CallvoteSelectedPlayer, m_CallvoteReasonInput.GetString(), true);
-					SetActive(false);
-				}
-			}
-			else if(s_ControlPage == EServerControlTab::SPECVOTE)
-			{
-				if(m_CallvoteSelectedPlayer >= 0 && m_CallvoteSelectedPlayer < MAX_CLIENTS &&
-					GameClient()->m_Snap.m_apPlayerInfos[m_CallvoteSelectedPlayer])
-				{
-					GameClient()->m_Voting.CallvoteSpectate(m_CallvoteSelectedPlayer, m_CallvoteReasonInput.GetString(), true);
-					SetActive(false);
-				}
-			}
-			m_CallvoteReasonInput.Clear();
-		}
-
-		if(s_ControlPage == EServerControlTab::SETTINGS)
-		{
-			// remove vote
-			Bottom.VSplitRight(10.0f, &Bottom, nullptr);
-			Bottom.VSplitRight(120.0f, nullptr, &Button);
-			static CButtonContainer s_RemoveVoteButton;
-			if(DoButton_Menu(&s_RemoveVoteButton, Localize("Remove"), 0, &Button))
-				GameClient()->m_Voting.RemovevoteOption(m_CallvoteSelectedOption);
-
-			// add vote
-			RconExtension.HSplitTop(20.0f, &Bottom, &RconExtension);
-			Bottom.VSplitLeft(5.0f, nullptr, &Bottom);
-			Bottom.VSplitLeft(250.0f, &Button, &Bottom);
-			Ui()->DoLabel(&Button, Localize("Vote description:"), 14.0f, TEXTALIGN_ML);
-
-			Bottom.VSplitLeft(20.0f, nullptr, &Button);
-			Ui()->DoLabel(&Button, Localize("Vote command:"), 14.0f, TEXTALIGN_ML);
-
-			static CLineInputBuffered<VOTE_DESC_LENGTH> s_VoteDescriptionInput;
-			static CLineInputBuffered<VOTE_CMD_LENGTH> s_VoteCommandInput;
-			RconExtension.HSplitTop(20.0f, &Bottom, &RconExtension);
-			Bottom.VSplitRight(10.0f, &Bottom, nullptr);
-			Bottom.VSplitRight(120.0f, &Bottom, &Button);
-			static CButtonContainer s_AddVoteButton;
-			if(DoButton_Menu(&s_AddVoteButton, Localize("Add"), 0, &Button))
-				if(!s_VoteDescriptionInput.IsEmpty() && !s_VoteCommandInput.IsEmpty())
-					GameClient()->m_Voting.AddvoteOption(s_VoteDescriptionInput.GetString(), s_VoteCommandInput.GetString());
-
-			Bottom.VSplitLeft(5.0f, nullptr, &Bottom);
-			Bottom.VSplitLeft(250.0f, &Button, &Bottom);
-			Ui()->DoEditBox(&s_VoteDescriptionInput, &Button, 14.0f);
-
-			Bottom.VMargin(20.0f, &Button);
-			Ui()->DoEditBox(&s_VoteCommandInput, &Button, 14.0f);
-		}
-	}
+	static CLineInputBuffered<VOTE_DESC_LENGTH> s_Description;
+	static CLineInputBuffered<VOTE_CMD_LENGTH> s_Command;
+	s_Description.SetEmptyText(Localize("Vote description:"));
+	s_Command.SetEmptyText(Localize("Vote command:"));
+	CUIRect Description, Command, Add;
+	Admin.HSplitTop(5, nullptr, &Admin);
+	Admin.HSplitTop(24, &Admin, nullptr);
+	Admin.VSplitRight(std::min(83.f, Admin.w * .25f), &Admin, &Add);
+	Admin.VSplitRight(6, &Admin, nullptr);
+	Admin.VSplitMid(&Description, &Command, 6);
+	Ui()->DoEditBox(&s_Description, &Description, 11);
+	Ui()->DoEditBox(&s_Command, &Command, 11);
+	if(LucentUi::Button(Ui(), TextRender(), &s_Add, Localize("Add"), Add, false, !s_Description.IsEmpty() && !s_Command.IsEmpty(), true))
+		GameClient()->m_Voting.AddvoteOption(s_Description.GetString(), s_Command.GetString());
 }
 
 void CMenus::RenderInGameNetwork(CUIRect MainView)

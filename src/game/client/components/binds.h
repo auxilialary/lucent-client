@@ -50,8 +50,6 @@ class CBinds : public CComponent
 
 	static void ConfigSaveCallback(IConfigManager *pConfigManager, void *pUserData);
 
-	CBindSlot GetBindSlot(const char *pBindString) const;
-
 	// free buffer after use
 	char *GetKeyBindCommand(int ModifierCombination, int Key) const;
 
@@ -73,6 +71,7 @@ public:
 	CBindsSpecial m_SpecialBinds;
 
 	void Bind(int KeyId, const char *pStr, bool FreeOnly = false, int ModifierCombination = KeyModifier::NONE);
+	CBindSlot GetBindSlot(const char *pBindString) const;
 	void SetDefaults();
 	void UnbindAll();
 	const char *Get(int KeyId, int ModifierCombination) const;

@@ -1,5 +1,6 @@
 // GameView: presentation only; never used by prediction or network code.
 MACRO_CONFIG_INT(LucentCursorSize, lucent_cursor_size, 100, 5, 500, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Game cursor size in percent")
+MACRO_CONFIG_INT(LucentCursorMotionBlur, lucent_cursor_motion_blur, 0, 0, 100, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Cursor motion blur strength in percent (0 disables)")
 MACRO_CONFIG_INT(LucentWeaponHammerX, lucent_weapon_hammer_x, 0, -100, 100, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Visual X offset for hammer in world units")
 MACRO_CONFIG_INT(LucentWeaponHammerY, lucent_weapon_hammer_y, 0, -100, 100, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Visual Y offset for hammer in world units")
 MACRO_CONFIG_INT(LucentWeaponGunX, lucent_weapon_gun_x, 0, -100, 100, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Visual X offset for gun in world units")

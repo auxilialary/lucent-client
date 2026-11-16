@@ -2,6 +2,8 @@
 /* If you are missing that file, acquire a complete release at teeworlds.com.                */
 #ifndef GAME_CLIENT_COMPONENTS_MENUS_H
 #define GAME_CLIENT_COMPONENTS_MENUS_H
+#include <game/client/lucent/motion/cursor_motion_blur.h>
+#include <game/client/lucent/motion/transition.h>
 
 #include <base/bytes.h>
 #include <base/str.h>
@@ -27,6 +29,7 @@
 #include <game/client/lucent/lucent_startup.h>
 #include <game/client/lucent/settings/sidebar.h>
 #include <game/client/lucent/settings/mode.h>
+#include <game/client/lucent/voting/catalog.h>
 #include <game/client/lucent/browser/map_preview.h>
 #include <game/client/ui.h>
 #include <game/voting.h>
@@ -45,6 +48,7 @@ class CMenus : public CComponent
 	LucentSettings::CModePresentation m_LucentWorkspacePresentation;
 	bool m_LucentCursorPreviewActive = false;
 	int m_LucentCursorQuad = -1;
+	LucentStyle::Motion::CCursorMotionBlur m_CursorPreviewBlur;
 	CLucentBrowserState m_LucentBrowser;
 	CLucentMapPreview m_LucentPreview;
 	double m_LucentBrowserTime = 0;
@@ -288,8 +292,17 @@ protected:
 	CLineInput m_PasswordInput;
 
 	// for call vote
-	int m_CallvoteSelectedOption;
-	int m_CallvoteSelectedPlayer;
+	int m_CallvoteSelectedOption = -1;
+	int m_CallvoteSelectedPlayer = -1;
+	const CVoteOptionClient *m_pCallvoteSelection = nullptr;
+	char m_aCallvoteSelection[VOTE_DESC_LENGTH] = {};
+	char m_aCallvotePlayerName[MAX_NAME_LENGTH] = {};
+	LucentVoting::CCatalog m_VotingCatalog;
+	uint64_t m_VotingCatalogRevision = 0;
+	std::vector<std::string> m_vVoteCategories;
+	bool m_RawVoteOptions = false;
+	bool m_VoteMapTypesExpanded = false;
+	LucentStyle::Motion::CTransition m_VoteMapTypesTransition;
 	CLineInputBuffered<VOTE_REASON_LENGTH> m_CallvoteReasonInput;
 	CLineInputBuffered<64> m_FilterInput;
 	bool m_ControlPageOpening;
@@ -548,8 +561,8 @@ protected:
 	void RenderServerInfo(CUIRect MainView);
 	void RenderServerInfoMotd(CUIRect Motd);
 	void RenderServerControl(CUIRect MainView);
-	bool RenderServerControlKick(CUIRect MainView, bool FilterSpectators, bool UpdateScroll);
-	bool RenderServerControlServer(CUIRect MainView, bool UpdateScroll);
+	bool RenderServerControlKick(CUIRect List, CUIRect Sidebar, bool FilterSpectators, bool ResetScroll);
+	bool RenderServerControlServer(CUIRect List, CUIRect Sidebar, bool ResetScroll);
 	void RenderIngameHint();
 
 	// found in menus_browser.cpp

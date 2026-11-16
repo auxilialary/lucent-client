@@ -157,7 +157,7 @@ static void CheckPlayerSettings(const char *pRoot)
 		CHECK(Renderer.find("OpenFlags(Page,Layout.m_Country,Profile)") != std::string::npos);
 		CHECK(Renderer.find("FontIcon::CHEVRON_DOWN") != std::string::npos);
 		CHECK(Renderer.find("Localize(\"Country\")") != std::string::npos);
-		CHECK(Source("data/languages/russian.txt").find("Country==Страна") != std::string::npos);
+		CHECK(Source("data/lucent/languages/russian.txt").find("Country==Страна") != std::string::npos);
 
 		CHECK(Renderer.find("Localize(\"Player\"),Localize(\"Dummy\")") != std::string::npos);
 		CHECK(Renderer.find("str_utf8_find_nocase(pText,pQuery)") != std::string::npos);

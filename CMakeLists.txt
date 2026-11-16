@@ -1657,6 +1657,7 @@ set(EXPECTED_DATA
   gui_logo.png
   lucent/ddnet.png
   lucent/client.png
+  lucent/languages/russian.txt
   hud.png
   languages/README.txt
   languages/arabic.txt
@@ -2081,6 +2082,7 @@ foreach(datafile ${DATA})
 endforeach()
 # Keep the runtime Russian dictionary current when its source changes.
 configure_file(data/languages/russian.txt data/languages/russian.txt COPYONLY)
+configure_file(data/lucent/languages/russian.txt data/lucent/languages/russian.txt COPYONLY)
 set(COPY_FILES
   # tidy-alphabetical-start
   ${CRASHDUMP_COPY_FILES}
@@ -2412,6 +2414,7 @@ set_src(ENGINE_SHARED GLOB_RECURSE src/engine/shared
   sixup_translate_snapshot.cpp
   snapshot.cpp
   snapshot.h
+  sound_pack.h
   storage.cpp
   stun.cpp
   stun.h
@@ -2761,6 +2764,13 @@ if(CLIENT)
     laser_data.h
     lineinput.cpp
     lineinput.h
+    lucent/bindwheel/component.cpp
+    lucent/bindwheel/component.h
+    lucent/bindwheel/import.h
+    lucent/bindwheel/model.h
+    lucent/bindwheel/presentation.h
+    lucent/settings/bindwheel.cpp
+    lucent/settings/bindwheel.h
     lucent/browser/browser.cpp
     lucent/browser/browser_ambient.cpp
     lucent/browser/browser_ambient.h
@@ -2814,6 +2824,9 @@ if(CLIENT)
     lucent/hud/tee_alignment.cpp
     lucent/hud/tee_alignment.h
     lucent/hud/visuals.h
+    lucent/hud/watchers.h
+    lucent/hud/watchers_component.cpp
+    lucent/hud/watchers_component.h
     lucent/lucent_startup.cpp
     lucent/lucent_startup.h
     lucent/lucent_style.h
@@ -2825,6 +2838,9 @@ if(CLIENT)
     lucent/menu/server_controls.h
     lucent/motion/clock.cpp
     lucent/motion/clock.h
+    lucent/motion/cursor_motion_blur.cpp
+    lucent/motion/cursor_motion_blur.h
+    lucent/motion/cursor_motion_blur_renderer.cpp
     lucent/motion/radial_transition.h
     lucent/motion/text_motion.h
     lucent/motion/transition.h
@@ -2838,6 +2854,8 @@ if(CLIENT)
     lucent/scoreboard/row_data.h
     lucent/settings/fonts.cpp
     lucent/settings/fonts.h
+    lucent/settings/sound_packs.cpp
+    lucent/settings/sound_packs.h
     lucent/settings/general.cpp
     lucent/settings/general.h
     lucent/settings/layout.h
@@ -2882,6 +2900,7 @@ if(CLIENT)
     lucent/ui/surfaces.h
     lucent/ui/text_input_effects.cpp
     lucent/ui/text_input_effects.h
+    lucent/voting/catalog.h
     multiview.cpp
     pickup_data.cpp
     pickup_data.h
@@ -3594,16 +3613,21 @@ if((GTEST_FOUND OR DOWNLOAD_GTEST) AND SERVER)
     json_test.cpp
     jsonwriter_test.cpp
     linereader_test.cpp
+    lucent_bindwheel_test.cpp
     lucent_console_test.cpp
     lucent_font_manager_test.cpp
     lucent_gameview_test.cpp
     lucent_hud_test.cpp
+    lucent_localization_test.cpp
     lucent_tee_alignment_test.cpp
+    lucent_voting_test.cpp
+    lucent_watchers_test.cpp
     lucent_ping_relay_test.cpp
     lucent_ping_transport_test.cpp
     lucent_player_test.cpp
     lucent_scoreboard_test.cpp
     lucent_skin_manager_test.cpp
+    lucent_sound_pack_test.cpp
     map_download_test.cpp
     mapbugs_test.cpp
     mapitems_test.cpp
@@ -3686,6 +3710,12 @@ if((GTEST_FOUND OR DOWNLOAD_GTEST) AND SERVER)
   )
   target_link_libraries(${TARGET_TESTRUNNER} ${PNG_LIBRARIES} ${GTEST_LIBRARIES} ${LIBS_SERVER})
   target_include_directories(${TARGET_TESTRUNNER} SYSTEM PRIVATE ${GTEST_INCLUDE_DIRS})
+  if(CLIENT)
+    target_sources(${TARGET_TESTRUNNER} PRIVATE src/engine/client/sound.cpp)
+    target_include_directories(${TARGET_TESTRUNNER} SYSTEM PRIVATE ${SDL2_INCLUDE_DIRS} ${WAVPACK_INCLUDE_DIRS} ${OPUSFILE_INCLUDE_DIRS} ${OPUS_INCLUDE_DIRS} ${OGG_INCLUDE_DIRS})
+    target_link_libraries(${TARGET_TESTRUNNER} ${SDL2_LIBRARIES} ${WAVPACK_LIBRARIES} ${OPUSFILE_LIBRARIES} ${OPUS_LIBRARIES} ${OGG_LIBRARIES})
+    target_compile_definitions(${TARGET_TESTRUNNER} PRIVATE CONF_SOUND_PACK_AUDIO_TEST)
+  endif()
   if(FREETYPE_FOUND)
     target_link_libraries(${TARGET_TESTRUNNER} ${FREETYPE_LIBRARIES})
     target_include_directories(${TARGET_TESTRUNNER} SYSTEM PRIVATE ${FREETYPE_INCLUDE_DIRS})
@@ -4490,6 +4520,7 @@ if(CLIENT)
   target_compile_features(lucent-settings-test PRIVATE cxx_std_20)
   add_executable(lucent-menu-test EXCLUDE_FROM_ALL
     src/game/client/lucent/tests/menu_interaction_test.cc
+    src/game/client/lucent/motion/cursor_motion_blur.cpp
     src/game/client/lucent/menu/interaction.cpp
   )
   target_include_directories(lucent-menu-test PRIVATE src)

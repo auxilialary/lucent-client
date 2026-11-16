@@ -20,16 +20,17 @@ TEST(LucentTeeAlignment, IndependentModesSwapControlledAndExcludeLocalTees)
 	EXPECT_EQ(Select(aTargets, 4, 1, 0, false, -1), -1);
 }
 
-TEST(LucentTeeAlignment, WorldCoordinatesHysteresisAndNoCameraLimit)
+TEST(LucentTeeAlignment, HundredthOfTileAndNoRetainedTolerance)
 {
-	CTarget aTargets[] = {{0, .2f, -10000, true}, {1, 2.2f, 10000, true}};
+	CTarget aTargets[] = {{0, 320.f, -10000, true}, {1, 320.1f, 10000, true}};
 	EXPECT_EQ(Select(aTargets, 2, 0, 1, true, -1), 1);
-	aTargets[1].m_X = 2.9f;
+	aTargets[1].m_X = 320.32f;
 	EXPECT_EQ(Select(aTargets, 2, 0, 1, true, -1), -1);
-	EXPECT_EQ(Select(aTargets, 2, 0, 1, true, 1), 1);
-	aTargets[1].m_X = 3.21f;
 	EXPECT_EQ(Select(aTargets, 2, 0, 1, true, 1), -1);
-	aTargets[1].m_X = .2f;
+	EXPECT_TRUE(SameX(-320.f, -320.1f));
+	EXPECT_FALSE(SameX(-320.f, -320.32f));
+	EXPECT_FALSE(SameX(320.15f, 320.17f));
+	aTargets[1].m_X = 320.f;
 	aTargets[1].m_Y = -10000;
 	EXPECT_EQ(Select(aTargets, 2, 0, 1, true, 1), -1);
 }

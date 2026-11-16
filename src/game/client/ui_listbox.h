@@ -50,10 +50,12 @@ public:
 	void DoHeader(const CUIRect *pRect, const char *pTitle, float HeaderHeight = 20.0f, float Spacing = 2.0f);
 	void DoAutoSpacing(float Spacing = 20.0f) { m_AutoSpacing = Spacing; }
 	void DoSpacing(float Spacing = 20.0f);
-	void DoStart(float RowHeight, int NumItems, int ItemsPerRow, int RowsPerScroll, int SelectedIndex, const CUIRect *pRect = nullptr, bool Background = true, int BackgroundCorners = IGraphics::CORNER_ALL, bool ForceShowScrollbar = false);
+	void DoStart(float RowHeight, int NumItems, int ItemsPerRow, int RowsPerScroll, int SelectedIndex, const CUIRect *pRect = nullptr, bool Background = true, int BackgroundCorners = IGraphics::CORNER_ALL, bool ForceShowScrollbar = false, float ContentSize = -1.0f);
 	void ScrollToSelected() { m_ListBoxUpdateScroll = true; }
-	CListboxItem DoNextItem(const void *pId, bool Selected = false, float CornerRadius = 5.0f);
+	CListboxItem DoNextItem(const void *pId, bool Selected = false, float CornerRadius = 5.0f, bool DrawBackground = true);
 	CListboxItem DoSubheader();
+	// Single-column section label that does not occupy a selectable index.
+	CListboxItem DoSection(float Height);
 	int DoEnd();
 
 	// Active state must be set before calling DoStart.

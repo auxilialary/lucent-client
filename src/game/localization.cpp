@@ -3,6 +3,7 @@
 
 #include "localization.h"
 
+#include <base/fs.h>
 #include <base/io.h>
 #include <base/log.h>
 #include <base/os.h>
@@ -13,9 +14,20 @@
 #include <engine/shared/protocol.h>
 #include <engine/storage.h>
 
+// The client catalog has the same parser and lifetime as the selected DDNet language.
+static CLocalizationDatabase s_LucentLocalization;
+
 const char *Localize(const char *pStr, const char *pContext)
 {
-	const char *pNewStr = g_Localization.FindString(str_quickhash(pStr), str_quickhash(pContext));
+	const auto Hash = str_quickhash(pStr), Context = str_quickhash(pContext);
+	if(str_startswith(pContext, "Lucent"))
+	{
+		const char *pTranslated = s_LucentLocalization.FindString(Hash, Context);
+		return pTranslated ? pTranslated : pStr;
+	}
+	const char *pNewStr = g_Localization.FindString(Hash, Context);
+	if(!pNewStr)
+		pNewStr = s_LucentLocalization.FindString(Hash, Context);
 	return pNewStr ? pNewStr : pStr;
 }
 
@@ -181,6 +193,19 @@ void CLocalizationDatabase::SelectDefaultLanguage(IConsole *pConsole, char *pFil
 }
 
 bool CLocalizationDatabase::Load(const char *pFilename, IStorage *pStorage, IConsole *pConsole)
+{
+	if(!LoadFile(pFilename, pStorage, pConsole))
+		return false;
+	if(this == &g_Localization)
+	{
+		s_LucentLocalization.LoadFile("", pStorage, pConsole);
+		if(str_comp_nocase(fs_filename(pFilename), "russian.txt") == 0)
+			s_LucentLocalization.LoadFile("lucent/languages/russian.txt", pStorage, pConsole);
+	}
+	return true;
+}
+
+bool CLocalizationDatabase::LoadFile(const char *pFilename, IStorage *pStorage, IConsole *pConsole)
 {
 	// empty string means unload
 	if(pFilename[0] == 0)

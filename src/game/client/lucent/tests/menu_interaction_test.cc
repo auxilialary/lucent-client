@@ -1,4 +1,5 @@
 #include <game/client/lucent/gameview/presentation.h>
+#include <game/client/lucent/motion/cursor_motion_blur.h>
 
 #include <string_view>
 // Standalone: compile with lucent_menu_interaction.cpp and the src include directory.
@@ -36,7 +37,49 @@ int main()
 	++ConfigCount;
 #include <game/client/lucent/gameview/config_variables.h>
 #undef MACRO_CONFIG_INT
-	CHECK(ConfigCount == 13);
+	CHECK(ConfigCount == 14);
+	CHECK(DefaultConfig::LucentCursorMotionBlur == 0);
+	// An opaque red source makes transparent-layer blending independently measurable.
+	LucentStyle::Motion::CCursorPixels Source;
+	Source.m_Width = Source.m_Height = 16;
+	Source.m_Revision = 1;
+	Source.m_vRgba.resize(16 * 16 * 4);
+	for(int i = 0; i < 16 * 16; ++i)
+	{
+		Source.m_vRgba[i * 4] = Source.m_vRgba[i * 4 + 3] = 255;
+	}
+	constexpr int Side = LucentStyle::Motion::CCursorMotionBlur::Resolution;
+	constexpr int Middle = (Side / 2) * Side + Side / 2;
+	for(int Fps : {30, 60, 144, 240})
+	{
+		LucentStyle::Motion::CCursorMotionBlur Blur;
+		CHECK(Blur.Update(Source, vec2(0, 0), 1, 1.0, 0, 100));
+		CHECK(Blur.Pixels()[Middle].a == 1.f);
+		const double Now = 1.0 + 1.0 / Fps;
+		CHECK(Blur.Update(Source, vec2(60, 0), 1, Now, 0, 100));
+		const float Persistence = std::pow(0.58f, 60.f / Fps);
+		CHECK(absolute(Blur.Pixels()[Middle - 60].a - Persistence) < 0.0001f);
+		CHECK(absolute(Blur.Pixels()[Middle].a - (1.f - Persistence)) < 0.0001f);
+		// Premultiplication prevents dark or coloured transparent fringes.
+		for(const auto &Pixel : Blur.Pixels())
+		{
+			CHECK(absolute(Pixel.r - Pixel.a) < 0.0001f);
+			CHECK(Pixel.g == 0 && Pixel.b == 0 && Pixel.a >= 0 && Pixel.a <= 1);
+		}
+		for(int Frame = 1; Frame <= Fps; ++Frame)
+			CHECK(Blur.Update(Source, vec2(60, 0), 1, Now + Frame / (double)Fps, 0, 100));
+		CHECK(Blur.Pixels()[Middle - 60].a < 0.00001f);
+		CHECK(Blur.Pixels()[Middle].a > 0.999f);
+		CHECK(Blur.Update(Source, vec2(0, 0), 1, Now + 1.01, 1, 100));
+		CHECK(Blur.Pixels()[Middle].a == 1.f); // New weapon/player: no history.
+		CHECK(Blur.Update(Source, vec2(500, 0), 1, Now + 1.02, 1, 100));
+		CHECK(Blur.Pixels()[Middle].a == 1.f); // Teleport: no history.
+		CHECK(Blur.Update(Source, vec2(501, 0), 0.5f, Now + 1.03, 1, 100));
+		CHECK(Blur.Pixels()[Middle].a == 1.f); // Resizing: no old geometry.
+		CHECK(!Blur.Update(Source, vec2(502, 0), 1, Now + 1.04, 1, 0));
+		CHECK(Blur.Update(Source, vec2(503, 0), 1, Now + 1.05, 1, 100));
+		CHECK(Blur.Pixels()[Middle].a == 1.f);
+	}
 	int *apX[] = {&g_Config.m_LucentWeaponHammerX, &g_Config.m_LucentWeaponGunX, &g_Config.m_LucentWeaponShotgunX, &g_Config.m_LucentWeaponGrenadeX, &g_Config.m_LucentWeaponLaserX, &g_Config.m_LucentWeaponNinjaX};
 	int *apY[] = {&g_Config.m_LucentWeaponHammerY, &g_Config.m_LucentWeaponGunY, &g_Config.m_LucentWeaponShotgunY, &g_Config.m_LucentWeaponGrenadeY, &g_Config.m_LucentWeaponLaserY, &g_Config.m_LucentWeaponNinjaY};
 	for(int Weapon = 0; Weapon < 6; ++Weapon)

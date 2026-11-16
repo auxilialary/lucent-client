@@ -202,6 +202,10 @@ bool CBinds::OnInput(const IInput::CEvent &Event)
 			while(true)
 			{
 				auto ActiveModifierBind = std::find_if(m_vActiveBinds.begin(), m_vActiveBinds.end(), [&](const CBindSlot &Bind) {
+					// Shift changes the wheel page, even if its opening key used a Shift modifier.
+					if(KeyModifierMask == (1 << KeyModifier::SHIFT) && GameClient()->m_BindWheel.IsActive() &&
+						str_comp(Get(Bind), "+bindwheel") == 0)
+						return false;
 					return (Bind.m_ModifierMask & KeyModifierMask) != 0;
 				});
 				if(ActiveModifierBind == m_vActiveBinds.end())

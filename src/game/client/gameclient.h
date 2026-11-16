@@ -3,6 +3,7 @@
 #ifndef GAME_CLIENT_GAMECLIENT_H
 #define GAME_CLIENT_GAMECLIENT_H
 
+#include <game/client/lucent/motion/cursor_motion_blur.h>
 #include "render.h"
 
 #include <base/color.h>
@@ -68,7 +69,9 @@
 #include "components/statboard.h"
 #include "components/touch_controls.h"
 #include "components/voting.h"
+#include "lucent/bindwheel/component.h"
 #include "lucent/game/ping_component.h"
+#include "lucent/hud/watchers_component.h"
 
 #include <memory>
 #include <vector>
@@ -154,6 +157,7 @@ public:
 	CInfoMessages m_InfoMessages;
 	CCamera m_Camera;
 	CLucentPings m_LucentPings;
+	CLucentWatchers m_LucentWatchers;
 	CChat m_Chat;
 	CCensor m_Censor;
 	CMotd m_Motd;
@@ -176,6 +180,7 @@ public:
 	CStatboard m_Statboard;
 	CSounds m_Sounds;
 	CEmoticon m_Emoticon;
+	CLucentBindWheel m_BindWheel;
 	CDamageInd m_DamageInd;
 	CTouchControls m_TouchControls;
 	CVoting m_Voting;
@@ -766,6 +771,8 @@ public:
 		IGraphics::CTextureHandle m_SpriteWeaponLaserCursor;
 
 		IGraphics::CTextureHandle m_aSpriteWeaponCursors[6];
+		LucentStyle::Motion::CCursorPixels m_aLucentCursorPixels[6];
+		uint64_t m_LucentCursorRevision = 0;
 
 		// weapons and hook
 		IGraphics::CTextureHandle m_SpriteHookChain;

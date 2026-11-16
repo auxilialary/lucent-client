@@ -7,7 +7,12 @@
 #include <base/time.h>
 
 #include <engine/demo.h>
+#include <engine/engine.h>
+#include <engine/http.h>
+#include <engine/map.h>
+#include <engine/serverbrowser.h>
 #include <engine/shared/config.h>
+#include <engine/shared/jobs.h>
 
 #include <generated/client_data.h>
 
@@ -262,12 +267,356 @@ void CHud::RenderLucentHotbar(int ClientId, const CNetObj_Character *pCharacter)
 	}
 }
 
+class CHud::CFinishLookup : public IJob
+{
+	std::string m_Name, m_Map, m_Region;
+	bool m_IsProfile;
+
+	void Run() override
+	{
+		unsigned char *pData;
+		size_t Size;
+		m_pRequest->Result(&pData, &Size);
+		json_settings Settings{};
+		Settings.max_memory = 8 * 1024 * 1024;
+		std::unique_ptr<json_value, decltype(&json_value_free)> pRoot(
+			json_parse_ex(&Settings, reinterpret_cast<const char *>(pData), Size, nullptr), json_value_free);
+		if(!pRoot)
+			return;
+		if(m_IsProfile)
+			m_Profile = LucentHud::Finish::ParseProfile(*pRoot, m_Name, m_Map.c_str());
+		else
+			m_MapResult = LucentHud::Finish::ParseMap(*pRoot, m_Name, m_Map, m_Region);
+	}
+
+public:
+	std::shared_ptr<IHttpRequest> m_pRequest;
+	LucentHud::Finish::CProfile m_Profile;
+	LucentHud::Finish::CMap m_MapResult;
+	bool m_Parsing = false;
+
+	CFinishLookup(std::shared_ptr<IHttpRequest> pRequest, const char *pName, const char *pMap, const char *pRegion, bool IsProfile) :
+		m_Name(pName), m_Map(pMap), m_Region(pRegion), m_IsProfile(IsProfile), m_pRequest(std::move(pRequest))
+	{
+	}
+
+	~CFinishLookup() override
+	{
+		if(!m_pRequest->Done())
+			m_pRequest->Abort();
+	}
+};
+
+CHud::CFinishSummary *CHud::LucentFinishPlayer()
+{
+	const int Id = GameClient()->m_Snap.m_LocalClientId;
+	if(!g_Config.m_LucentHud || Client()->State() != IClient::STATE_ONLINE ||
+		!GameClient()->m_GameInfo.m_EntitiesDDNet || Id < 0 || Id >= MAX_CLIENTS)
+		return nullptr;
+
+	const char *pName = GameClient()->m_aClients[Id].m_aName;
+	if(!pName[0])
+		return nullptr;
+	auto &Summary = m_aFinishSummaries[g_Config.m_ClDummy];
+	if(str_comp(Summary.m_aName, pName) != 0)
+	{
+		Summary = {};
+		str_copy(Summary.m_aName, pName);
+	}
+	return &Summary;
+}
+
+void CHud::OnUpdate()
+{
+	auto *pSummary = LucentFinishPlayer();
+	if(!pSummary)
+		return;
+	auto &Summary = *pSummary;
+	const double Now = time() / (double)time_freq();
+	// Give the score write a head start and retry once if the reply is missing or stale.
+	if(Summary.m_TimeMs && !Summary.m_RankReceived && Summary.m_RankRequests < 2 &&
+		Now >= Summary.m_NextRankRequest && Now < Summary.m_FinishedAt + LucentHud::Finish::DisplaySeconds)
+	{
+		++Summary.m_RankRequests;
+		Summary.m_LastRankRequest = Now;
+		Summary.m_NextRankRequest = Now + 1.75;
+		Summary.m_RankHeader = false;
+		GameClient()->m_Chat.SendChat(0, "/rank");
+	}
+	const char *pMap = GameClient()->Map()->BaseName();
+	if(!pMap[0])
+		return;
+
+	if(Summary.m_aRegion[0] == '\0')
+	{
+		const auto *pServer = ServerBrowser()->Find(Client()->ServerAddress());
+		if(pServer && str_comp(pServer->m_Info.m_aCommunityId, IServerBrowser::COMMUNITY_DDNET) == 0)
+		{
+			const std::string_view Region = pServer->m_Info.m_aCommunityCountry;
+			if(Region.size() == 3 && Region.find_first_not_of("ABCDEFGHIJKLMNOPQRSTUVWXYZ") == std::string_view::npos)
+			{
+				str_copy(Summary.m_aRegion, pServer->m_Info.m_aCommunityCountry);
+				Summary.m_pMap.reset();
+				Summary.m_MapDue = Now;
+			}
+		}
+	}
+
+	const auto UpdateLookup = [&](std::shared_ptr<CFinishLookup> &pLookup, double &Due, bool IsProfile) {
+		if(pLookup)
+		{
+			if(!pLookup->m_pRequest->Done())
+				return;
+			if(pLookup->m_pRequest->State() != EHttpState::DONE || pLookup->m_pRequest->StatusCode() != 200)
+				pLookup.reset();
+			else if(!pLookup->m_Parsing)
+			{
+				pLookup->m_Parsing = true;
+				Engine()->AddJob(pLookup);
+				return;
+			}
+			else if(pLookup->State() == IJob::STATE_DONE)
+			{
+				if(IsProfile)
+				{
+					const auto &Profile = pLookup->m_Profile;
+					if(Profile.m_Points >= 0 || Profile.m_MapPoints >= 0)
+						Summary.m_Profile = Profile;
+					if(!Summary.m_TimeMs && Profile.m_Rank > 0)
+						Summary.m_Rank.m_Global = Profile.m_Rank;
+				}
+				else if(pLookup->m_MapResult.m_Points >= 0)
+				{
+					Summary.m_MapPoints = pLookup->m_MapResult.m_Points;
+					if(!Summary.m_TimeMs && Summary.m_aRegion[0])
+						Summary.m_Rank.m_Regional = pLookup->m_MapResult.m_Rank;
+				}
+				pLookup.reset();
+			}
+			else
+				return;
+		}
+		if(Due < 0 || Now < Due)
+			return;
+		Due = -1;
+		char aEscaped[3 * MAX_MAP_LENGTH + 1], aUrl[sizeof(aEscaped) + 64];
+		EscapeUrl(aEscaped, IsProfile ? Summary.m_aName : pMap);
+		if(IsProfile)
+			str_format(aUrl, sizeof(aUrl), "https://ddnet.org/players/?json2=%s", aEscaped);
+		else
+			str_format(aUrl, sizeof(aUrl), "https://ddnet.org/maps/?json=%s%s%s", aEscaped, Summary.m_aRegion[0] ? "&country=" : "", Summary.m_aRegion);
+		if(str_length(aUrl) >= 256)
+			return;
+		std::shared_ptr<IHttpRequest> pRequest = HttpGet(aUrl);
+		pRequest->Timeout({4000, 10000, 256, 5});
+		pRequest->MaxResponseSize(IsProfile ? 2 * 1024 * 1024 : 512 * 1024);
+		pRequest->LogProgress(HTTPLOG::NONE);
+		pLookup = std::make_shared<CFinishLookup>(pRequest, Summary.m_aName, pMap, Summary.m_aRegion, IsProfile);
+		Http()->Run(pRequest);
+	};
+	UpdateLookup(Summary.m_pProfile, Summary.m_ProfileDue, true);
+	UpdateLookup(Summary.m_pMap, Summary.m_MapDue, false);
+}
+
+void CHud::OnLucentFinishMessage(int MsgType, const void *pRawMsg)
+{
+	auto *pSummary = LucentFinishPlayer();
+	if(!pSummary)
+		return;
+	auto &Summary = *pSummary;
+	const double Now = time() / (double)time_freq();
+	if(MsgType == NETMSGTYPE_SV_RACEFINISH)
+	{
+		const auto &Msg = *static_cast<const CNetMsg_Sv_RaceFinish *>(pRawMsg);
+		if(Msg.m_ClientId != GameClient()->m_Snap.m_LocalClientId || Msg.m_Time <= 0)
+			return;
+		Summary.m_FirstFinish = !Summary.m_TimeMs && Msg.m_RecordPersonal && Msg.m_Diff == 0;
+		Summary.m_PreviousRank = Summary.m_Rank;
+		Summary.m_CurrentRank = {};
+		Summary.m_TimeMs = Msg.m_Time;
+		Summary.m_DiffMs = Msg.m_Diff;
+		Summary.m_FinishedAt = Now;
+		Summary.m_VisibleUntil = Now + LucentHud::Finish::DisplaySeconds;
+		Summary.m_RankRequests = 0;
+		Summary.m_RankHeader = Summary.m_RankReceived = false;
+		Summary.m_NextRankRequest = std::max(Now + 1, Summary.m_LastRankRequest + 1.75);
+		if(Summary.m_FirstFinish)
+			Summary.m_PointsBeforeAward = Summary.m_Profile.m_Points;
+		return;
+	}
+
+	const auto &Msg = *static_cast<const CNetMsg_Sv_Chat *>(pRawMsg);
+	if(Msg.m_ClientId != -1 || Msg.m_Team != 0)
+		return;
+	const std::string_view Text = Msg.m_pMessage;
+	using namespace LucentHud::Finish;
+	if(Summary.m_FirstFinish)
+	{
+		if(const int Award = ConfirmedAward(Text); Award > 0)
+			Summary.m_ConfirmedAward = Award;
+	}
+	if(Summary.m_RankRequests == 0 || Summary.m_RankReceived || Now >= Summary.m_FinishedAt + 2 * DisplaySeconds)
+		return;
+	if(Summary.m_RankHeader)
+	{
+		Summary.m_RankHeader = false;
+		if(const auto Reply = ParseRankReply(Text))
+		{
+			if(Reply->m_aRegion[0] && str_comp(Summary.m_aRegion, Reply->m_aRegion) != 0)
+			{
+				Summary.m_PreviousRank.m_Regional = 0;
+				str_copy(Summary.m_aRegion, Reply->m_aRegion);
+			}
+			Summary.m_CurrentRank = Reply->m_Rank;
+			Summary.m_Rank = Reply->m_Rank;
+			Summary.m_VisibleUntil = RankDisplayUntil(Summary.m_PreviousRank, Summary.m_CurrentRank, Now, Summary.m_VisibleUntil);
+			Summary.m_RankReceived = true;
+			Summary.m_RankReceivedAt = Now;
+			return;
+		}
+	}
+	// The first line identifies the player and the saved best time. The next
+	// line contains both places. Reject a response served before a new PB saved.
+	const int64_t BestMs = (int64_t)Summary.m_TimeMs - std::max(Summary.m_DiffMs, 0);
+	char aBest[32];
+	str_time_float(BestMs / 1000.f, ETimeFormat::HOURS_CENTISECS, aBest, sizeof(aBest));
+	Summary.m_RankHeader = BestMs > 0 && MatchesRankHeader(Text, Summary.m_aName, aBest);
+}
+
+bool CHud::RenderLucentFinishCard(const LucentHud::CLayout &Layout, LucentHud::CRect &Panel, float Reveal, float Alpha, double Now)
+{
+	const auto &Summary = m_aFinishSummaries[g_Config.m_ClDummy];
+	using namespace LucentStyle::Motion;
+	const float MainSize = LucentHud::TargetFontSize(Layout.Unit(LucentHud::TimerSize), Graphics()->ScreenHeight(), m_Height);
+	const float ValueSize = LucentHud::TargetFontSize(Layout.Unit(LucentHud::BodySize + 1), Graphics()->ScreenHeight(), m_Height);
+	const float DetailSize = LucentHud::TargetFontSize(Layout.Unit(LucentHud::CaptionSize), Graphics()->ScreenHeight(), m_Height);
+	const float InlineGap = Layout.Unit(3);
+	const ColorRGBA White(1, 1, 1, 1), Muted = LucentHud::Secondary(1);
+	const auto DeltaColor = [&](int64_t Delta) {
+		return Delta < 0 ? LucentHud::Positive(1) : Delta > 0 ? LucentHud::Negative(1) : Muted;
+	};
+	const auto Width = [&](float Size, const char *pText) {
+		return pText[0] ? TextRender()->TextWidth(Size, pText) : 0.f;
+	};
+	const auto PairWidth = [&](const char *pLeft, const char *pRight) {
+		return Width(DetailSize, pLeft) + Width(DetailSize, pRight) + (pLeft[0] && pRight[0] ? InlineGap : 0);
+	};
+	const auto DrawPair = [&](int Slot, float Center, float Y, const char *pLeft, const char *pRight, ColorRGBA RightColor) {
+		const float X = Center - PairWidth(pLeft, pRight) / 2;
+		if(pLeft[0])
+			LucentText(Slot, pLeft, X, Y, DetailSize, Slot == LUCENT_FINISH_POINTS ? White : Muted);
+		if(pRight[0])
+			LucentText(Slot + 1, pRight, X + (pLeft[0] ? Width(DetailSize, pLeft) + InlineGap : 0), Y, DetailSize, RightColor);
+	};
+
+	char aTime[32], aPreviousTime[48] = "", aTimeDelta[32] = "";
+	const int64_t PreviousTimeMs = (int64_t)Summary.m_TimeMs - Summary.m_DiffMs;
+	str_time((Summary.m_TimeMs + 5LL) / 10, ETimeFormat::HOURS_CENTISECS, aTime, sizeof(aTime));
+	if(!Summary.m_FirstFinish && PreviousTimeMs > 0)
+	{
+		char aOld[32], aDelta[24];
+		str_time((PreviousTimeMs + 5) / 10, ETimeFormat::HOURS_CENTISECS, aOld, sizeof(aOld));
+		str_time((std::abs((int64_t)Summary.m_DiffMs) + 5) / 10, ETimeFormat::HOURS_CENTISECS, aDelta, sizeof(aDelta));
+		str_format(aPreviousTime, sizeof(aPreviousTime), "PREV %s", aOld);
+		str_format(aTimeDelta, sizeof(aTimeDelta), "%s%s", Summary.m_DiffMs < 0 ? "−" : Summary.m_DiffMs > 0 ? "+" : "±", aDelta);
+	}
+
+	char aPoints[32] = "", aAward[32] = "";
+	const int MapPoints = Summary.m_MapPoints >= 0 ? Summary.m_MapPoints : Summary.m_Profile.m_MapPoints;
+	if(Summary.m_FirstFinish && MapPoints > 0 && MapPoints == Summary.m_ConfirmedAward)
+	{
+		int Before = Summary.m_PointsBeforeAward;
+		if(Before < 0 && Summary.m_Profile.m_Points >= 0)
+			Before = Summary.m_Profile.m_Points - (Summary.m_Profile.m_Rank > 0 ? MapPoints : 0);
+		if(Before >= 0)
+			str_format(aPoints, sizeof(aPoints), "%d", Before);
+		str_format(aAward, sizeof(aAward), "+%d pts", MapPoints);
+	}
+	else if(Summary.m_FirstFinish)
+		str_copy(aPoints, "FIRST FINISH");
+
+	struct CRankColumn
+	{
+		const char *m_pLabel;
+		int m_Previous, m_Current, m_Slot;
+		char m_aValue[24] = "—";
+		char m_aPrevious[32] = "PREV —";
+		char m_aDelta[24] = "";
+	};
+	CRankColumn aColumns[] = {
+		{"GLOBAL", Summary.m_PreviousRank.m_Global, Summary.m_CurrentRank.m_Global, LUCENT_FINISH_GLOBAL_LABEL},
+		{Summary.m_aRegion[0] ? Summary.m_aRegion : "REGION", Summary.m_PreviousRank.m_Regional, Summary.m_CurrentRank.m_Regional, LUCENT_FINISH_REGION_LABEL},
+	};
+	float ColumnWidth = Layout.Unit(40);
+	for(auto &Column : aColumns)
+	{
+		if(Column.m_Current > 0)
+			str_format(Column.m_aValue, sizeof(Column.m_aValue), "#%d", Column.m_Current);
+		if(Column.m_Previous > 0)
+		{
+			str_format(Column.m_aPrevious, sizeof(Column.m_aPrevious), "PREV #%d", Column.m_Previous);
+			if(Column.m_Current > 0)
+			{
+				const int Delta = Column.m_Current - Column.m_Previous;
+				if(Delta == 0)
+					str_copy(Column.m_aDelta, "=");
+				else
+					str_format(Column.m_aDelta, sizeof(Column.m_aDelta), "%s%d", Delta < 0 ? "↑" : "↓", std::abs(Delta));
+			}
+		}
+		ColumnWidth = std::max({ColumnWidth, Width(DetailSize, Column.m_pLabel), Width(ValueSize, Column.m_aValue), PairWidth(Column.m_aPrevious, Column.m_aDelta)});
+	}
+
+	const float ColumnGap = Layout.Unit(12);
+	const float ContentWidth = std::max({2 * ColumnWidth + ColumnGap, Width(MainSize, aTime), PairWidth(aPreviousTime, aTimeDelta), PairWidth(aPoints, aAward)});
+	const float ExpandedWidth = ContentWidth + Layout.Unit(2 * LucentHud::TimerPaddingX);
+	Panel.w = Lerp(Panel.w, std::max(Panel.w, ExpandedWidth), Reveal);
+	Panel.h = Lerp(Panel.h, std::max(Panel.h, Layout.Unit(53)), Reveal);
+	Panel.x = (m_Width - Panel.w) / 2;
+	Panel.y = std::max(Panel.y, Layout.Unit(LucentHud::Margin));
+	if(Reveal <= .5f)
+		return false;
+
+	m_LucentTimerBounds = Panel;
+	LucentHud::Panel(Graphics(), Panel, Alpha, Layout.m_Scale);
+	const auto Grid = LucentHud::PixelGrid(Graphics());
+	Graphics()->ClipEnable(std::lround((Panel.x - Grid.m_Origin.x) / Grid.m_Step.x),
+		std::lround((Panel.y - Grid.m_Origin.y) / Grid.m_Step.y),
+		std::lround(Panel.w / Grid.m_Step.x), std::lround(Panel.h / Grid.m_Step.y));
+	const float Center = m_Width / 2;
+	const float Top = Panel.y + Layout.Unit(3 + Slide(3.f, Reveal));
+	LucentText(LUCENT_FINISH_TIME, aTime, Center, Top, MainSize, White, true);
+	const float MetaY = Top + Layout.Unit(12);
+	if(Summary.m_FirstFinish)
+		DrawPair(LUCENT_FINISH_POINTS, Center, MetaY, aPoints, aAward, LucentHud::Positive(1));
+	else
+		DrawPair(LUCENT_FINISH_PREVIOUS_TIME, Center, MetaY, aPreviousTime, aTimeDelta, DeltaColor(Summary.m_DiffMs));
+
+	const float DividerWidth = std::min(ContentWidth, std::max(0.f, Panel.w - Layout.Unit(12)));
+	const vec2 Divider = Grid.Snap({Center - DividerWidth / 2, Top + Layout.Unit(21)});
+	Graphics()->DrawRect(Divider.x, Divider.y, DividerWidth, Grid.m_Step.y, LucentHud::Accent(.30f), IGraphics::CORNER_NONE, 0);
+	const float RankSlide = Summary.m_RankReceived ? Slide(2.f, CubicOut(float((Now - Summary.m_RankReceivedAt) / Selection))) : 0.f;
+	for(int Index = 0; Index < 2; ++Index)
+	{
+		const auto &Column = aColumns[Index];
+		const float X = Center + (Index == 0 ? -.5f : .5f) * (ColumnWidth + ColumnGap);
+		LucentText(Column.m_Slot, Column.m_pLabel, X, Top + Layout.Unit(25), DetailSize, LucentHud::Accent(1), true);
+		LucentText(Column.m_Slot + 1, Column.m_aValue, X, Top + Layout.Unit(31 + RankSlide), ValueSize, White, true);
+		DrawPair(Column.m_Slot + 2, X, Top + Layout.Unit(41), Column.m_aPrevious, Column.m_aDelta, DeltaColor(Column.m_Current - Column.m_Previous));
+	}
+	Graphics()->ClipDisable();
+	return true;
+}
+
 void CHud::RenderLucentTimer(int Time)
 {
 	const float Alpha = LucentHud::Opacity(g_Config.m_LucentHudOpacity);
 	if(Alpha <= 0 || GameClient()->m_Scoreboard.IsActive())
 		return;
 	const LucentHud::CLayout Layout(m_Width, m_Height, g_Config.m_LucentHudScale);
+	auto &Summary = m_aFinishSummaries[g_Config.m_ClDummy];
+	const double Now = time() / (double)time_freq();
+	const float Reveal = Summary.m_Reveal.Update(Now < Summary.m_VisibleUntil, Now, true, LucentStyle::Motion::Selection);
 	char aMain[64] = "", aSecondary[128] = "", aDiff[32], aClock[6] = "";
 	if(g_Config.m_ClShowLocalTimeAlways)
 		str_timestamp_format(aClock, sizeof(aClock), "%H:%M");
@@ -278,7 +627,7 @@ void CHud::RenderLucentTimer(int Time)
 	const bool Local = GameClient()->m_Snap.m_pLocalCharacter && !GameClient()->m_Snap.m_SpecInfo.m_Active && !(GameClient()->m_Snap.m_pGameInfoObj->m_GameStateFlags & GAMESTATEFLAG_GAMEOVER);
 	const int Tick = Client()->GameTick(g_Config.m_ClDummy);
 	const int Speed = Client()->GameTickSpeed();
-	const bool Finish = Local && m_DDRaceTime && m_ShowFinishTime && m_FinishTimeLastReceivedTick + Speed * 6 > Tick;
+	const bool Finish = !Summary.m_TimeMs && Local && m_DDRaceTime && m_ShowFinishTime && m_FinishTimeLastReceivedTick + Speed * 6 > Tick;
 	const bool Checkpoint = Local && m_DDRaceTime && !m_ShowFinishTime && g_Config.m_ClShowhudTimeCpDiff && m_TimeCpLastReceivedTick + Speed * 6 > Tick;
 	if(Finish || Checkpoint)
 	{
@@ -297,7 +646,7 @@ void CHud::RenderLucentTimer(int Time)
 		SecondaryColor = Diff < 0 ? LucentHud::Positive(SecondaryAlpha) : Diff > 0 ? LucentHud::Negative(SecondaryAlpha) :
 											     LucentHud::Secondary(SecondaryAlpha);
 	}
-	if(!aMain[0] && !aSecondary[0] && !aClock[0])
+	if(!aMain[0] && !aSecondary[0] && !aClock[0] && Reveal <= 0)
 		return;
 	const float MainSize = LucentHud::TargetFontSize(Layout.Unit(LucentHud::TimerSize), Graphics()->ScreenHeight(), m_Height);
 	const float SecondarySize = LucentHud::TargetFontSize(Layout.Unit(LucentHud::BodySize), Graphics()->ScreenHeight(), m_Height);
@@ -315,6 +664,8 @@ void CHud::RenderLucentTimer(int Time)
 	auto Panel = Layout.Timer(Width, aMain[0] != 0, aSecondary[0] != 0, ClockWidth);
 	if(GameClient()->m_Snap.m_pGameInfoObj->m_GameStateFlags & GAMESTATEFLAG_SUDDENDEATH)
 		Panel.y = std::max(Panel.y, 18.f);
+	if(Reveal > 0 && RenderLucentFinishCard(Layout, Panel, Reveal, Alpha, Now))
+		return;
 	m_LucentTimerBounds = Panel;
 	LucentHud::Panel(Graphics(), Panel, Alpha, Layout.m_Scale);
 	const float GameCenter = m_Width / 2;

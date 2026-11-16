@@ -76,6 +76,8 @@ namespace LucentStyle
 		inline const ColorRGBA ClanSurface(73 / 255.f, 55 / 255.f, 69 / 255.f, .98f);
 		inline const ColorRGBA ClanText(234 / 255.f, 193 / 255.f, 217 / 255.f, 1);
 		inline const ColorRGBA Nickname(240 / 255.f, 232 / 255.f, 239 / 255.f, 1);
+		// E-Client default spectator color (ec_spec_color).
+		inline const ColorRGBA SpectatorNickname = color_cast<ColorRGBA>(ColorHSLA(8936607));
 		constexpr float GroupTint = .16f, GroupBorderLighten = .28f, GroupFillAlpha = .96f, GroupBorderAlpha = .72f;
 		constexpr float ClanFontScale = .92f, ClanPadding = 4.f, ClanGap = 3.f;
 	}

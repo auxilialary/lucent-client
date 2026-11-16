@@ -3,12 +3,14 @@
 #ifndef GAME_CLIENT_COMPONENTS_HUD_H
 #define GAME_CLIENT_COMPONENTS_HUD_H
 #include <engine/client.h>
+#include <game/client/lucent/motion/cursor_motion_blur.h>
 #include <engine/shared/protocol.h>
 #include <engine/textrender.h>
 
 #include <generated/protocol.h>
 
 #include <game/client/component.h>
+#include <game/client/lucent/hud/finish_summary.h>
 #include <game/client/lucent/hud/layout.h>
 #include <game/client/lucent/hud/tee_alignment.h>
 #include <game/client/lucent/hud/weapon_scale.h>
@@ -50,6 +52,7 @@ struct SScoreInfo
 class CHud : public CComponent
 {
 	float m_Width, m_Height;
+	LucentStyle::Motion::CCursorMotionBlur m_CursorMotionBlur;
 
 	int m_HudQuadContainerIndex;
 	SScoreInfo m_aScoreInfo[2];
@@ -70,7 +73,6 @@ class CHud : public CComponent
 	STextContainerIndex m_aPlayerPositionContainers[2];
 	float m_aPlayerPrevPosition[2];
 
-	// Lucent presentation methods consume existing HUD/snapshot data only.
 	enum
 	{
 		LUCENT_TIMER,
@@ -91,6 +93,19 @@ class CHud : public CComponent
 		LUCENT_ALIGNMENT_1,
 		LUCENT_ALIGNMENT_2,
 		LUCENT_ALIGNMENT_3,
+		LUCENT_FINISH_TIME,
+		LUCENT_FINISH_PREVIOUS_TIME,
+		LUCENT_FINISH_TIME_DELTA,
+		LUCENT_FINISH_POINTS,
+		LUCENT_FINISH_AWARD,
+		LUCENT_FINISH_GLOBAL_LABEL,
+		LUCENT_FINISH_GLOBAL_RANK,
+		LUCENT_FINISH_GLOBAL_PREVIOUS,
+		LUCENT_FINISH_GLOBAL_DELTA,
+		LUCENT_FINISH_REGION_LABEL,
+		LUCENT_FINISH_REGION_RANK,
+		LUCENT_FINISH_REGION_PREVIOUS,
+		LUCENT_FINISH_REGION_DELTA,
 		LUCENT_TEXT_COUNT
 	};
 	struct CLucentText
@@ -108,6 +123,26 @@ class CHud : public CComponent
 	LucentHud::Alignment::CState m_LucentAlignment;
 	LucentStyle::Motion::CTransition m_aLucentWeaponSelection[6];
 	LucentHud::CWeaponScale m_LucentWeaponScale;
+	class CFinishLookup;
+	struct CFinishSummary
+	{
+		char m_aName[MAX_NAME_LENGTH] = {};
+		char m_aRegion[5] = {};
+		std::shared_ptr<CFinishLookup> m_pProfile, m_pMap;
+		LucentHud::Finish::CProfile m_Profile;
+		LucentHud::Finish::CRank m_Rank, m_PreviousRank, m_CurrentRank;
+		LucentStyle::Motion::CTransition m_Reveal;
+		double m_FinishedAt = -100, m_VisibleUntil = 0, m_RankReceivedAt = 0;
+		double m_ProfileDue = 0, m_MapDue = 0;
+		double m_NextRankRequest = 0, m_LastRankRequest = -100;
+		int m_RankRequests = 0;
+		int m_TimeMs = 0, m_DiffMs = 0;
+		int m_MapPoints = -1, m_PointsBeforeAward = -1, m_ConfirmedAward = 0;
+		bool m_FirstFinish = false, m_RankHeader = false, m_RankReceived = false;
+	};
+	CFinishSummary m_aFinishSummaries[NUM_DUMMIES];
+	CFinishSummary *LucentFinishPlayer();
+	void OnLucentFinishMessage(int MsgType, const void *pRawMsg);
 	struct CAlignmentVisual
 	{
 		int m_Id = -1;
@@ -120,6 +155,7 @@ class CHud : public CComponent
 	void RenderLucentAlignment();
 	float LucentText(int Slot, const char *pText, float X, float Y, float Size, ColorRGBA Color, bool Center = false);
 	void RenderLucentTimer(int Time);
+	bool RenderLucentFinishCard(const LucentHud::CLayout &Layout, LucentHud::CRect &Panel, float Reveal, float Alpha, double Now);
 	void RenderLucentHotbar(int ClientId, const CNetObj_Character *pCharacter);
 	void RenderLucentRecording();
 	void RenderLucentCoordinates();
@@ -175,7 +211,9 @@ public:
 	void OnWindowResize() override;
 	void OnReset() override;
 	void OnRender() override;
+	void OnUpdate() override;
 	void OnInit() override;
+	void OnShutdown() override;
 	void OnNewSnapshot() override;
 
 	// DDRace

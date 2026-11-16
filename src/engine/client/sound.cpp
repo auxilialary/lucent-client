@@ -201,7 +201,6 @@ static void SdlCallback(void *pUser, Uint8 *pStream, int Len)
 int CSound::Init()
 {
 	m_SoundEnabled = false;
-	m_pGraphics = Kernel()->RequestInterface<IEngineGraphics>();
 	m_pStorage = Kernel()->RequestInterface<IStorage>();
 
 	// Initialize sample indices. We always need them to load sounds in
@@ -219,6 +218,8 @@ int CSound::Init()
 
 	if(!g_Config.m_SndEnable)
 		return 0;
+
+	m_pGraphics = Kernel()->RequestInterface<IEngineGraphics>();
 
 	if(SDL_InitSubSystem(SDL_INIT_AUDIO) < 0)
 	{
@@ -379,7 +380,7 @@ void CSound::AdvancePlayback()
 void CSound::UpdateVolume()
 {
 	int WantedVolume = g_Config.m_SndVolume;
-	if(!m_pGraphics->WindowActive() && g_Config.m_SndNonactiveMute)
+	if(m_pGraphics && !m_pGraphics->WindowActive() && g_Config.m_SndNonactiveMute)
 		WantedVolume = 0;
 	m_SoundVolume.store(WantedVolume, std::memory_order_relaxed);
 }
@@ -421,16 +422,18 @@ CSample *CSound::AllocSample()
 	return pSample;
 }
 
-void CSound::RateConvert(CSample &Sample) const
+bool CSound::RateConvert(CSample &Sample) const
 {
 	dbg_assert(Sample.IsLoaded(), "Sample not loaded: %d", Sample.m_Index);
 	// make sure that we need to convert this sound
 	if(Sample.m_Rate == m_MixingRate)
-		return;
+		return true;
 
 	// allocate new data
 	const int NumFrames = (int)((Sample.m_NumFrames / (float)Sample.m_Rate) * m_MixingRate);
 	short *pNewData = (short *)calloc((size_t)NumFrames * Sample.m_Channels, sizeof(short));
+	if(!pNewData)
+		return false;
 
 	for(int i = 0; i < NumFrames; i++)
 	{
@@ -459,31 +462,37 @@ void CSound::RateConvert(CSample &Sample) const
 	Sample.m_pData = pNewData;
 	Sample.m_NumFrames = NumFrames;
 	Sample.m_Rate = m_MixingRate;
+	return true;
 }
 
-bool CSound::DecodeOpus(CSample &Sample, const void *pData, unsigned DataSize, const char *pContextName) const
+bool CSound::DecodeOpus(CSample &Sample, const void *pData, unsigned DataSize, const char *pContextName, unsigned MaxDecodedBytes) const
 {
 	int OpusError = 0;
 	OggOpusFile *pOpusFile = op_open_memory((const unsigned char *)pData, DataSize, &OpusError);
 	if(pOpusFile)
 	{
 		const int NumChannels = op_channel_count(pOpusFile, -1);
-		if(NumChannels > 2)
+		if(NumChannels < 1 || NumChannels > 2)
 		{
 			op_free(pOpusFile);
 			log_error("sound/opus", "File is not mono or stereo. Filename='%s'", pContextName);
 			return false;
 		}
 
-		const int NumSamples = op_pcm_total(pOpusFile, -1); // per channel!
-		if(NumSamples < 0)
+		const int64_t NumSamples = op_pcm_total(pOpusFile, -1); // per channel!
+		if(NumSamples <= 0 || NumSamples > std::numeric_limits<int>::max() / NumChannels || op_link_count(pOpusFile) != 1 || (MaxDecodedBytes && (NumSamples * NumChannels * 2 > MaxDecodedBytes || NumSamples * m_MixingRate / 48000 * NumChannels * 2 > MaxDecodedBytes)))
 		{
 			op_free(pOpusFile);
-			log_error("sound/opus", "Failed to get number of samples, error %d. Filename='%s'", NumSamples, pContextName);
+			log_error("sound/opus", "Invalid or oversized Opus sample (%" PRId64 "). Filename='%s'", NumSamples, pContextName);
 			return false;
 		}
 
 		short *pSampleData = (short *)calloc((size_t)NumSamples * NumChannels, sizeof(short));
+		if(!pSampleData)
+		{
+			op_free(pOpusFile);
+			return false;
+		}
 
 		int Pos = 0;
 		while(Pos < NumSamples)
@@ -499,6 +508,13 @@ bool CSound::DecodeOpus(CSample &Sample, const void *pData, unsigned DataSize, c
 			else if(Read == 0) // EOF
 				break;
 			Pos += Read;
+		}
+
+		if(Pos != NumSamples)
+		{
+			free(pSampleData);
+			op_free(pOpusFile);
+			return false;
 		}
 
 		Sample.m_pData = pSampleData;
@@ -609,12 +625,8 @@ public:
 	}
 };
 
-bool CSound::DecodeWV(CSample &Sample, const void *pData, unsigned DataSize, const char *pContextName) const
+bool CSound::DecodeWV(CSample &Sample, const void *pData, unsigned DataSize, const char *pContextName, unsigned MaxDecodedBytes) const
 {
-	// no need to load sound when we are running with no sound
-	if(!m_SoundEnabled)
-		return false;
-
 	char aError[100];
 
 	CWavpackReader Reader(pData, DataSize);
@@ -633,7 +645,7 @@ bool CSound::DecodeWV(CSample &Sample, const void *pData, unsigned DataSize, con
 		const unsigned int SampleRate = WavpackGetSampleRate(pContext);
 		const int NumChannels = WavpackGetNumChannels(pContext);
 
-		if(NumChannels > 2)
+		if(NumChannels < 1 || NumChannels > 2)
 		{
 			log_error("sound/wv", "File is not mono or stereo. Filename='%s'", pContextName);
 			WavpackCloseFile(pContext);
@@ -649,7 +661,7 @@ bool CSound::DecodeWV(CSample &Sample, const void *pData, unsigned DataSize, con
 
 		// wavpack reports -1 when the length of the stream is unknown
 		const int64_t NumSamples = WavpackGetNumSamples64(pContext);
-		if(NumSamples <= 0 || NumSamples > std::numeric_limits<int>::max())
+		if(NumSamples <= 0 || SampleRate == 0 || NumSamples > std::numeric_limits<int>::max() / NumChannels || (MaxDecodedBytes && (NumSamples * NumChannels * 2 > MaxDecodedBytes || NumSamples * m_MixingRate / SampleRate * NumChannels * 2 > MaxDecodedBytes)))
 		{
 			log_error("sound/wv", "Number of samples is %" PRId64 ", not supported. Filename='%s'", NumSamples, pContextName);
 			WavpackCloseFile(pContext);
@@ -657,7 +669,7 @@ bool CSound::DecodeWV(CSample &Sample, const void *pData, unsigned DataSize, con
 		}
 
 		int *pBuffer = (int *)calloc((size_t)NumSamples * NumChannels, sizeof(int));
-		if(!WavpackUnpackSamples(pContext, pBuffer, NumSamples))
+		if(!pBuffer || WavpackUnpackSamples(pContext, pBuffer, NumSamples) != NumSamples)
 		{
 			free(pBuffer);
 			log_error("sound/wv", "WavpackUnpackSamples failed. NumSamples=%" PRId64 " NumChannels=%d Filename='%s'", NumSamples, NumChannels, pContextName);
@@ -666,6 +678,12 @@ bool CSound::DecodeWV(CSample &Sample, const void *pData, unsigned DataSize, con
 		}
 
 		Sample.m_pData = (short *)calloc((size_t)NumSamples * NumChannels, sizeof(short));
+		if(!Sample.m_pData)
+		{
+			free(pBuffer);
+			WavpackCloseFile(pContext);
+			return false;
+		}
 
 		int *pSrc = pBuffer;
 		short *pDst = Sample.m_pData;
@@ -723,7 +741,11 @@ int CSound::LoadOpus(const char *pFilename, int StorageType)
 	if(g_Config.m_Debug)
 		log_trace("sound/opus", "Loaded '%s' (index %d)", pFilename, pSample->m_Index);
 
-	RateConvert(*pSample);
+	if(!RateConvert(*pSample))
+	{
+		UnloadSample(pSample->m_Index);
+		return -1;
+	}
 	return pSample->m_Index;
 }
 
@@ -760,11 +782,15 @@ int CSound::LoadWV(const char *pFilename, int StorageType)
 	if(g_Config.m_Debug)
 		log_trace("sound/wv", "Loaded '%s' (index %d)", pFilename, pSample->m_Index);
 
-	RateConvert(*pSample);
+	if(!RateConvert(*pSample))
+	{
+		UnloadSample(pSample->m_Index);
+		return -1;
+	}
 	return pSample->m_Index;
 }
 
-int CSound::LoadOpusFromMem(const void *pData, unsigned DataSize, bool ForceLoad, const char *pContextName)
+int CSound::LoadOpusFromMem(const void *pData, unsigned DataSize, bool ForceLoad, const char *pContextName, unsigned MaxDecodedBytes)
 {
 	// no need to load sound when we are running with no sound
 	if(!m_SoundEnabled && !ForceLoad)
@@ -774,17 +800,21 @@ int CSound::LoadOpusFromMem(const void *pData, unsigned DataSize, bool ForceLoad
 	if(!pSample)
 		return -1;
 
-	if(!DecodeOpus(*pSample, pData, DataSize, pContextName))
+	if(!DecodeOpus(*pSample, pData, DataSize, pContextName, MaxDecodedBytes))
 	{
 		UnloadSample(pSample->m_Index);
 		return -1;
 	}
 
-	RateConvert(*pSample);
+	if(!RateConvert(*pSample))
+	{
+		UnloadSample(pSample->m_Index);
+		return -1;
+	}
 	return pSample->m_Index;
 }
 
-int CSound::LoadWVFromMem(const void *pData, unsigned DataSize, bool ForceLoad, const char *pContextName)
+int CSound::LoadWVFromMem(const void *pData, unsigned DataSize, bool ForceLoad, const char *pContextName, unsigned MaxDecodedBytes)
 {
 	// no need to load sound when we are running with no sound
 	if(!m_SoundEnabled && !ForceLoad)
@@ -794,13 +824,17 @@ int CSound::LoadWVFromMem(const void *pData, unsigned DataSize, bool ForceLoad, 
 	if(!pSample)
 		return -1;
 
-	if(!DecodeWV(*pSample, pData, DataSize, pContextName))
+	if(!DecodeWV(*pSample, pData, DataSize, pContextName, MaxDecodedBytes))
 	{
 		UnloadSample(pSample->m_Index);
 		return -1;
 	}
 
-	RateConvert(*pSample);
+	if(!RateConvert(*pSample))
+	{
+		UnloadSample(pSample->m_Index);
+		return -1;
+	}
 	return pSample->m_Index;
 }
 

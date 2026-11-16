@@ -196,3 +196,35 @@ TEST(LucentFontManagerConfig, ChoiceAndFontsSectionSurviveFreshSessions)
 		EXPECT_STREQ(g_Config.m_ClLucentFont, "");
 	}
 }
+
+TEST(LucentSoundPacksConfig, ChoiceAndDefaultSurviveFreshSessions)
+{
+	CConfigRestore Restore;
+	CTestInfo Info;
+	Info.m_DeleteTestStorageFilesOnSuccess = true;
+	auto Storage = Info.CreateTestStorage();
+	ASSERT_NE(Storage, nullptr);
+	const std::string Pack = "Pack-" + std::string(64, 'a') + ".zip";
+	{
+		CConfigSession Session(Storage.get());
+		Session.m_pConsole->ExecuteLine(("cl_lucent_sound_pack " + Pack).c_str(), IConsole::CLIENT_ID_UNSPECIFIED);
+		Session.m_pConsole->ExecuteLine("cl_lucent_settings_page 4", IConsole::CLIENT_ID_UNSPECIFIED);
+		Session.m_pConsole->ExecuteLine("snd_volume 37", IConsole::CLIENT_ID_UNSPECIFIED);
+		ASSERT_TRUE(Session.m_pConfig->Save());
+	}
+	{
+		CConfigSession Session(Storage.get());
+		ASSERT_TRUE(Session.m_pConsole->ExecuteFile(CONFIG_FILE, IConsole::CLIENT_ID_UNSPECIFIED));
+		EXPECT_STREQ(g_Config.m_ClLucentSoundPack, Pack.c_str());
+		EXPECT_EQ(g_Config.m_ClLucentSettingsPage, LucentSettings::PAGE_SOUNDS);
+		EXPECT_EQ(g_Config.m_SndVolume, 37);
+		Session.m_pConfig->Reset("cl_lucent_sound_pack");
+		ASSERT_TRUE(Session.m_pConfig->Save());
+	}
+	{
+		CConfigSession Session(Storage.get());
+		ASSERT_TRUE(Session.m_pConsole->ExecuteFile(CONFIG_FILE, IConsole::CLIENT_ID_UNSPECIFIED));
+		EXPECT_STREQ(g_Config.m_ClLucentSoundPack, "");
+		EXPECT_EQ(g_Config.m_SndVolume, 37);
+	}
+}

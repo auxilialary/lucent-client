@@ -8,6 +8,7 @@
 
 #include <game/client/components/binds.h>
 #include <game/client/gameclient.h>
+#include <game/client/lucent/ui/controls.h>
 #include <game/client/ui.h>
 #include <game/localization.h>
 
@@ -38,10 +39,11 @@ CKeyBinder::CKeyReaderResult CKeyBinder::DoKeyReader(CButtonContainer *pReaderBu
 	CUIRect KeyReaderButton, ClearButton;
 	pRect->VSplitRight(pRect->h, &KeyReaderButton, &ClearButton);
 
-	const int ClearButtonResult = Ui()->DoButton_FontIcon(
-		pClearButton, FontIcon::TRASH,
-		Result.m_Bind == CBindSlot(KEY_UNKNOWN, KeyModifier::NONE) ? 1 : 0,
-		&ClearButton, BUTTONFLAG_LEFT, IGraphics::CORNER_R);
+	const int ClearButtonResult = Ui()->LucentStyle() ?
+					      LucentUi::IconButton(Ui(), TextRender(), pClearButton, FontIcon::TRASH, Localize("Clear"), ClearButton) :
+					      Ui()->DoButton_FontIcon(pClearButton, FontIcon::TRASH,
+						      Result.m_Bind == CBindSlot(KEY_UNKNOWN, KeyModifier::NONE) ? 1 : 0,
+						      &ClearButton, BUTTONFLAG_LEFT, IGraphics::CORNER_R);
 
 	const int ButtonResult = Ui()->DoButtonLogic(pReaderButton, 0, &KeyReaderButton, BUTTONFLAG_LEFT | BUTTONFLAG_RIGHT);
 	if(ButtonResult == 1 || Activate)
@@ -85,10 +87,17 @@ CKeyBinder::CKeyReaderResult CKeyBinder::DoKeyReader(CButtonContainer *pReaderBu
 	}
 
 	const ColorRGBA Color = m_pKeyReaderId == pReaderButton && m_TakeKey ? ColorRGBA(0.0f, 1.0f, 0.0f, 0.4f) : ColorRGBA(1.0f, 1.0f, 1.0f, 0.5f * Ui()->ButtonColorMul(pReaderButton));
-	KeyReaderButton.Draw(Color, IGraphics::CORNER_L, 5.0f);
+	if(Ui()->LucentStyle())
+		LucentUi::Surface(KeyReaderButton, m_pKeyReaderId == pReaderButton && m_TakeKey, Ui()->MouseHovered(&KeyReaderButton));
+	else
+		KeyReaderButton.Draw(Color, IGraphics::CORNER_L, 5.0f);
 	CUIRect Label;
 	KeyReaderButton.HMargin(1.0f, &Label);
-	Ui()->DoLabel(&Label, aBuf, Label.h * CUi::ms_FontmodHeight, TEXTALIGN_MC);
+	const auto PreviousColor = TextRender()->GetTextColor();
+	if(Ui()->LucentStyle())
+		TextRender()->TextColor(LucentStyle::Style::Accent);
+	Ui()->DoLabel(&Label, aBuf, Ui()->LucentStyle() ? 11.f : Label.h * CUi::ms_FontmodHeight, TEXTALIGN_MC);
+	TextRender()->TextColor(PreviousColor);
 
 	return Result;
 }

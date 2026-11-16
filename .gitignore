@@ -159,3 +159,8 @@ tags
 # tidy-alphabetical-end
 
 /docs/audits/
+
+# Local Codex instructions, integration and generated knowledge graphs
+AGENTS.md
+.codex/
+graphify-out/

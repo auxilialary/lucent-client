@@ -35,6 +35,7 @@
 #include <game/client/components/menu_background.h>
 #include <game/client/components/sounds.h>
 #include <game/client/gameclient.h>
+#include <game/client/lucent/settings/sound_packs.h>
 #include <game/client/lucent/ui.h>
 #include <game/client/lucent/ui/panel.h>
 #include <game/client/ui_listbox.h>
@@ -914,9 +915,9 @@ void CMenus::ConchainUpdateMusicState(IConsole::IResult *pResult, void *pUserDat
 void CMenus::UpdateMusicState()
 {
 	const bool ShouldPlay = Client()->State() == IClient::STATE_OFFLINE && g_Config.m_SndEnable && g_Config.m_SndMusic;
-	if(ShouldPlay && !GameClient()->m_Sounds.IsPlaying(SOUND_MENU))
+	if(!GameClient()->m_Sounds.SoundPackComparing() && ShouldPlay && !GameClient()->m_Sounds.IsPlaying(SOUND_MENU))
 		GameClient()->m_Sounds.Enqueue(CSounds::CHN_MUSIC, SOUND_MENU);
-	else if(!ShouldPlay && GameClient()->m_Sounds.IsPlaying(SOUND_MENU))
+	else if(!GameClient()->m_Sounds.SoundPackComparing() && !ShouldPlay && GameClient()->m_Sounds.IsPlaying(SOUND_MENU))
 		GameClient()->m_Sounds.Stop(SOUND_MENU);
 	if(!ShouldPlay)
 		GameClient()->m_MapSounds.StopAll();
@@ -2311,6 +2312,8 @@ void CMenus::PopupConfirmDemoReplaceVideo()
 void CMenus::SetActive(bool Active)
 {
 	if(!Active)
+		LucentSettings::LeaveSoundPacks(Ui());
+	if(!Active)
 		m_LucentSettings.Reset();
 	if(Active != m_MenuActive)
 	{
@@ -2345,6 +2348,7 @@ void CMenus::SetActive(bool Active)
 
 void CMenus::OnShutdown()
 {
+	m_CursorPreviewBlur.Shutdown(Graphics());
 	m_LucentSettings.Shutdown(Graphics());
 	if(m_LucentCursorQuad >= 0)
 		Graphics()->DeleteQuadContainer(m_LucentCursorQuad);
@@ -2382,6 +2386,15 @@ bool CMenus::OnInput(const IInput::CEvent &Event)
 void CMenus::OnStateChange(int NewState, int OldState)
 {
 	m_MenusStart.CancelTransition();
+	if(NewState < IClient::STATE_ONLINE)
+	{
+		m_pCallvoteSelection = nullptr;
+		m_CallvoteSelectedOption = m_CallvoteSelectedPlayer = -1;
+		m_vVoteCategories.clear();
+		m_RawVoteOptions = false;
+		m_VoteMapTypesExpanded = false;
+		m_VoteMapTypesTransition = {};
+	}
 	// reset active item
 	Ui()->SetActiveItem(nullptr);
 

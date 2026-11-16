@@ -12,6 +12,7 @@
 
 #include <game/client/components/chat.h>
 #include <game/client/tooltips.h>
+#include <game/client/lucent/hud/finish_summary.h>
 #include <game/client/lucent/hud/layout.h>
 #include <game/client/lucent/hud/modifier_tooltip.h>
 #include <game/client/lucent/hud/visuals.h>
@@ -53,6 +54,72 @@ namespace
 			m_pConfig->Init();
 		}
 	};
+}
+
+TEST(LucentHud, FinishSummaryReadsMapRankAndPointsFromDdnetProfile)
+{
+	using namespace LucentHud::Finish;
+	const std::string_view Json = R"({
+		"player":"Tee","points":{"points":4104},"rank":{"rank":99},
+		"types":{"Moderate":{"maps":{"Lygerastia":{"points":9,"rank":412,"time":83.4}}}}
+	})";
+	const std::unique_ptr<json_value, decltype(&json_value_free)> pRoot(json_parse(Json.data(), Json.size()), json_value_free);
+	ASSERT_NE(pRoot, nullptr);
+	const auto Profile = ParseProfile(*pRoot, "Tee", "Lygerastia");
+	EXPECT_EQ(Profile.m_Points, 4104);
+	EXPECT_EQ(Profile.m_MapPoints, 9);
+	EXPECT_EQ(Profile.m_Rank, 412);
+	EXPECT_DOUBLE_EQ(Profile.m_BestSeconds, 83.4);
+	EXPECT_EQ(ParseProfile(*pRoot, "Other", "Lygerastia").m_Points, -1);
+	EXPECT_EQ(ParseProfile(*pRoot, "Tee", "Other").m_Rank, 0);
+}
+
+TEST(LucentHud, FinishSummaryReadsOnlyPublishedRegionalRanks)
+{
+	using namespace LucentHud::Finish;
+	const std::string_view Json = R"({
+		"name":"Lygerastia","points":9,
+		"ranks":[{"player":"Other","rank":1,"country":"GER"},{"player":"Tee","rank":12,"country":"GER"}]
+	})";
+	const std::unique_ptr<json_value, decltype(&json_value_free)> pRoot(json_parse(Json.data(), Json.size()), json_value_free);
+	ASSERT_NE(pRoot, nullptr);
+	EXPECT_EQ(ParseMap(*pRoot, "Tee", "Lygerastia", "GER").m_Rank, 12);
+	EXPECT_EQ(ParseMap(*pRoot, "Tee", "Lygerastia", "GER").m_Points, 9);
+	EXPECT_EQ(ParseMap(*pRoot, "Tee", "Lygerastia", "POL").m_Rank, 0);
+	EXPECT_EQ(ParseMap(*pRoot, "Unknown", "Lygerastia", "GER").m_Rank, 0);
+	EXPECT_EQ(ParseMap(*pRoot, "Tee", "Other", "GER").m_Points, -1);
+	EXPECT_EQ(ConfirmedAward("You earned 1 point for finishing this map!"), 1);
+	EXPECT_EQ(ConfirmedAward("You earned 9 points for finishing this map!"), 9);
+	EXPECT_EQ(ConfirmedAward("You earned 9 points for finishing another map!"), 0);
+}
+TEST(LucentHud, FinishSummaryMatchesLocalRankReplyAndExpectedTime)
+{
+	using namespace LucentHud::Finish;
+	EXPECT_TRUE(MatchesRankHeader("Tee - 05:31.60 - better than 98%", "Tee", "05:31.60"));
+	EXPECT_FALSE(MatchesRankHeader("Tee - 06:42.12 - better than 97%", "Tee", "05:31.60"));
+	EXPECT_FALSE(MatchesRankHeader("[D] Tee - 05:31.60 - better than 98%", "Tee", "05:31.60"));
+	EXPECT_FALSE(MatchesRankHeader("Tee - 05:31.60 - better than 98% - requested by Other", "Tee", "05:31.60"));
+	const auto Reply = ParseRankReply("Global rank 683 - RUS rank 140");
+	ASSERT_TRUE(Reply);
+	EXPECT_EQ(Reply->m_Rank.m_Global, 683);
+	EXPECT_EQ(Reply->m_Rank.m_Regional, 140);
+	EXPECT_STREQ(Reply->m_aRegion, "RUS");
+	const auto Unranked = ParseRankReply("Global rank 683 - RUS unranked");
+	ASSERT_TRUE(Unranked);
+	EXPECT_EQ(Unranked->m_Rank.m_Regional, 0);
+	ASSERT_TRUE(ParseRankReply("Global rank 683"));
+	EXPECT_FALSE(ParseRankReply("Global rank 683 - RUS rank 140 more"));
+}
+
+TEST(LucentHud, FinishSummaryExtendsOnlyForAChangedRank)
+{
+	using namespace LucentHud::Finish;
+	const CRank Old{683, 140};
+	EXPECT_DOUBLE_EQ(RankDisplayUntil(Old, Old, 14, 15), 15);
+	EXPECT_DOUBLE_EQ(RankDisplayUntil(Old, {683, 132}, 14, 15), 19);
+	EXPECT_DOUBLE_EQ(RankDisplayUntil(Old, {510, 0}, 16, 15), 21);
+	EXPECT_DOUBLE_EQ(RankDisplayUntil({}, {683, 140}, 12, 15), 17);
+	EXPECT_DOUBLE_EQ(RankDisplayUntil(Old, {}, 14, 15), 15);
 }
 
 TEST(LucentHud, ConfigSurvivesFreshSessionsAndReset)

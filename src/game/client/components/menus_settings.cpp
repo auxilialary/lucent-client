@@ -5,6 +5,7 @@
 #include <base/dbg.h>
 #include <base/math.h>
 #include <base/str.h>
+#include <base/time.h>
 
 #include <engine/font_icons.h>
 #include <engine/graphics.h>
@@ -19,12 +20,14 @@
 #include <game/client/gameclient.h>
 #include <game/client/lucent/gameview/presentation.h>
 #include <game/client/lucent/localization.h>
+#include <game/client/lucent/settings/bindwheel.h>
 #include <game/client/lucent/settings/fonts.h>
 #include <game/client/lucent/settings/general.h>
 #include <game/client/lucent/settings/player.h>
 #include <game/client/lucent/settings/presentation.h>
 #include <game/client/lucent/settings/skins.h>
 #include <game/client/lucent/settings/sound.h>
+#include <game/client/lucent/settings/sound_packs.h>
 #include <game/client/lucent/settings/workspace.h>
 #include <game/client/lucent/ui/controls.h>
 #include <game/client/lucent/ui/panel.h>
@@ -74,8 +77,14 @@ void CMenus::RenderSettings(CUIRect MainView)
 	MainView = Layout.m_Content;
 	MainView.Margin(20.0f, &MainView);
 
+	if(!Lucent || g_Config.m_ClLucentSettingsPage != LucentSettings::PAGE_BINDWHEEL)
+		LucentSettings::LeaveBindWheel(Ui());
+
 	if(!Lucent || g_Config.m_ClLucentSettingsPage != LucentSettings::PAGE_FONTS)
 		LucentSettings::LeaveFonts(Ui());
+
+	if(!Lucent || g_Config.m_ClLucentSettingsPage != LucentSettings::PAGE_SOUNDS)
+		LucentSettings::LeaveSoundPacks(Ui());
 
 	if(Lucent || g_Config.m_UiSettingsPage != SETTINGS_GENERAL)
 		LucentSettings::LeaveGeneral(Ui());
@@ -116,6 +125,10 @@ void CMenus::RenderSettings(CUIRect MainView)
 			LucentUi::CScope Style(Ui());
 			if(g_Config.m_ClLucentSettingsPage == LucentSettings::PAGE_FONTS)
 				LucentSettings::RenderFonts(Ui(), TextRender(), Storage(), MainView);
+			else if(g_Config.m_ClLucentSettingsPage == LucentSettings::PAGE_BINDWHEEL)
+				LucentSettings::RenderBindWheel(GameClient(), Ui(), TextRender(), MainView);
+			else if(g_Config.m_ClLucentSettingsPage == LucentSettings::PAGE_SOUNDS)
+				LucentSettings::RenderSoundPacks(Ui(), TextRender(), Storage(), Sound(), &GameClient()->m_Sounds, MainView);
 			else
 				RenderLucentPresentationSettings(MainView);
 		}
@@ -185,11 +198,12 @@ void CMenus::RenderSettings(CUIRect MainView)
 	const char *apLucentTabs[LucentSettings::PageCount];
 	for(int i = 0; i < LucentSettings::PageCount; ++i)
 		apLucentTabs[i] = LCNTLocalize(LucentSettings::Pages[i].m_pLabel);
-	const char *apLucentIcons[] = {FontIcon::EYE, FontIcon::BRUSH, FontIcon::CAMERA, FontIcon::FONT};
+	const char *apLucentIcons[] = {FontIcon::EYE, FontIcon::BRUSH, FontIcon::CAMERA, FontIcon::FONT, FontIcon::MUSIC, FontIcon::KEYBOARD};
 	static_assert(std::size(apLucentIcons) == LucentSettings::PageCount);
 	m_LucentSettings.Render(Ui(), TextRender(), Selected, Lucent ? apLucentTabs : apTabs, Lucent ? apLucentIcons : nullptr, g_Config.m_ClLucentSettingsWorkspace, WorkspaceOpacity);
 	if(m_LucentSettings.BackRequested())
 	{
+		LucentSettings::LeaveSoundPacks(Ui());
 		LucentSettings::LeaveGeneral(Ui());
 		LucentSettings::LeaveSound(Ui());
 		LucentSettings::LeavePlayer(Ui());
@@ -542,6 +556,8 @@ void CMenus::RenderLucentPresentationSettings(CUIRect View)
 		{
 			const bool Hover = Cursor && Ui()->MouseHovered(&Rect) && !Scroll.RectClipped(Rect) && !Ui()->IsPopupOpen() && !Ui()->ActiveItem() && !CLineInput::GetActiveInput();
 			m_LucentCursorPreviewActive = Hover && GameClient()->m_GameSkin.m_aSpriteWeaponCursors[WEAPON_GUN].IsValid();
+			if(!m_LucentCursorPreviewActive)
+				m_CursorPreviewBlur.Reset();
 			if(Hover)
 			{
 				const bool Up = Ui()->ConsumeHotkey(CUi::HOTKEY_SCROLL_UP);
@@ -586,7 +602,14 @@ void CMenus::RenderLucentPresentationSettings(CUIRect View)
 			Graphics()->SetColor(1, 1, 1, CUIRect::DrawOpacity());
 			Graphics()->TextureSet(GameClient()->m_GameSkin.m_aSpriteWeaponCursors[WEAPON_GUN]);
 			const float Scale = LucentGameView::CursorScale(g_Config.m_LucentCursorSize);
-			Graphics()->RenderQuadContainerAsSprite(m_LucentCursorQuad, 0, Ui()->MouseX(), Ui()->MouseY(), Scale, Scale);
+			const double Now = time_get() / (double)time_freq();
+			if(!m_CursorPreviewBlur.Render(Graphics(), GameClient()->m_GameSkin.m_aLucentCursorPixels[WEAPON_GUN], Ui()->MousePos(), vec2(0, 0), Scale, CUIRect::DrawOpacity(), Now, 0, g_Config.m_LucentCursorMotionBlur))
+			{
+				Graphics()->TextureSet(GameClient()->m_GameSkin.m_aSpriteWeaponCursors[WEAPON_GUN]);
+				Graphics()->SetColor(1, 1, 1, CUIRect::DrawOpacity());
+				Graphics()->RenderQuadContainerAsSprite(m_LucentCursorQuad, 0, Ui()->MouseX(), Ui()->MouseY(), Scale, Scale);
+			}
+
 			Ui()->ClipDisable();
 			DrawBorder();
 			return;
@@ -629,16 +652,7 @@ void CMenus::RenderLucentPresentationSettings(CUIRect View)
 		auto ComposeCursor = [&]() {
 			Section("Cursor");
 			Slider(&g_Config.m_LucentCursorSize, "Cursor size", 5, 500, "%");
-			CUIRect Range = NextRow(20), Low, High;
-			Range.VSplitMid(&Low, &High);
-			if(Paint)
-				SettingsText(Ui(), TextRender(), Low, "5%", 9, LucentStyle::Style::MutedText);
-			if(Paint)
-				SettingsText(Ui(), TextRender(), High, "500%", 9, LucentStyle::Style::MutedText, TEXTALIGN_MR);
-			Row = NextRow(28);
-			Row.w = std::min(100.f, Row.w);
-			if(Paint && LucentUi::SceneButton(Ui(), TextRender(), &s_Reset, LCNTLocalize("Reset"), Row))
-				g_Config.m_LucentCursorSize = 100;
+			Slider(&g_Config.m_LucentCursorMotionBlur, "Cursor motion blur", 0, 100, "%");
 			RightColumn();
 			Preview(WEAPON_GUN, true);
 		};

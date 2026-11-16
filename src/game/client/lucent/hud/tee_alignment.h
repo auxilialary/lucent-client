@@ -12,8 +12,11 @@
 
 namespace LucentHud::Alignment
 {
-	constexpr float EnterX = 2.f;
-	constexpr float LeaveX = 3.f;
+	// Match the HUD's tile coordinates at two decimal places (32 world units/tile).
+	inline bool SameX(float A, float B)
+	{
+		return std::isfinite(A) && std::isfinite(B) && std::round(A * (100.0 / 32.0)) == std::round(B * (100.0 / 32.0));
+	}
 	constexpr float CapsuleHeight = 18.f;
 	constexpr float StackGap = 2.5f;
 	constexpr float LabelSize = 6.5f;
@@ -80,7 +83,7 @@ namespace LucentHud::Alignment
 	{
 		return Known && (End == -1 || End > Tick || (Flags & LiveFlag) != 0);
 	}
-	inline int Select(const CTarget *pTargets, int Count, int Self, int Dummy, bool DummyMode, int Retained)
+	inline int Select(const CTarget *pTargets, int Count, int Self, int Dummy, bool DummyMode, int /*Retained*/)
 	{
 		if(Self < 0 || Self >= Count || !pTargets[Self].m_Valid)
 			return -1;
@@ -90,7 +93,7 @@ namespace LucentHud::Alignment
 			if(i == Self || !pTargets[i].m_Valid || (DummyMode ? i != Dummy : i == Dummy))
 				continue;
 			const auto &Target = pTargets[i];
-			if(Target.m_Y <= pTargets[Self].m_Y || std::abs(Target.m_X - pTargets[Self].m_X) > (i == Retained ? LeaveX : EnterX))
+			if(Target.m_Y <= pTargets[Self].m_Y || !SameX(Target.m_X, pTargets[Self].m_X))
 				continue;
 			if(Best < 0 || Target.m_Y < pTargets[Best].m_Y)
 				Best = i;

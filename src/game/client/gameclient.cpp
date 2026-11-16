@@ -151,8 +151,10 @@ void CGameClient::OnConsoleInit()
 					      &m_DamageInd,
 					      &m_LucentPings,
 					      &m_Hud,
+					      &m_LucentWatchers,
 					      &m_Spectator,
 					      &m_Emoticon,
+					      &m_BindWheel,
 					      &m_InfoMessages,
 					      &m_Chat,
 					      &m_Broadcast,
@@ -174,6 +176,7 @@ void CGameClient::OnConsoleInit()
 						  &m_Chat, // chat has higher prio, due to that you can quit it by pressing esc
 						  &m_Scoreboard,
 						  &m_Motd, // for pressing esc to remove it
+						  &m_BindWheel,
 						  &m_Spectator,
 						  &m_Emoticon,
 						  &m_ImportantAlert,
@@ -579,7 +582,7 @@ int CGameClient::OnSnapInput(int *pData, bool Dummy, bool Force)
 	}
 	else
 	{
-		if(m_DummyFire % 25 != 0)
+		if(m_DummyFire % 1 != 0)
 		{
 			m_DummyFire++;
 			return 0;

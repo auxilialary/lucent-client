@@ -93,7 +93,7 @@ namespace LucentScoreboard
 	}
 	struct CRange
 	{ int m_Start = 0, m_End = 0; };
-	inline constexpr float GroupHeaderRows = 1.05f, GroupPaddingRows = .15f;
+	inline constexpr float GroupHeaderRows = .6f, GroupPaddingRows = .1f;
 	struct CGroupRows
 	{
 		struct CGroup
@@ -105,6 +105,13 @@ namespace LucentScoreboard
 		std::array<CGroup, 128> m_Groups{};
 		int m_Count = 0;
 		float m_Units = 0;
+		const CGroup *GroupForRow(int Row) const
+		{
+			for(int I = 0; I < m_Count; ++I)
+				if(Row >= m_Groups[I].m_Start && Row < m_Groups[I].m_End)
+					return &m_Groups[I];
+			return nullptr;
+		}
 		static CGroupRows Calculate(const std::array<int, 128> &Teams, CRange Range)
 		{
 			CGroupRows G;
@@ -137,6 +144,9 @@ namespace LucentScoreboard
 		float m_Chrome = 0;
 		bool m_Independent = false;
 		std::array<std::array<int, 128>, 2> m_Team{};
+		// Preserve the exact row identity/state used to plan groups and columns.
+		std::array<std::array<int, 128>, 2> m_ClientId{};
+		std::array<std::array<bool, 128>, 2> m_Dead{};
 		std::array<std::array<float, 128>, 2> m_Score{}, m_GroupTitle{};
 		float m_Points = 0, m_Ping = 0;
 		std::array<CRange, 4> Partition(int Group, int Count, int Columns) const

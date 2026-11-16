@@ -54,7 +54,7 @@ void CListBox::DoSpacing(float Spacing)
 	m_ListBoxView = View;
 }
 
-void CListBox::DoStart(float RowHeight, int NumItems, int ItemsPerRow, int RowsPerScroll, int SelectedIndex, const CUIRect *pRect, bool Background, int BackgroundCorners, bool ForceShowScrollbar)
+void CListBox::DoStart(float RowHeight, int NumItems, int ItemsPerRow, int RowsPerScroll, int SelectedIndex, const CUIRect *pRect, bool Background, int BackgroundCorners, bool ForceShowScrollbar, float ContentSize)
 {
 	CUIRect View;
 	if(pRect)
@@ -107,7 +107,7 @@ void CListBox::DoStart(float RowHeight, int NumItems, int ItemsPerRow, int RowsP
 	ScrollParams.m_ScrollbarMargin = ScrollbarMargin();
 	ScrollParams.m_ScrollUnit = (m_ListBoxRowHeight + m_AutoSpacing) * RowsPerScroll;
 	ScrollParams.m_ForceShowScrollbar = ForceShowScrollbar;
-	m_ScrollRegion.Begin(&m_ListBoxView, &ScrollParams);
+	m_ScrollRegion.Begin(&m_ListBoxView, &ScrollParams, ContentSize);
 }
 
 CListboxItem CListBox::DoNextRow()
@@ -132,7 +132,7 @@ CListboxItem CListBox::DoNextRow()
 	return Item;
 }
 
-CListboxItem CListBox::DoNextItem(const void *pId, bool Selected, float CornerRadius)
+CListboxItem CListBox::DoNextItem(const void *pId, bool Selected, float CornerRadius, bool DrawBackground)
 {
 	if(m_AutoSpacing > 0.0f && m_ListBoxItemIndex > 0)
 		DoSpacing(m_AutoSpacing);
@@ -166,12 +166,15 @@ CListboxItem CListBox::DoNextItem(const void *pId, bool Selected, float CornerRa
 			}
 		}
 
-		Item.m_Rect.Draw(m_SelectionColor.WithAlpha(m_SelectionColor.a * (m_Active ? 1.f : .66f)), IGraphics::CORNER_ALL, CornerRadius);
+		if(DrawBackground)
+			Item.m_Rect.Draw(m_SelectionColor.WithAlpha(m_SelectionColor.a * (m_Active ? 1.f : .66f)), IGraphics::CORNER_ALL, CornerRadius);
 	}
-	if(Ui()->HotItem() == pId && !m_ScrollRegion.Animating())
+	if(DrawBackground && Ui()->HotItem() == pId && !m_ScrollRegion.Animating())
 	{
 		Item.m_Rect.Draw(m_HoverColor, IGraphics::CORNER_ALL, CornerRadius);
 	}
+	if(!DrawBackground)
+		Item.m_Selected = m_ListBoxNewSelected == ThisItemIndex;
 
 	return Item;
 }
@@ -181,6 +184,14 @@ CListboxItem CListBox::DoSubheader()
 	CListboxItem Item = DoNextRow();
 	Item.m_Rect.Draw(ColorRGBA(1.0f, 1.0f, 1.0f, 0.2f), IGraphics::CORNER_NONE, 0.0f);
 	return Item;
+}
+
+CListboxItem CListBox::DoSection(float Height)
+{
+	CListboxItem Section{};
+	m_ListBoxView.HSplitTop(Height, &Section.m_Rect, &m_ListBoxView);
+	Section.m_Visible = m_ScrollRegion.AddRect(Section.m_Rect);
+	return Section;
 }
 
 int CListBox::DoEnd()
