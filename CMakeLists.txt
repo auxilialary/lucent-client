@@ -2796,6 +2796,9 @@ if(CLIENT)
     lucent/console/presentation.cpp
     lucent/console/presentation.h
     lucent/console/selection.h
+    lucent/game/chat_component.cpp
+    lucent/game/chat_component.h
+    lucent/game/chat_policy.h
     lucent/game/ping.h
     lucent/game/ping_component.cpp
     lucent/game/ping_component.h
@@ -2856,6 +2859,8 @@ if(CLIENT)
     lucent/settings/fonts.h
     lucent/settings/sound_packs.cpp
     lucent/settings/sound_packs.h
+    lucent/settings/chat.cpp
+    lucent/settings/chat.h
     lucent/settings/general.cpp
     lucent/settings/general.h
     lucent/settings/layout.h
@@ -4512,6 +4517,9 @@ endforeach()
 
 # Small, dependency-free checks for the Lucent menu aim state machine.
 if(CLIENT)
+  add_executable(lucent-chat-test EXCLUDE_FROM_ALL src/game/client/lucent/tests/chat_test.cc)
+  target_include_directories(lucent-chat-test PRIVATE src)
+  target_compile_features(lucent-chat-test PRIVATE cxx_std_20)
   add_executable(lucent-settings-test EXCLUDE_FROM_ALL
     src/game/client/lucent/tests/settings_test.cc
     src/game/client/ui_rect.cpp

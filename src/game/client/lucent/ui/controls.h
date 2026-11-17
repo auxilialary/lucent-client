@@ -18,6 +18,7 @@ namespace LucentUi
 	};
 
 	float Highlight(const void *pId, bool Target, EChannel Channel = EChannel::HOVER, float Duration = 0);
+	bool CheckboxContextRequested(CUi *pUi, const CUIRect &Rect);
 	bool FilterTab(CUi *pUi, ITextRender *pTextRender, const void *pId, const char *pText, const CUIRect &Rect, bool Selected);
 	int CheckBox(CUi *pUi, const void *pId, const char *pText, const char *pMark, const CUIRect &Rect, unsigned Flags = BUTTONFLAG_LEFT);
 	int CheckBox(CUi *pUi, const void *pId, const char *pText, const char *pMark, const CUIRect &Rect, unsigned Flags, bool ControlRight);

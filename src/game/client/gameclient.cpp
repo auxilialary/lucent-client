@@ -157,6 +157,7 @@ void CGameClient::OnConsoleInit()
 					      &m_BindWheel,
 					      &m_InfoMessages,
 					      &m_Chat,
+					      &m_LucentChat,
 					      &m_Broadcast,
 					      &m_ImportantAlert,
 					      &m_DebugHud,

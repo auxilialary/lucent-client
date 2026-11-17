@@ -674,6 +674,9 @@ void CChat::StoreSave(const char *pText)
 
 void CChat::AddLine(int ClientId, int Team, const char *pLine)
 {
+	if(!GameClient()->m_LucentChat.Allow(ClientId, pLine))
+		return;
+
 	if(*pLine == 0 ||
 		(ClientId == SERVER_MSG && !g_Config.m_ClShowChatSystem) ||
 		(ClientId >= 0 && (GameClient()->m_aClients[ClientId].m_aName[0] == '\0' || // unknown client
@@ -775,6 +778,7 @@ void CChat::AddLine(int ClientId, int Team, const char *pLine)
 		PreviousLine.m_aYOffset[0] = -1.0f;
 		PreviousLine.m_aYOffset[1] = -1.0f;
 
+		GameClient()->m_LucentChat.Mention(ClientId, PreviousLine.m_aText, PreviousLine.m_Highlighted, PreviousLine.m_pManagedTeeRenderInfo);
 		FChatMsgCheckAndPrint(PreviousLine);
 		return;
 	}
@@ -876,6 +880,8 @@ void CChat::AddLine(int ClientId, int Team, const char *pLine)
 			CurrentLine.m_pManagedTeeRenderInfo = GameClient()->CreateManagedTeeRenderInfo(LineAuthor);
 		}
 	}
+
+	GameClient()->m_LucentChat.Mention(ClientId, CurrentLine.m_aText, CurrentLine.m_Highlighted, CurrentLine.m_pManagedTeeRenderInfo);
 
 	FChatMsgCheckAndPrint(CurrentLine);
 

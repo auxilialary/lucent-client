@@ -205,6 +205,7 @@ class CHud : public CComponent
 
 public:
 	CHud();
+	float LucentTimerBottom() const { return m_LucentTimerBounds.h > 0 ? m_LucentTimerBounds.y + m_LucentTimerBounds.h : 30.f; }
 	int Sizeof() const override { return sizeof(*this); }
 
 	void ResetHudContainers();

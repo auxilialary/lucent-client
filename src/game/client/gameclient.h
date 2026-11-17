@@ -71,6 +71,7 @@
 #include "components/voting.h"
 #include "lucent/bindwheel/component.h"
 #include "lucent/game/ping_component.h"
+#include "lucent/game/chat_component.h"
 #include "lucent/hud/watchers_component.h"
 
 #include <memory>
@@ -159,6 +160,7 @@ public:
 	CLucentPings m_LucentPings;
 	CLucentWatchers m_LucentWatchers;
 	CChat m_Chat;
+	CLucentChat m_LucentChat;
 	CCensor m_Censor;
 	CMotd m_Motd;
 	CBroadcast m_Broadcast;

@@ -29,6 +29,7 @@
 #include <game/client/lucent/settings/sound.h>
 #include <game/client/lucent/settings/sound_packs.h>
 #include <game/client/lucent/settings/workspace.h>
+#include <game/client/lucent/settings/chat.h>
 #include <game/client/lucent/ui/controls.h>
 #include <game/client/lucent/ui/panel.h>
 #include <game/client/lucent/ui/scopes.h>
@@ -83,6 +84,9 @@ void CMenus::RenderSettings(CUIRect MainView)
 	if(!Lucent || g_Config.m_ClLucentSettingsPage != LucentSettings::PAGE_FONTS)
 		LucentSettings::LeaveFonts(Ui());
 
+	if(!Lucent || g_Config.m_ClLucentSettingsPage != LucentSettings::PAGE_CHAT)
+		LucentSettings::LeaveChat(Ui());
+
 	if(!Lucent || g_Config.m_ClLucentSettingsPage != LucentSettings::PAGE_SOUNDS)
 		LucentSettings::LeaveSoundPacks(Ui());
 
@@ -127,6 +131,8 @@ void CMenus::RenderSettings(CUIRect MainView)
 				LucentSettings::RenderFonts(Ui(), TextRender(), Storage(), MainView);
 			else if(g_Config.m_ClLucentSettingsPage == LucentSettings::PAGE_BINDWHEEL)
 				LucentSettings::RenderBindWheel(GameClient(), Ui(), TextRender(), MainView);
+			else if(g_Config.m_ClLucentSettingsPage == LucentSettings::PAGE_CHAT)
+				LucentSettings::RenderChat(GameClient(), Ui(), TextRender(), MainView);
 			else if(g_Config.m_ClLucentSettingsPage == LucentSettings::PAGE_SOUNDS)
 				LucentSettings::RenderSoundPacks(Ui(), TextRender(), Storage(), Sound(), &GameClient()->m_Sounds, MainView);
 			else
@@ -198,7 +204,7 @@ void CMenus::RenderSettings(CUIRect MainView)
 	const char *apLucentTabs[LucentSettings::PageCount];
 	for(int i = 0; i < LucentSettings::PageCount; ++i)
 		apLucentTabs[i] = LCNTLocalize(LucentSettings::Pages[i].m_pLabel);
-	const char *apLucentIcons[] = {FontIcon::EYE, FontIcon::BRUSH, FontIcon::CAMERA, FontIcon::FONT, FontIcon::MUSIC, FontIcon::KEYBOARD};
+	const char *apLucentIcons[] = {FontIcon::EYE, FontIcon::BRUSH, FontIcon::CAMERA, FontIcon::FONT, FontIcon::MUSIC, FontIcon::KEYBOARD, FontIcon::COMMENT};
 	static_assert(std::size(apLucentIcons) == LucentSettings::PageCount);
 	m_LucentSettings.Render(Ui(), TextRender(), Selected, Lucent ? apLucentTabs : apTabs, Lucent ? apLucentIcons : nullptr, g_Config.m_ClLucentSettingsWorkspace, WorkspaceOpacity);
 	if(m_LucentSettings.BackRequested())

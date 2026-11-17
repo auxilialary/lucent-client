@@ -5,6 +5,11 @@
 
 namespace LucentUi
 {
+	bool CheckboxContextRequested(CUi *pUi, const CUIRect &Rect)
+	{
+		return pUi->Enabled() && !pUi->IsPopupOpen() && !pUi->ActiveItem() && pUi->MouseHovered(&Rect) && pUi->MouseButtonClicked(1);
+	}
+
 	float Highlight(const void *pId, bool Target, EChannel Channel, float Duration)
 	{
 		struct CState

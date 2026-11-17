@@ -2162,3 +2162,66 @@ Client folder
 
 Import selected wheel
 == Импортировать
+
+Chat
+== Чат
+
+Mention
+== УПОМИНАНИЕ
+
+Mentions
+== Упоминания
+
+Mention notifications
+== Уведомления об упоминаниях
+
+Visible messages
+== Видимые сообщения
+
+Other system messages
+== Прочие системные сообщения
+
+Welcome and help messages
+== Приветствия и подсказки
+
+Server reminders (Good luck in your race)
+== Напоминания сервера (Good luck in your race)
+
+Player joins, leaves and renames
+== Вход, выход и смена имени игроков
+
+Hidden messages are also muted.
+== Звук скрытых сообщений также отключён.
+
+Right-click a checkbox to see affected messages.
+== ПКМ по галочке — список затрагиваемых сообщений.
+
+Messages mentioning your player or dummy name.
+== Сообщения с упоминанием имени вашего игрока или дамми.
+
+Incoming private messages.
+== Входящие личные сообщения.
+
+This checkbox controls the notification card only.
+== Эта галочка управляет только карточкой уведомления.
+
+All other server and client service messages.
+== Все остальные служебные сообщения сервера и клиента.
+
+Excludes welcome messages, server reminders and player joins, leaves and renames.
+== Кроме приветствий, напоминаний сервера, входа, выхода и смены имени игроков.
+
+The exact messages depend on the server.
+== Конкретные сообщения зависят от сервера.
+
+Messages containing these phrases (case-insensitive):
+== Сообщения с этими фразами (без учёта регистра):
+
+Player chat is never hidden by these filters.
+== Эти фильтры не скрывают сообщения игроков.
+
+Hey, come here!
+== Эй, иди сюда!
+
+Join us! I will show you the next part of the map.
+== Присоединяйся! Покажу следующую часть карты.
