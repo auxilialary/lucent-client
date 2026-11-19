@@ -2660,6 +2660,17 @@ void CMenus::SetMenuPage(int NewPage)
 	}
 }
 
+void CMenus::AutoRefreshBrowser()
+{
+	const int Type = ServerBrowser()->GetCurrentType();
+	if(time_get() - ServerBrowser()->LastRefreshTime() >= 5 * time_freq() &&
+		!ServerBrowser()->IsRefreshing() &&
+		(Type == IServerBrowser::TYPE_LAN || !ServerBrowser()->IsGettingServerlist()))
+	{
+		ServerBrowser()->Refresh(Type);
+	}
+}
+
 void CMenus::RefreshBrowserTab(bool Force)
 {
 	if(g_Config.m_UiPage == PAGE_INTERNET)

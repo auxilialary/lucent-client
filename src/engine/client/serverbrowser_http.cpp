@@ -396,6 +396,7 @@ void CServerBrowserHttp::Update()
 			return;
 		}
 		m_pGetServers = HttpGet(pBestUrl);
+		m_pGetServers->LogProgress(HTTPLOG::FAILURE);
 		m_pGetServers->MaxResponseSize(MAX_SERVERLIST_RESPONSE_SIZE);
 		// 10 seconds connection timeout, lower than 8KB/s for 10 seconds to fail.
 		m_pGetServers->Timeout(CTimeout{10000, 0, 8000, 10});

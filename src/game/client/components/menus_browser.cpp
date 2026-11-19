@@ -1944,6 +1944,8 @@ void CMenus::RenderServerbrowser(CUIRect MainView)
 		dbg_assert_failed("ui_page invalid for RenderServerbrowser: %d", g_Config.m_UiPage);
 	}
 
+	AutoRefreshBrowser();
+
 	// clang-format off
 	/*
 		+---------------------------+ +---communities---+

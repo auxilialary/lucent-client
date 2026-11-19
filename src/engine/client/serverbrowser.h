@@ -319,6 +319,7 @@ public:
 	void QueueRequest(CServerEntry *pEntry);
 	CServerEntry *Find(const NETADDR &Addr) override;
 	int GetCurrentType() override { return m_ServerlistType; }
+	int64_t LastRefreshTime() const override { return m_LastRefreshTime; }
 	bool IsRegistered(const NETADDR &Addr);
 
 private:
@@ -372,6 +373,7 @@ private:
 	int m_NumSortedPlayers;
 
 	int m_ServerlistType;
+	int64_t m_LastRefreshTime = 0;
 	int64_t m_BroadcastTime;
 	unsigned char m_aTokenSeed[16];
 

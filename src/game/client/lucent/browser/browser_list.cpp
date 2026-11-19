@@ -140,15 +140,31 @@ void CMenus::RenderLucentServerList(CUIRect View, bool &Activated)
 			if(aWidths[c] <= 0)
 				continue;
 			CUIRect Cell = {aCols[c].x + 4, Item.m_Rect.y, std::max(0.f, aCols[c].w - 8), Item.m_Rect.h};
-			if(c == 1 && HasMode)
+			if(c == 1)
 			{
-				const float ModeWidth = TextRender()->TextWidth(9, pMode) + 10;
-				if(TextRender()->TextWidth(11, pInfo->m_aMap) + ModeWidth + 18 < Cell.w)
+				constexpr float FinishIconWidth = 14.f;
+				if(g_Config.m_BrIndicateFinished && Cell.w > FinishIconWidth)
 				{
-					CUIRect Mode;
-					Cell.VSplitRight(ModeWidth, &Cell, &Mode);
-					TextRender()->TextColor(LucentStyle::Style::UnavailableText);
-					Ui()->DoLabel(&Mode, pMode, 9, TEXTALIGN_MR);
+					CUIRect Icon;
+					Cell.VSplitLeft(FinishIconWidth, &Icon, &Cell);
+					if(pInfo->m_HasRank == CServerInfo::RANK_RANKED)
+					{
+						TextRender()->TextColor(LucentStyle::Style::ServerText);
+						TextRender()->SetFontPreset(EFontPreset::ICON_FONT);
+						Ui()->DoLabel(&Icon, FontIcon::FLAG_CHECKERED, 9.f, TEXTALIGN_ML);
+						TextRender()->SetFontPreset(EFontPreset::DEFAULT_FONT);
+					}
+				}
+				if(HasMode)
+				{
+					const float ModeWidth = TextRender()->TextWidth(9, pMode) + 10;
+					if(TextRender()->TextWidth(11, pInfo->m_aMap) + ModeWidth + 18 < Cell.w)
+					{
+						CUIRect Mode;
+						Cell.VSplitRight(ModeWidth, &Cell, &Mode);
+						TextRender()->TextColor(LucentStyle::Style::UnavailableText);
+						Ui()->DoLabel(&Mode, pMode, 9, TEXTALIGN_MR);
+					}
 				}
 			}
 			SLabelProperties Props;

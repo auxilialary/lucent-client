@@ -1032,6 +1032,7 @@ void CServerBrowser::OnServerInfoUpdate(const NETADDR &Addr, int Token, const CS
 
 void CServerBrowser::Refresh(int Type, bool Force)
 {
+	m_LastRefreshTime = time_get();
 	bool ServerListTypeChanged = Force || m_ServerlistType != Type;
 	int OldServerListType = m_ServerlistType;
 	m_ServerlistType = Type;

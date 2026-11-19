@@ -352,6 +352,7 @@ public:
 	static constexpr const char *SEARCH_EXCLUDE_TOKEN = ";";
 
 	virtual void Refresh(int Type, bool Force = false) = 0;
+	virtual int64_t LastRefreshTime() const = 0;
 	virtual bool IsRefreshing() const = 0;
 	virtual bool IsGettingServerlist() const = 0;
 	virtual bool IsServerlistError() const = 0;

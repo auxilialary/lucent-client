@@ -59,6 +59,7 @@ void CMenus::RenderLucentBrowser(CUIRect Screen)
 		RefreshBrowserTab(true);
 		m_ForceRefreshLanPage = false;
 	}
+	AutoRefreshBrowser();
 	const double Now = double(time_get()) / time_freq();
 	const float Dt = m_LucentBrowserTime > 0 ? float(std::min(.1, Now - m_LucentBrowserTime)) : 0;
 	m_LucentBrowserTime = Now;
