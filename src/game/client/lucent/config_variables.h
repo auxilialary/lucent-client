@@ -7,7 +7,7 @@ MACRO_CONFIG_INT(ClLucentSkinTextureLimit, cl_lucent_skin_texture_limit, 1024, 1
 #include "hud/config_variables.h"
 
 MACRO_CONFIG_INT(ClLucentSettingsWorkspace, cl_lucent_settings_workspace, 0, 0, 1, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Settings workspace: 0 DDNet, 1 Lucent")
-MACRO_CONFIG_INT(ClLucentSettingsPage, cl_lucent_settings_page, 0, 0, 6, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Last Lucent settings section")
+MACRO_CONFIG_INT(ClLucentSettingsPage, cl_lucent_settings_page, 0, 0, 7, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Last Lucent settings section")
 
 MACRO_CONFIG_STR(ClLucentFont, cl_lucent_font, 256, "", CFGFLAG_CLIENT | CFGFLAG_SAVE, "Lucent custom font filename; empty uses standard DDNet")
 
@@ -27,3 +27,9 @@ MACRO_CONFIG_INT(ClLucentChatWelcome, cl_lucent_chat_welcome, 1, 0, 1, CFGFLAG_C
 MACRO_CONFIG_INT(ClLucentChatRace, cl_lucent_chat_race, 1, 0, 1, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Show recognized race reminders and play their sounds")
 
 MACRO_CONFIG_INT(ClLucentChatConnections, cl_lucent_chat_connections, 1, 0, 1, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Show join, leave and rename messages and play their sounds")
+
+MACRO_CONFIG_INT(ClLucentHoldHammer, cl_lucent_hold_hammer, 1, 0, 1, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Repeat hammer attacks while holding fire")
+
+MACRO_CONFIG_INT(ClLucentHoldGun, cl_lucent_hold_gun, 1, 0, 1, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Repeat gun shots while holding fire")
+
+MACRO_CONFIG_INT(ClLucentHoldJump, cl_lucent_hold_jump, 1, 0, 1, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Repeat jumps while holding jump, including air jumps")

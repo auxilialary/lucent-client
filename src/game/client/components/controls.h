@@ -11,6 +11,7 @@
 #include <generated/protocol.h>
 
 #include <game/client/component.h>
+#include <game/client/lucent/game/hold_input.h>
 
 class CControls : public CComponent
 {
@@ -57,6 +58,7 @@ public:
 	vec2 CursorWorldPos() const;
 
 private:
+	LucentInput::CHoldInput m_aHoldInput[NUM_DUMMIES];
 	static void ConKeyInputState(IConsole::IResult *pResult, void *pUserData);
 	static void ConKeyInputCounter(IConsole::IResult *pResult, void *pUserData);
 	static void ConKeyInputSet(IConsole::IResult *pResult, void *pUserData);

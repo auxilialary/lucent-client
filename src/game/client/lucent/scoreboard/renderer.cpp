@@ -448,10 +448,10 @@ namespace LucentScoreboard
 			const CUIRect Rect = {Scoreboard.x + 2, Scoreboard.y + Group.m_Top * LineHeight, std::max(0.f, Scoreboard.w - 4), (Group.m_Bottom - Group.m_Top) * LineHeight};
 			const auto TeamColor = m_Component.GameClient()->GetDDTeamColor(Group.m_Team);
 			const auto Fill = LucentStyle::Gradient::Blend(LucentStyle::Scoreboard::Surface, TeamColor, LucentStyle::Scoreboard::GroupTint).WithAlpha(LucentStyle::Scoreboard::GroupFillAlpha * m_Opacity);
-			// The body is painted with the actual player rows below.
-			const CUIRect HeaderRect = {Rect.x, Rect.y, Rect.w, (GroupPaddingRows + GroupHeaderRows) * LineHeight};
+			// Paint each complete team before any player content, so row fills
+			// cannot cover a neighboring team header or its last player.
 			const auto Border = LucentStyle::Gradient::Blend(TeamColor, LucentStyle::Style::Text, LucentStyle::Scoreboard::GroupBorderLighten).WithAlpha(LucentStyle::Scoreboard::GroupBorderAlpha * m_Opacity);
-			DrawTeamStrip(m_Component.Graphics(), HeaderRect, Fill, Border, RoundRadius, true, false);
+			DrawTeamStrip(m_Component.Graphics(), Rect, Fill, Border, RoundRadius, true, true);
 			auto &Label = m_aDDTeamLabels[Group.m_Team];
 			const float TitleFont = std::min(9.f, FontSize * .75f), CountFont = TitleFont;
 			const float Top = Rect.y + GroupPaddingRows * LineHeight + (GroupHeaderRows * LineHeight - TitleFont) / 2;
@@ -483,16 +483,6 @@ namespace LucentScoreboard
 			TextColor.a = RenderDead ? 0.5f : 1.0f;
 			m_Component.TextRender()->TextColor(TextColor);
 			CUIRect Row = {Scoreboard.x, Scoreboard.y + GroupRows.m_RowY[CountRendered - 1] * LineHeight, Scoreboard.w, LineHeight};
-			if(const auto *pGroup = GroupRows.GroupForRow(RowIndex); pGroup &&
-				m_Component.GameClient()->m_Teams.Team(ClientId) == pGroup->m_Team)
-			{
-				const auto TeamColor = m_Component.GameClient()->GetDDTeamColor(pGroup->m_Team);
-				const auto Fill = LucentStyle::Gradient::Blend(LucentStyle::Scoreboard::Surface, TeamColor, LucentStyle::Scoreboard::GroupTint).WithAlpha(LucentStyle::Scoreboard::GroupFillAlpha * m_Opacity);
-				const bool Last = CountRendered == pGroup->m_End;
-				const CUIRect Body = {Row.x + 2, Row.y, std::max(0.f, Row.w - 4), Row.h + (Last ? GroupPaddingRows * LineHeight : 0.f)};
-				const auto Border = LucentStyle::Gradient::Blend(TeamColor, LucentStyle::Style::Text, LucentStyle::Scoreboard::GroupBorderLighten).WithAlpha(LucentStyle::Scoreboard::GroupBorderAlpha * m_Opacity);
-				DrawTeamStrip(m_Component.Graphics(), Body, Fill, Border, RoundRadius, false, Last);
-			}
 			const float DeltaX = 0;
 			Row.x += DeltaX;
 			Row.y += 2.f * (1.f - LucentStyle::Motion::CubicOut(float((m_Now - m_RevealStart) / .08)));
@@ -1099,7 +1089,7 @@ namespace LucentScoreboard
 		m_FontSize = std::min(12.f, m_RowHeight * .65f);
 		for(int Index = 0; Index < Layout.m_Columns; ++Index)
 			if(aVisible[Index])
-				m_FontSize = std::min(m_FontSize, CommonFont(m_RowHeight, aBounds[Index].w,
+				m_FontSize = std::min(m_FontSize, CommonFont(m_RowHeight, aTargets[Index].w,
 									  CFields::ChromeWidth(Layout.m_Scores[Index], m_PointsWidth, m_PingWidth) + 72));
 
 		for(int Group = 0; Group < (Teams ? 2 : 1); ++Group)
@@ -1112,7 +1102,10 @@ namespace LucentScoreboard
 				const int Index = (Group ? Layout.m_RedColumns : 0) + Column;
 				if(!aVisible[Index])
 					continue;
-				const auto &Bounds = aBounds[Index];
+				// Animated column surfaces can cross during a repartition. Player
+				// rows and team containers must use the non-overlapping target grid,
+				// not the previous/interpolated columns with the new row ranges.
+				const auto &Bounds = aTargets[Index];
 				CUIRect Body = {Bounds.x, Bounds.y, Bounds.w, Bounds.h};
 				if(Teams)
 				{

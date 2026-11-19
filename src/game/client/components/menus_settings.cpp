@@ -204,7 +204,7 @@ void CMenus::RenderSettings(CUIRect MainView)
 	const char *apLucentTabs[LucentSettings::PageCount];
 	for(int i = 0; i < LucentSettings::PageCount; ++i)
 		apLucentTabs[i] = LCNTLocalize(LucentSettings::Pages[i].m_pLabel);
-	const char *apLucentIcons[] = {FontIcon::EYE, FontIcon::BRUSH, FontIcon::CAMERA, FontIcon::FONT, FontIcon::MUSIC, FontIcon::KEYBOARD, FontIcon::COMMENT};
+	const char *apLucentIcons[] = {FontIcon::EYE, FontIcon::BRUSH, FontIcon::CAMERA, FontIcon::FONT, FontIcon::MUSIC, FontIcon::KEYBOARD, FontIcon::COMMENT, FontIcon::KEYBOARD};
 	static_assert(std::size(apLucentIcons) == LucentSettings::PageCount);
 	m_LucentSettings.Render(Ui(), TextRender(), Selected, Lucent ? apLucentTabs : apTabs, Lucent ? apLucentIcons : nullptr, g_Config.m_ClLucentSettingsWorkspace, WorkspaceOpacity);
 	if(m_LucentSettings.BackRequested())
@@ -669,6 +669,17 @@ void CMenus::RenderLucentPresentationSettings(CUIRect View)
 		FirstSection = true;
 		Paint = true;
 		ComposeCursor();
+	}
+	else if(Page == LucentSettings::PAGE_CONTROLS)
+	{
+		Section("Hold to repeat");
+		if(Check(&g_Config.m_ClLucentHoldHammer, "Repeat hammer while holding fire", g_Config.m_ClLucentHoldHammer))
+			g_Config.m_ClLucentHoldHammer ^= 1;
+		if(Check(&g_Config.m_ClLucentHoldGun, "Repeat gun while holding fire", g_Config.m_ClLucentHoldGun))
+			g_Config.m_ClLucentHoldGun ^= 1;
+		if(Check(&g_Config.m_ClLucentHoldJump, "Repeat jumps while holding jump", g_Config.m_ClLucentHoldJump))
+			g_Config.m_ClLucentHoldJump ^= 1;
+		Label(LCNTLocalize("Held jump also uses available air jumps."));
 	}
 	else if(Page == LucentSettings::PAGE_WEAPONS)
 	{

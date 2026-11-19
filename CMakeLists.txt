@@ -2799,6 +2799,7 @@ if(CLIENT)
     lucent/game/chat_component.cpp
     lucent/game/chat_component.h
     lucent/game/chat_policy.h
+    lucent/game/hold_input.h
     lucent/game/ping.h
     lucent/game/ping_component.cpp
     lucent/game/ping_component.h
@@ -4517,6 +4518,9 @@ endforeach()
 
 # Small, dependency-free checks for the Lucent menu aim state machine.
 if(CLIENT)
+  add_executable(lucent-hold-input-test EXCLUDE_FROM_ALL src/game/client/lucent/tests/hold_input_test.cc)
+  target_include_directories(lucent-hold-input-test PRIVATE src)
+  target_compile_features(lucent-hold-input-test PRIVATE cxx_std_20)
   add_executable(lucent-chat-test EXCLUDE_FROM_ALL src/game/client/lucent/tests/chat_test.cc)
   target_include_directories(lucent-chat-test PRIVATE src)
   target_compile_features(lucent-chat-test PRIVATE cxx_std_20)

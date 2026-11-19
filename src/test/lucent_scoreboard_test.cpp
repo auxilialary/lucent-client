@@ -927,7 +927,7 @@ TEST(LucentScoreboard, DDTeamContainersCoverEveryMemberAndBudgetTheirHeaderHeigh
 							const auto Rows = CGroupRows::Calculate(C.m_Team[Group], Range);
 							Seen += Range.m_End - Range.m_Start;
 							EXPECT_NEAR(Rows.m_Units, L.m_Units[Column], .001f);
-							EXPECT_NEAR(Rows.m_Units, Range.m_End - Range.m_Start + Rows.m_Count * (GroupHeaderRows + 2 * GroupPaddingRows), .001f);
+							EXPECT_NEAR(Rows.m_Units, Range.m_End - Range.m_Start + Rows.m_Count * GroupOverheadRows, .001f);
 							const auto Bounds = ColumnBounds(L, 0, 0, Column, Range.m_End - Range.m_Start);
 							EXPECT_LE(Bounds.y + Bounds.h, L.m_Height + .001f);
 							for(int I = Range.m_Start; I < Range.m_End; ++I)
@@ -1404,4 +1404,61 @@ TEST(LucentScoreboard, ProductionPlannerDoesNotCreateEmptyGameTeamColumns)
 			if(!Red && Blue)
 				EXPECT_EQ(L.m_RedColumns, 0);
 		}
+}
+
+TEST(LucentScoreboard, AdjacentDDTeamsKeepHeadersAndEveryPlayerInsideSeparatePanels)
+{
+	std::array<int, 128> Teams{};
+	for(int I = 13; I < 21; ++I)
+		Teams[I] = I < 17 ? 5 : I < 19 ? 22 : 44;
+	const auto Rows = CGroupRows::Calculate(Teams, {13, 21});
+	ASSERT_EQ(Rows.m_Count, 3);
+	for(float RowHeight : {1.f, 8.f, 22.f})
+	{
+		float PreviousBottom = -GroupGapRows * RowHeight;
+		for(int I = 0; I < Rows.m_Count; ++I)
+		{
+			const auto &Group = Rows.m_Groups[I];
+			EXPECT_NEAR(Group.m_Top * RowHeight - PreviousBottom, GroupGapRows * RowHeight, .001f);
+			const float HeaderBottom = (Group.m_Top + GroupPaddingRows + GroupHeaderRows) * RowHeight;
+			for(int J = Group.m_Start; J < Group.m_End; ++J)
+			{
+				EXPECT_GE(Rows.m_RowY[J] * RowHeight + .001f, HeaderBottom);
+				EXPECT_LE((Rows.m_RowY[J] + 1.f + GroupPaddingRows) * RowHeight, Group.m_Bottom * RowHeight + .001f);
+			}
+			PreviousBottom = Group.m_Bottom * RowHeight;
+		}
+		EXPECT_NEAR(Rows.m_Units * RowHeight, PreviousBottom + GroupGapRows * RowHeight, .001f);
+	}
+}
+
+TEST(LucentScoreboard, RuntimeTeamSpansKeepContainerHeightInSyncWithRenderedRows)
+{
+	// The live server case: flock, four players in team 5, two in team 6,
+	// two in team 22 and two in team 44. Consume containers before rows,
+	// matching the production renderer rather than testing either in isolation.
+	volatile int RuntimeTeams[] = {0, 0, 0, 0, 5, 5, 5, 5, 6, 6, 22, 22, 44, 44};
+	std::array<int, 128> Teams{};
+	for(int I = 0; I < 14; ++I)
+		Teams[I] = RuntimeTeams[I];
+	for(const CRange Range : {CRange{0, 14}, CRange{4, 14}, CRange{5, 12}})
+	{
+		const auto Rows = CGroupRows::Calculate(Teams, Range);
+		std::array<float, 128> Tops{}, Bottoms{};
+		for(int I = 0; I < Rows.m_Count; ++I)
+		{
+			const auto &G = Rows.m_Groups[I];
+			Tops[I] = G.m_Top;
+			Bottoms[I] = G.m_Bottom;
+			EXPECT_NEAR(Bottoms[I] - Tops[I], G.m_End - G.m_Start + GroupHeaderRows + 2 * GroupPaddingRows, .0001f);
+			if(I)
+				EXPECT_GE(Tops[I] + .0001f, Bottoms[I - 1] + GroupGapRows);
+		}
+		for(int I = Range.m_Start; I < Range.m_End; ++I)
+			if(const auto *pGroup = Rows.GroupForRow(I))
+			{
+				EXPECT_NEAR(Rows.m_RowY[I], pGroup->m_Top + GroupPaddingRows + GroupHeaderRows + I - pGroup->m_Start, .0001f);
+				EXPECT_LE(Rows.m_RowY[I] + 1.f, pGroup->m_Bottom + .0001f);
+			}
+	}
 }

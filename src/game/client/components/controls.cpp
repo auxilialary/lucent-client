@@ -44,6 +44,7 @@ void CControls::OnReset()
 
 void CControls::ResetInput(int Dummy)
 {
+	m_aHoldInput[Dummy] = {};
 	m_aLastData[Dummy].m_Direction = 0;
 	// simulate releasing the fire button
 	if((m_aLastData[Dummy].m_Fire & 1) != 0)
@@ -274,6 +275,8 @@ int CControls::SnapInput(int *pData)
 
 	m_aLastData[g_Config.m_ClDummy].m_PlayerFlags = m_aInputData[g_Config.m_ClDummy].m_PlayerFlags;
 
+	int PhysicalJump = -1;
+
 	// we freeze the input if chat or menu is activated
 	if(!(m_aInputData[g_Config.m_ClDummy].m_PlayerFlags & PLAYERFLAG_PLAYING))
 	{
@@ -314,6 +317,24 @@ int CControls::SnapInput(int *pData)
 			m_aInputData[g_Config.m_ClDummy].m_Direction = -1;
 		if(!m_aInputDirectionLeft[g_Config.m_ClDummy] && m_aInputDirectionRight[g_Config.m_ClDummy])
 			m_aInputData[g_Config.m_ClDummy].m_Direction = 1;
+
+		// Produce ordinary input edges; server cooldowns and prediction remain authoritative.
+		const int Conn = g_Config.m_ClDummy;
+		const auto *pCharacter = GameClient()->m_Snap.m_pLocalCharacter;
+		if(Client()->State() == IClient::STATE_ONLINE && pCharacter && !GameClient()->m_Snap.m_SpecInfo.m_Active && !GameClient()->IsWorldPaused() && !g_Config.m_DbgStress)
+		{
+			const int LocalId = GameClient()->m_Snap.m_LocalClientId;
+			const bool Jetpack = LocalId >= 0 && GameClient()->m_aClients[LocalId].m_Predicted.m_Jetpack;
+			const bool RepeatFire = (pCharacter->m_Weapon == WEAPON_HAMMER && g_Config.m_ClLucentHoldHammer) ||
+				(pCharacter->m_Weapon == WEAPON_GUN && !Jetpack && g_Config.m_ClLucentHoldGun);
+			PhysicalJump = m_aInputData[Conn].m_Jump;
+			const auto Repeated = m_aHoldInput[Conn].Update(Client()->PredGameTick(Conn), m_aInputData[Conn].m_Fire,
+				m_aLastData[Conn].m_Fire, PhysicalJump != 0, RepeatFire, g_Config.m_ClLucentHoldJump, INPUT_STATE_MASK, Client()->GameTickSpeed());
+			m_aInputData[Conn].m_Fire = Repeated.m_Fire;
+			m_aInputData[Conn].m_Jump = Repeated.m_Jump;
+		}
+		else
+			m_aHoldInput[Conn] = {};
 
 		// dummy copy moves
 		if(g_Config.m_ClDummyCopyMoves)
@@ -384,12 +405,14 @@ int CControls::SnapInput(int *pData)
 
 	// copy and return size
 	m_aLastData[g_Config.m_ClDummy] = m_aInputData[g_Config.m_ClDummy];
+	if(PhysicalJump >= 0)
+		m_aInputData[g_Config.m_ClDummy].m_Jump = PhysicalJump;
 
 	if(!Send)
 		return 0;
 
 	m_LastSendTime = time_get();
-	mem_copy(pData, &m_aInputData[g_Config.m_ClDummy], sizeof(m_aInputData[0]));
+	mem_copy(pData, &m_aLastData[g_Config.m_ClDummy], sizeof(m_aLastData[0]));
 	return sizeof(m_aInputData[0]);
 }
 

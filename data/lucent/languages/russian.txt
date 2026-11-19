@@ -2225,3 +2225,21 @@ Hey, come here!
 
 Join us! I will show you the next part of the map.
 == Присоединяйся! Покажу следующую часть карты.
+
+Controls
+== Управление
+
+Hold to repeat
+== Повтор при удержании
+
+Repeat hammer while holding fire
+== Удары молотом при удержании огня
+
+Repeat gun while holding fire
+== Стрельба из пистолета при удержании огня
+
+Repeat jumps while holding jump
+== Повтор прыжков при удержании кнопки
+
+Held jump also uses available air jumps.
+== При удержании также используются прыжки в воздухе.

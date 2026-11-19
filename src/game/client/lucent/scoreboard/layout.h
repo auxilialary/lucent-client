@@ -93,7 +93,8 @@ namespace LucentScoreboard
 	}
 	struct CRange
 	{ int m_Start = 0, m_End = 0; };
-	inline constexpr float GroupHeaderRows = .6f, GroupPaddingRows = .1f;
+	inline constexpr float GroupHeaderRows = .6f, GroupPaddingRows = .1f, GroupGapRows = .2f;
+	inline constexpr float GroupOverheadRows = GroupHeaderRows + 2 * GroupPaddingRows + GroupGapRows;
 	struct CGroupRows
 	{
 		struct CGroup
@@ -123,15 +124,14 @@ namespace LucentScoreboard
 					while(End < Range.m_End && Teams[End] == Team)
 						++End;
 				const float Top = G.m_Units;
-				if(Team > 0)
-					G.m_Units += GroupPaddingRows + GroupHeaderRows;
+				const float RowsTop = Top + (Team > 0 ? GroupPaddingRows + GroupHeaderRows : 0.f);
+				const float Bottom = RowsTop + float(End - Start) + (Team > 0 ? GroupPaddingRows : 0.f);
+				// Derive bounds and row positions directly from the same group span.
 				for(; I < End; ++I)
-					G.m_RowY[I] = G.m_Units++;
+					G.m_RowY[I] = RowsTop + float(I - Start);
 				if(Team > 0)
-				{
-					G.m_Units += GroupPaddingRows;
-					G.m_Groups[G.m_Count++] = {Team, Start, End, Top, G.m_Units};
-				}
+					G.m_Groups[G.m_Count++] = {Team, Start, End, Top, Bottom};
+				G.m_Units = Bottom + (Team > 0 ? GroupGapRows : 0.f);
 			}
 			return G;
 		}
@@ -163,7 +163,7 @@ namespace LucentScoreboard
 			}
 			// Twentieths of a row make the exact shared header/padding cost integral.
 			constexpr int Unit = 20;
-			const int Overhead = int(std::round((GroupHeaderRows + 2 * GroupPaddingRows) * Unit));
+			const int Overhead = int(std::round(GroupOverheadRows * Unit));
 			std::array<int, 129> Starts{};
 			for(int I = 0; I < Count; ++I)
 				Starts[I + 1] = Starts[I] + (m_Team[Group][I] > 0 && (I == 0 || m_Team[Group][I - 1] != m_Team[Group][I]));
